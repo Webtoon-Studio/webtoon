@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Webtoon-Studio/webtoon/"
 description = "Client for interacting with various webtoon websites."
-keywords = ["comics", "webtoons", "naver", "manhwa", "client", "tapas"]
+keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
