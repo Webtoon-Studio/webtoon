@@ -1,3 +1,17 @@
+<div align="center">
+  <!-- Version -->
+  <a href="https://crates.io/crates/webtoon">
+    <img src="https://img.shields.io/crates/v/webtoon.svg?style=flat-square"
+    alt="Crates.io version" /></a>
+  <!-- Docs -->
+  <a href="https://docs.rs/webtoon">
+  <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square" alt="docs.rs docs" /></a>
+  <!-- Downloads -->
+  <a href="https://crates.io/crates/webtoon">
+    <img src="https://img.shields.io/crates/d/webtoon.svg?style=flat-square" alt="Download" />
+  </a>
+</div>
+
 # Webtoon
 
 Welcome to the `webtoon` library, a Rust-based SDK that allows you to interact with a Webtoon platform programmatically.
