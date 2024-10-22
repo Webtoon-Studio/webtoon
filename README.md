@@ -63,4 +63,4 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
-For more examples, check out the `examples` folder.
+For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
