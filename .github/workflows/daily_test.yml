@@ -1,9 +1,8 @@
-name: CI
+name: Daily Test
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
+  schedule:
+    - cron: '0 0 * * *'  # Daily schedule
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,15 +22,3 @@ jobs:
       env:
         WEBTOON_SESSION: ${{ secrets.WEBTOON_SESSION }}
       run: cargo test --verbose
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run format check
-      run: cargo fmt --check
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run clippy check
-      run: cargo clippy -- -D warnings
