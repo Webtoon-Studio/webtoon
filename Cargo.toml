@@ -1,0 +1,69 @@
+[package]
+name = "webtoon"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Webtoon-Studio/webtoon/"
+description = "Client for interacting with various webtoon websites."
+keywords = ["comics", "webtoons", "naver", "manhwa", "client", "tapas"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Currently using Mutex and sleep, and Semaphore
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["brotli", "json"] }
+anyhow = "1"
+thiserror = "1"
+scraper = "0.20"
+# used for getting the url from the css of the thumbnail and the season numbers from the title
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_with = "3"
+chrono = { version = "0.4", features = ["serde"] }
+html-escape = "0.2"
+url = "2"
+# used when the session needs to be sent in a url
+urlencoding = "2"
+rss = "2"
+image = "0.25"
+
+[dev-dependencies]
+pretty_assertions = "1"
+
+[[example]]
+name = "search"
+path = "examples/search.rs"
+
+[[example]]
+name = "originals"
+path = "examples/originals.rs"
+
+[[example]]
+name = "canvas"
+path = "examples/canvas.rs"
+
+[[example]]
+name = "creator"
+path = "examples/creator.rs"
+
+[[example]]
+name = "webtoon"
+path = "examples/webtoon.rs"
+
+[[example]]
+name = "rss"
+path = "examples/rss.rs"
+
+[[example]]
+name = "episodes"
+path = "examples/episodes.rs"
+
+[[example]]
+name = "posts"
+path = "examples/posts.rs"
+
+[[example]]
+name = "download"
+path = "examples/download.rs"
