@@ -861,7 +861,7 @@ pub struct Sticker {
 }
 
 impl Sticker {
-    // TODO: Imoliment so that users can make a Sticker when using `episode.post_with_sticker(Sticker::new(...))`
+    // TODO: Implement so that users can make a Sticker when using `episode.post_with_sticker(Sticker::new(...))`
     // pub fn new(pack: String, pack_number: u16, version: Option<u16>, id: u16) -> Self {
     //     Self {
     //         pack,
@@ -871,7 +871,6 @@ impl Sticker {
     //     }
     // }
 
-    // TODO: Imoliment so that users can make a Sticker when using `episode.post_with_sticker(Sticker::new(...))`
     /// Returns the sticker's pack id as a String.
     ///
     /// Example: "`wt_001`"
