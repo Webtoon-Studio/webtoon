@@ -1,5 +1,6 @@
 use webtoon::platform::webtoons::{errors::Error, Client, Type};
 
+// NOTE: To run: `cargo run --example download --features download`
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
     let client = match std::env::var("WEBTOON_SESSION") {
