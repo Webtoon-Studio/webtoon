@@ -3,7 +3,10 @@ name = "webtoon"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+readme = "README.md"
 repository = "https://github.com/Webtoon-Studio/webtoon/"
+documentation = "https://docs.rs/webtoon"
+categories = ["web-programming::http-client"]
 description = "Client for interacting with various webtoon websites."
 keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 
