@@ -26,11 +26,16 @@ html-escape = "0.2"
 url = "2"
 # used when the session needs to be sent in a url
 urlencoding = "2"
-rss = "2"
-image = "0.25"
+rss = { version = "2", optional = true }
+image = { version = "0.25", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1"
+
+[features]
+default = []
+rss = ["dep:rss"]
+download = ["dep:image"]
 
 [[example]]
 name = "search"
@@ -55,6 +60,7 @@ path = "examples/webtoon.rs"
 [[example]]
 name = "rss"
 path = "examples/rss.rs"
+required-features = ["rss"]
 
 [[example]]
 name = "episodes"
@@ -67,3 +73,4 @@ path = "examples/posts.rs"
 [[example]]
 name = "download"
 path = "examples/download.rs"
+required-features = ["download"]

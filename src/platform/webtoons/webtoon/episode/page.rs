@@ -1,10 +1,11 @@
-pub(super) mod panel;
+pub(super) mod panels;
 
 use anyhow::Context;
 use scraper::{Html, Selector};
 use url::Url;
 
-use self::panel::{Panel, Panels};
+use self::panels::Panel;
+
 use super::EpisodeError;
 
 #[derive(Debug, Clone)]
@@ -23,7 +24,7 @@ impl Page {
             thumbnail: thumbnail(html, episode).context("Episode thumbnail failed to be parsed")?,
             length: length(html).context("Episode length failed to be parsed")?,
             note: note(html).context("Episode creator note failed to be parsed")?,
-            panels: Panels::from_html(html, episode)
+            panels: panels::from_html(html, episode)
                 .context("Episode panel urls failed to be parsed")?,
         })
     }
