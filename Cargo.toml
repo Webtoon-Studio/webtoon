@@ -29,8 +29,12 @@ html-escape = "0.2"
 url = "2"
 # used when the session needs to be sent in a url
 urlencoding = "2"
+
+# feature = `rss`
 rss = { version = "2", optional = true }
-image = { version = "0.25", optional = true }
+
+# feature = `download`
+image = { version = "0.25", optional = true, default-features = false, features = ["png", "jpeg"]}
 
 [dev-dependencies]
 pretty_assertions = "1"
@@ -39,7 +43,7 @@ tokio = { version = "1", features = ["full"] }
 [features]
 default = []
 rss = ["dep:rss"]
-download = ["dep:image"]
+download = ["dep:image", "tokio/fs"]
 
 [[example]]
 name = "search"
