@@ -10,6 +10,7 @@
     clippy::cargo_common_metadata,
     clippy::multiple_crate_versions
 )]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
 mod stdx;
 
