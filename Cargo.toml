@@ -13,9 +13,9 @@ keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Currently using Mutex and sleep, and Semaphore
-tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["brotli", "json"] }
+# currently using `Mutex`, `sleep`, and `Semaphore`.
+tokio = { version = "1", features = ["sync", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
 anyhow = "1"
 thiserror = "1"
 scraper = "0.20"
@@ -24,21 +24,26 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_with = "3"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
 html-escape = "0.2"
 url = "2"
 # used when the session needs to be sent in a url
 urlencoding = "2"
+
+# feature = `rss`
 rss = { version = "2", optional = true }
-image = { version = "0.25", optional = true }
+
+# feature = `download`
+image = { version = "0.25", optional = true, default-features = false, features = ["png", "jpeg"]}
 
 [dev-dependencies]
 pretty_assertions = "1"
+tokio = { version = "1", features = ["full"] }
 
 [features]
 default = []
 rss = ["dep:rss"]
-download = ["dep:image"]
+download = ["dep:image", "tokio/fs"]
 
 [[example]]
 name = "search"
