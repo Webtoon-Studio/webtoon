@@ -3,7 +3,9 @@
 mod page;
 pub mod posts;
 
-pub use page::panel::{Panel, Panels};
+pub use page::panels::Panel;
+#[cfg(feature = "download")]
+pub use page::panels::Panels;
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
@@ -16,7 +18,7 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::sync::Arc;
 use std::{hash::Hash, str::FromStr};
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Mutex;
 
 use self::page::Page;
 use self::posts::Posts;
@@ -1121,7 +1123,10 @@ impl Episode {
     /// Will download the panels of episode.
     ///
     /// This returns a [`Panels`] which offers ways to save to disk.
+    #[cfg(feature = "download")]
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
+        use tokio::sync::Semaphore;
+
         let mut page = self.page.lock().await;
         if page.is_none() {
             *page = Some(self.scrape().await?);

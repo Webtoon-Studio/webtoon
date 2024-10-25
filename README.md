@@ -64,3 +64,8 @@ async fn main() -> Result<(), Error> {
 ```
 
 For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
+
+## Features
+
+- `rss`: Enables the ability to get the RSS feed data for a webtoon.
+- `download`: Enables the ability to download an episodes panels.

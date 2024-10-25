@@ -1088,6 +1088,7 @@ impl Client {
         Ok(response)
     }
 
+    #[cfg(feature = "rss")]
     pub(super) async fn get_rss_for_webtoon(
         &self,
         webtoon: &Webtoon,

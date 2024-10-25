@@ -3,14 +3,17 @@
 mod dashboard;
 pub mod episode;
 mod page;
-pub mod rss;
 
 use anyhow::Context;
 use core::fmt;
-use rss::Rss;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+#[cfg(feature = "rss")]
+pub mod rss;
+#[cfg(feature = "rss")]
+use rss::Rss;
 
 use self::{
     episode::{posts::Posts, Episode, Episodes},
@@ -762,6 +765,7 @@ impl Webtoon {
     ///
     /// - `WebtoonError::ClientError`: If there is an issue with the client while retrieving the RSS feed.
     /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the process.
+    #[cfg(feature = "rss")]
     pub async fn rss(&self) -> Result<Rss, WebtoonError> {
         rss::feed(self).await
     }

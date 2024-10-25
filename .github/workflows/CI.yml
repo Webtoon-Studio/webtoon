@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose --all-features
   test-with-session:
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +22,7 @@ jobs:
     - name: Run tests
       env:
         WEBTOON_SESSION: ${{ secrets.WEBTOON_SESSION }}
-      run: cargo test --verbose
+      run: cargo test --verbose --all-features
   fmt:
     runs-on: ubuntu-latest
     steps:
@@ -34,4 +34,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Run clippy check
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --all-features -- -D warnings
