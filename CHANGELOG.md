@@ -1,5 +1,10 @@
+## What's Changed in 0.2.1
+* chore: bump version to `0.2.0` to `0.2.1`
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.2.0...0.2.1
+
 ## What's Changed in 0.2.0
-* feat(changelog): add git-cliff generated changelog [#12](https://github.com/Webtoon-Studio/webtoon/pull/12)
+* chore: bump version from `0.1.0` to `0.2.0`
 * build: switch `reqwest` to `rustls` backend by @RoloEdits in [#8](https://github.com/Webtoon-Studio/webtoon/pull/8)
 * feat(creator): add check for disabled profile page by @RoloEdits in [#9](https://github.com/Webtoon-Studio/webtoon/pull/9)
 * refactor!: move `rss` and `download` behind feature flags by @RoloEdits in [#10](https://github.com/Webtoon-Studio/webtoon/pull/10)

@@ -1,6 +1,6 @@
 [package]
 name = "webtoon"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -9,6 +9,13 @@ documentation = "https://docs.rs/webtoon"
 categories = ["web-programming::http-client"]
 description = "Client for interacting with various webtoon websites."
 keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
+
+[package.metadata.playground]
+features = ["rss"]
+
+[package.metadata.docs.rs]
+features = ["rss", "download"]
+all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
