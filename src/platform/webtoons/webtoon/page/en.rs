@@ -462,7 +462,10 @@ pub fn calculate_total_pages(html: &Html) -> Result<u8, WebtoonError> {
     Ok(min + overflow)
 }
 
-pub(super) fn episode(element: &ElementRef, webtoon: &Webtoon) -> Result<Episode, WebtoonError> {
+pub(super) fn episode(
+    element: &ElementRef<'_>,
+    webtoon: &Webtoon,
+) -> Result<Episode, WebtoonError> {
     let title = episode_title(element)?;
 
     let number = element
@@ -490,7 +493,7 @@ pub(super) fn episode(element: &ElementRef, webtoon: &Webtoon) -> Result<Episode
     })
 }
 
-pub(super) fn episode_title(episode: &ElementRef) -> Result<String, WebtoonError> {
+pub(super) fn episode_title(episode: &ElementRef<'_>) -> Result<String, WebtoonError> {
     let selector = Selector::parse("span.subj>span") //
         .expect("`span.subj>span` should be a valid selector");
 

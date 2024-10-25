@@ -78,7 +78,10 @@ fn release(html: &Html) -> Result<Vec<Release>, WebtoonError> {
     Ok(releases)
 }
 
-pub(super) fn episode(element: &ElementRef, webtoon: &Webtoon) -> Result<Episode, WebtoonError> {
+pub(super) fn episode(
+    element: &ElementRef<'_>,
+    webtoon: &Webtoon,
+) -> Result<Episode, WebtoonError> {
     let title = super::en::episode_title(element)?;
 
     let number = element

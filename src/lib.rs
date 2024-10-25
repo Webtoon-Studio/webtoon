@@ -2,7 +2,8 @@
     missing_docs,
     rustdoc::broken_intra_doc_links,
     rustdoc::private_intra_doc_links,
-    rustdoc::missing_crate_level_docs
+    rustdoc::missing_crate_level_docs,
+    rust_2018_idioms
 )]
 #![allow(
     clippy::option_if_let_else,
