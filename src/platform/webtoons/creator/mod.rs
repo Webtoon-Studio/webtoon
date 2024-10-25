@@ -106,6 +106,10 @@ pub(super) async fn page(
         return Ok(None);
     }
 
+    if response.status() == 400 {
+        return Err(CreatorError::DisabledByCreator);
+    }
+
     let document = response.text().await?;
 
     let html = Html::parse_document(&document);

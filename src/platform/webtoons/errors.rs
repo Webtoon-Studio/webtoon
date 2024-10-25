@@ -83,6 +83,8 @@ pub enum CreatorError {
     UnsupportedLanguage,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
+    #[error("Profile page exists, but was disabled by creator")]
+    DisabledByCreator,
 }
 
 impl From<reqwest::Error> for CreatorError {
