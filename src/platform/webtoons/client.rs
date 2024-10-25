@@ -84,6 +84,7 @@ impl ClientBuilder {
     pub fn new() -> Self {
         let builder = reqwest::Client::builder()
             .user_agent(APP_USER_AGENT)
+            .use_rustls_tls()
             .https_only(true)
             .brotli(true);
 
