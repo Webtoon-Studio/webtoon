@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Run format check
-      run: cargo fmt --check --all-features
+      run: cargo fmt --check
   clippy:
     runs-on: ubuntu-latest
     steps:
