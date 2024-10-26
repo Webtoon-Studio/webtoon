@@ -166,6 +166,11 @@ pub enum Section {
         section_id: String,
         data: ContentMetaData,
     },
+    #[serde(rename = "SUPER_LIKE")]
+    SuperLike {
+        section_id: String,
+        data: SuperLikeData,
+    },
 }
 
 #[allow(unused)]
@@ -210,6 +215,15 @@ pub struct ContentInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Extra {
     pub episode_list_path: String,
+}
+
+#[allow(unused, clippy::struct_field_names)]
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SuperLikeData {
+    pub super_like_count: u32,
+    pub super_like_price: u32,
+    pub super_like_received_at: i64,
 }
 
 #[allow(dead_code)]

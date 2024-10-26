@@ -733,6 +733,7 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
         let is_spoiler = post.settings.spoiler_filter == "ON";
 
         // Only Webtoon flare can have multiple.
+        // Super likes might be able to exist along with other flare?
         let flare = if post.section_group.sections.len() > 1 {
             let mut webtoons = Vec::new();
             for section in post.section_group.sections {
@@ -743,6 +744,9 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
                     );
                     let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
                     webtoons.push(webtoon);
+                } else if let Section::SuperLike { .. } = section {
+                    // Ignore super likes
+                    continue;
                 } else {
                     bail!("Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}");
                 }
@@ -767,6 +771,8 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
                         let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
                         Some(Flare::Webtoons(vec![webtoon]))
                     }
+                    // Ignore super likes
+                    Section::SuperLike { .. } => None,
                 },
                 None => None,
             }
