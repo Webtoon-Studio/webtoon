@@ -1,10 +1,18 @@
+## What's Changed in 0.2.2
+* fix(posts): add support for `Super Like` post `section` by @RoloEdits in [#16](https://github.com/Webtoon-Studio/webtoon/pull/16)
+* perf(replies): add early return when replies are zero by @RoloEdits in [#15](https://github.com/Webtoon-Studio/webtoon/pull/15)
+* style(clippy): fix `rust_2018_idioms` lints by @RoloEdits in [#14](https://github.com/Webtoon-Studio/webtoon/pull/14)
+* docs: add `docs.rs` flag for feature annotations by @RoloEdits in [#13](https://github.com/Webtoon-Studio/webtoon/pull/13)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.2.1...0.2.2
+
 ## What's Changed in 0.2.1
-* chore: bump version to `0.2.0` to `0.2.1`
+* chore: bump version to `0.2.0` to `0.2.1` by @RoloEdits
 
 **Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.2.0...0.2.1
 
 ## What's Changed in 0.2.0
-* chore: bump version from `0.1.0` to `0.2.0`
+* chore: bump version from `0.1.0` to `0.2.0` by @RoloEdits in [#12](https://github.com/Webtoon-Studio/webtoon/pull/12)
 * build: switch `reqwest` to `rustls` backend by @RoloEdits in [#8](https://github.com/Webtoon-Studio/webtoon/pull/8)
 * feat(creator): add check for disabled profile page by @RoloEdits in [#9](https://github.com/Webtoon-Studio/webtoon/pull/9)
 * refactor!: move `rss` and `download` behind feature flags by @RoloEdits in [#10](https://github.com/Webtoon-Studio/webtoon/pull/10)
