@@ -12,12 +12,12 @@ async fn main() -> Result<(), Error> {
         _ => Client::new(),
     };
 
-    let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
+    let Some(webtoon) = client.webtoon(805407, Type::Canvas).await? else {
         panic!("No webtoon of given id and type exits");
     };
 
     let episode = webtoon
-        .episode(1)
+        .episode(2)
         .await?
         .expect("No episode for given number");
 
