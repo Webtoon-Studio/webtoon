@@ -1279,6 +1279,10 @@ impl Replies for u32 {
 impl Sealed for Posts {}
 impl Replies for Posts {
     async fn replies(post: &Post) -> Result<Self, PostError> {
+        // No need to make a network request when there ar no replies to fetch.
+        if post.replies == 0 {
+            return Ok(Posts { posts: Vec::new() });
+        }
         #[allow(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"

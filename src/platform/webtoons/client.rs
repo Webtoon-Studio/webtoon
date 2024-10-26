@@ -1300,13 +1300,15 @@ impl Client {
 
         let url =format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/count", post.id) ;
 
-        self.http
+        let response = self
+            .http
             .get(url)
             .header("Service-Ticket-Id", "epicom")
             .header("Cookie", format!("NEO_SES={session}"))
             .send()
-            .await
-            .map_err(|err| ClientError::Unexpected(err.into()))
+            .await?;
+
+        Ok(response)
     }
 
     pub(super) async fn get_replies_for_post(
