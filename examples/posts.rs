@@ -21,7 +21,7 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("No episode for given number");
 
-    if let Ok(true) = client.has_valid_session().await {
+    if client.has_session() {
         // Post content and if its marked as a spoiler.
         episode.post("MESSAGE", false).await?;
     }
@@ -41,6 +41,7 @@ async fn main() -> Result<(), Error> {
         println!("downvotes: {}", post.downvotes());
         let replies: u32 = post.replies().await?;
         println!("replies: {replies}");
+        println!("super like: {:?}", post.poster().super_like());
 
         for reply in post.replies::<Posts>().await? {
             println!("\tusername: {}", reply.poster().username());
@@ -52,7 +53,7 @@ async fn main() -> Result<(), Error> {
             println!();
         }
 
-        if let Ok(true) = client.has_valid_session().await {
+        if client.has_session() {
             post.upvote().await?;
             post.downvote().await?;
             post.unvote().await?;

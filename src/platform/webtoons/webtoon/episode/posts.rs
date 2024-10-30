@@ -737,26 +737,30 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
 
         let is_deleted = post.status == "DELETE";
         let is_spoiler = post.settings.spoiler_filter == "ON";
+        let mut super_like: Option<u32> = None;
 
         // Only Webtoon flare can have multiple.
         // Super likes might be able to exist along with other flare?
         let flare = if post.section_group.sections.len() > 1 {
             let mut webtoons = Vec::new();
             for section in post.section_group.sections {
-                if let Section::ContentMeta { data, .. } = section {
-                    let url = format!(
-                        "https://www.webtoons.com{}",
-                        data.info.extra.episode_list_path
-                    );
-                    let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                    webtoons.push(webtoon);
-                } else if let Section::SuperLike { .. } = section {
-                    // Ignore super likes
-                    continue;
-                } else {
-                    bail!(
-                        "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
-                    );
+                match section {
+                    Section::ContentMeta { data, .. } => {
+                        let url = format!(
+                            "https://www.webtoons.com{}",
+                            data.info.extra.episode_list_path
+                        );
+                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
+                        webtoons.push(webtoon);
+                    }
+                    Section::SuperLike { data, .. } => {
+                        super_like = Some(data.super_like_count);
+                    }
+                    _ => {
+                        bail!(
+                            "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
+                        );
+                    }
                 }
             }
             Some(Flare::Webtoons(webtoons))
@@ -780,7 +784,10 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
                         Some(Flare::Webtoons(vec![webtoon]))
                     }
                     // Ignore super likes
-                    Section::SuperLike { .. } => None,
+                    Section::SuperLike { data, .. } => {
+                        super_like = Some(data.super_like_count);
+                        None
+                    }
                 },
                 None => None,
             }
@@ -818,6 +825,7 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
                 is_creator: post.created_by.is_creator,
                 is_blocked: post.created_by.restriction.is_write_post_restricted,
                 reaction: Arc::new(RwLock::new(reaction)),
+                super_like,
             },
         })
     }
@@ -1070,6 +1078,7 @@ pub struct Poster {
     pub(crate) is_current_session_user: bool,
     pub(crate) is_current_webtoon_creator: bool,
     pub(crate) reaction: Arc<RwLock<Reaction>>,
+    pub(crate) super_like: Option<u32>,
 }
 
 #[expect(clippy::missing_fields_in_debug)]
@@ -1089,6 +1098,7 @@ impl fmt::Debug for Poster {
                 &self.is_current_webtoon_creator,
             )
             .field("reaction", &self.reaction)
+            .field("super_likes", &self.super_like)
             .finish()
     }
 }
@@ -1140,6 +1150,19 @@ impl Poster {
     /// Returns if the session user is the creator of the current webtoon.
     pub fn is_current_webtoon_creator(&self) -> bool {
         self.is_current_webtoon_creator
+    }
+
+    /// Returns if the poster left a super like for the posts' episode.
+    pub fn did_super_like_episode(&self) -> bool {
+        self.super_like.is_some()
+    }
+
+    /// Returns the amount the poster super liked the posts' episode.
+    ///
+    /// Will return `None` if the poster didn't super like the episode, otherwise
+    /// returns `Some` with the amount they did.
+    pub fn super_like(&self) -> Option<u32> {
+        self.super_like
     }
 
     /// Will block poster for current webtoon.
