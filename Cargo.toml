@@ -24,7 +24,7 @@ all-features = true
 tokio = { version = "1", features = ["sync", "time"] }
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"
 scraper = "0.21"
 # used for getting the url from the css of the thumbnail and the season numbers from the title
 regex = "1"
