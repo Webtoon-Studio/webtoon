@@ -1275,7 +1275,6 @@ pub trait Replies: Sized + Sealed {
     async fn replies(post: &Post) -> Result<Self, PostError>;
 }
 
-impl Sealed for u32 {}
 impl Replies for u32 {
     async fn replies(post: &Post) -> Result<Self, PostError> {
         Ok(post.replies)

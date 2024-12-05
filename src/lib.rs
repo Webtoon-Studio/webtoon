@@ -20,3 +20,5 @@ pub mod platform;
 mod private {
     pub trait Sealed {}
 }
+
+impl private::Sealed for u32 {}

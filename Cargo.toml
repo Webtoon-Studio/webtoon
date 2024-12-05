@@ -54,38 +54,42 @@ download = ["dep:image", "tokio/fs"]
 
 [[example]]
 name = "search"
-path = "examples/search.rs"
+path = "examples/webtoons/search.rs"
 
 [[example]]
 name = "originals"
-path = "examples/originals.rs"
+path = "examples/webtoons/originals.rs"
 
 [[example]]
 name = "canvas"
-path = "examples/canvas.rs"
+path = "examples/webtoons/canvas.rs"
 
 [[example]]
 name = "creator"
-path = "examples/creator.rs"
+path = "examples/webtoons/creator.rs"
 
 [[example]]
 name = "webtoon"
-path = "examples/webtoon.rs"
+path = "examples/webtoons/webtoon.rs"
 
 [[example]]
 name = "rss"
-path = "examples/rss.rs"
+path = "examples/webtoons/rss.rs"
 required-features = ["rss"]
 
 [[example]]
 name = "episodes"
-path = "examples/episodes.rs"
+path = "examples/webtoons/episodes.rs"
 
 [[example]]
 name = "posts"
-path = "examples/posts.rs"
+path = "examples/webtoons/posts.rs"
 
 [[example]]
 name = "download"
-path = "examples/download.rs"
+path = "examples/webtoons/download.rs"
 required-features = ["download"]
+
+[[example]]
+name = "naver-webtoon"
+path = "examples/naver/webtoon.rs"
