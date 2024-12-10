@@ -1,5 +1,6 @@
 //! Contains metadata implementations for webtoons.com.
 
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
@@ -97,6 +98,20 @@ pub enum Type {
     Original,
     /// A Canvas webtoon.
     Canvas,
+}
+
+impl FromStr for Type {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "WEBTOON" => Ok(Self::Original),
+            "CHALLENGE" => Ok(Self::Canvas),
+            _ => {
+                bail!("`{s}` is not a valid webtoon type. Expected one of `WEBTOON` or `CHALLENGE`")
+            }
+        }
+    }
 }
 
 /// An Error that can occur when parsing a letter to a [`Type`].

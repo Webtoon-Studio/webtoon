@@ -1,10 +1,10 @@
 //! Module containing things related to a creator on webtoons.com.
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use core::fmt::{self, Debug};
 use scraper::{Html, Selector};
 
-use super::{errors::CreatorError, Client, Language, Webtoon};
+use super::{errors::CreatorError, Client, Language, Type, Webtoon};
 
 // TODO: Implement page caching
 
@@ -34,7 +34,6 @@ impl Debug for Creator {
 
 pub(super) struct Page {
     pub username: String,
-    pub webtoons: Vec<Webtoon>,
     pub followers: u32,
 }
 
@@ -87,11 +86,31 @@ impl Creator {
             return Ok(None);
         };
 
-        let webtoons = page(self.language, profile, &self.client)
-            .await?
-            .map(|page| page.webtoons);
+        let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles");
 
-        Ok(webtoons)
+        let response = self
+            .client
+            .http
+            .get(url)
+            .send()
+            .await?
+            .json::<api::Response>()
+            .await?;
+
+        let mut webtoons = Vec::with_capacity(response.result.total_count);
+
+        for webtoon in response.result.titles {
+            let id = webtoon
+                .id
+                .parse::<u32>()
+                .context("failed to parse webtoon id to number")?;
+
+            let r#type = webtoon.r#type.parse::<Type>()?;
+
+            webtoons.push(Webtoon::new_with_client(id, r#type, &self.client).await?);
+        }
+
+        Ok(Some(webtoons))
     }
 }
 
@@ -116,59 +135,94 @@ pub(super) async fn page(
 
     Ok(Some(Page {
         username: username(&html)?,
-        webtoons: webtoons(&html, client)?,
         followers: followers(&html)?,
     }))
 }
 
 fn username(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("div.author_wrap>div.info>strong.nickname")
-        .expect("`div.author_wrap>div.info>strong.nickname` should be a valid selector");
+    let selector = Selector::parse("h3").expect("`h3` should be a valid selector");
 
-    let username = html
-        .select(&selector)
-        .next()
-        .context("username was not found on page")?
-        .text()
-        .next()
-        .context("username element was empty")?
-        .to_string();
+    for element in html.select(&selector) {
+        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
+        if let Some(class) = element.value().attr("class") {
+            if class.starts_with("HomeProfile_nickname") {
+                return Ok(element
+                    .text()
+                    .next()
+                    .context("username element was empty")?
+                    .to_string());
+            }
+        }
+    }
 
-    Ok(username)
+    Err(CreatorError::Unexpected(anyhow!(
+        "failed to find creator username on creator page"
+    )))
 }
 
 fn followers(html: &Html) -> Result<u32, CreatorError> {
-    let selector = Selector::parse("div.author_wrap>div.info>div.etc>strong>span._followerCount")
-        .expect(
-        "`div.author_wrap>div.info>div.etc>strong>span._followerCount` should be a valid selector",
-    );
+    let selector = Selector::parse("span").expect("`span` should be a valid selector");
 
-    let followers: u32 = html
-        .select(&selector)
-        .next()
-        .context("follower count was not found on page")?
-        .text()
-        .next()
-        .context("follower count element was empty")?
-        .replace(',', "")
-        .parse()
-        .context("follower count was not a number")?;
-
-    Ok(followers)
-}
-
-fn webtoons(html: &Html, client: &Client) -> Result<Vec<Webtoon>, CreatorError> {
-    let mut webtoons = Vec::new();
-
-    let selector = Selector::parse("ul.work_list>li.item>a._clickTitleGaLogging")
-        .expect("`ul.work_list>li.item>a._clickTitleGaLogging` should be a valid selector");
+    // The same class name is used for series count as well. To get the followers, we need the second instance,
+    let mut encountered_class = false;
 
     for element in html.select(&selector) {
-        let url = element.attr("href") //
-                .context("`href` is missing, `ul.work_list>li.item>a._clickTitleGaLogging` should always have one")?;
+        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
+        if let Some(class) = element.value().attr("class") {
+            if class.starts_with("CreatorBriefMetric_count") {
+                if encountered_class {
+                    return Ok(element
+                        .text()
+                        .next()
+                        .context("follower count element was empty")?
+                        .replace(',', "")
+                        .parse()
+                        .context("follower count was not a number")?);
+                }
 
-        webtoons.push(Webtoon::from_url_with_client(url, client)?);
+                encountered_class = true;
+            }
+        }
     }
 
-    Ok(webtoons)
+    Err(CreatorError::Unexpected(anyhow!(
+        "failed to find creator follower count on creator page"
+    )))
+}
+
+#[allow(unused)]
+mod api {
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    pub(super) struct Response {
+        pub result: Result,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub(super) struct Result {
+        pub titles: Vec<Titles>,
+        pub total_count: usize,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub(super) struct Titles {
+        pub id: String,
+        #[serde(rename = "subject")]
+        pub title: String,
+        pub authors: Vec<Authors>,
+        pub genres: Vec<String>,
+        #[serde(rename = "grade")]
+        pub r#type: String,
+        pub thumbnail_url: String,
+        pub recent_episode_registered_at: i64,
+        pub title_registered_at: i64,
+    }
+
+    #[derive(Deserialize)]
+    pub(super) struct Authors {
+        pub nickname: String,
+    }
 }

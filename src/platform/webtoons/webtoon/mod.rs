@@ -979,6 +979,69 @@ impl Webtoon {
         let mut page = self.page.lock().await;
         *page = None;
     }
+}
+
+// Internal use
+impl Webtoon {
+    pub(super) async fn new_with_client(
+        id: u32,
+        r#type: Type,
+        client: &Client,
+    ) -> Result<Self, anyhow::Error> {
+        let url = format!(
+            "https://www.webtoons.com/*/{}/*/list?title_no={id}",
+            match r#type {
+                Type::Original => "*",
+                Type::Canvas => "canvas",
+            }
+        );
+
+        let response = client.http.get(&url).send().await?;
+
+        // Webtoon doesn't exist
+        if response.status() == 404 {
+            anyhow::bail!("Webtoon should always exist when using `new_with_client` which is designed for internal use only.");
+        }
+
+        let mut segments = response
+            .url()
+            .path_segments()
+            .ok_or(WebtoonError::InvalidUrl(
+                "Webtoon url should have segments separated by `/`; this url did not.",
+            ))?;
+
+        let segment = segments
+            .next()
+            .ok_or(WebtoonError::InvalidUrl(
+                "Webtoon URL was found to have segments, but for some reason failed to extract that first segment, which should be a language code: e.g `en`",
+            ))?;
+
+        let language = Language::from_str(segment)
+            .context("Failed to parse return URL segment into `Language` enum")?;
+
+        let segment = segments.next().ok_or(
+                WebtoonError::InvalidUrl("Url was found to have segments, but didn't have a second segment, representing the scope of the webtoon.")
+            )?;
+
+        let scope = Scope::from_str(segment) //
+            .context("Failed to parse URL scope path to a `Scope`")?;
+
+        let slug = segments
+            .next()
+            .ok_or( WebtoonError::InvalidUrl( "Url was found to have segments, but didn't have a third segment, representing the slug name of the Webtoon."))?
+            .to_string();
+
+        let webtoon = Webtoon {
+            client: client.clone(),
+            id,
+            language,
+            scope,
+            slug: Arc::from(slug),
+            page: Arc::new(Mutex::new(None)),
+        };
+
+        Ok(webtoon)
+    }
 
     pub(super) fn from_url_with_client(url: &str, client: &Client) -> Result<Self, anyhow::Error> {
         let url = url::Url::parse(url).map_err(|err| WebtoonError::Unexpected(err.into()))?;
