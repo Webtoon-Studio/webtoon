@@ -443,6 +443,10 @@ impl Webtoon {
     /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
     /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the banner image.
     pub async fn banner(&self) -> Result<Option<String>, WebtoonError> {
+        if self.scope == Scope::Canvas {
+            return Ok(None);
+        }
+
         let mut guard = self.page.lock().await;
 
         if let Some(page) = &*guard {
