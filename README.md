@@ -35,7 +35,7 @@ To use this library, add `webtoon` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-webtoon = "0.2.2"
+webtoon = "0.2.3"
 ```
 
 ## Example Usage
