@@ -914,7 +914,7 @@ impl Client {
         lang: Language,
         profile: &str,
     ) -> Result<Response, ClientError> {
-        let url = format!("https://www.webtoons.com/{lang}/creator/{profile}");
+        let url = format!("https://www.webtoons.com/p/community/{lang}/u/{profile}");
         let response = self.http.get(url).send().await?;
         Ok(response)
     }
