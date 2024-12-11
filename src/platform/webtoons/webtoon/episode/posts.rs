@@ -726,6 +726,7 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
         } else if did_dislike {
             Reaction::Downvote
         } else {
+            // Defaults to `None` if no session was available for use.
             Reaction::None
         };
 
