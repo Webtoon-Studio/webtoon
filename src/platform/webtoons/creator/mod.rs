@@ -38,6 +38,7 @@ pub(super) struct Page {
     pub username: String,
     pub followers: u32,
     pub id: String,
+    pub has_patreon: bool,
 }
 
 impl Creator {
@@ -159,6 +160,27 @@ impl Creator {
         Ok(Some(webtoons))
     }
 
+    /// Returns if creator has a Patreon linked to their account.
+    ///
+    /// Will return `None` if the language version of the site doesn't support profile pages.
+    pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
+        let mut lock = self.page.lock().await;
+
+        if lock.is_none() {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            *lock = page(self.language, profile, &self.client).await?;
+        }
+
+        let has_patreon = lock.as_ref().map(|page| page.has_patreon);
+
+        drop(lock);
+
+        Ok(has_patreon)
+    }
+
     /// Clears the cached metadata for the current `Creator`, forcing future requests to retrieve fresh data from the network.
     ///
     /// ### Behavior
@@ -218,6 +240,7 @@ pub(super) async fn page(
     Ok(Some(Page {
         username: username(&html)?,
         followers: followers(&html)?,
+        has_patreon: has_patreon(&html),
         id: id(&html)?,
     }))
 }
@@ -323,6 +346,24 @@ fn id(html: &Html) -> Result<String, CreatorError> {
     Err(CreatorError::Unexpected(anyhow!(
         "failed to find alternate creator profile in creatior page html"
     )))
+}
+
+fn has_patreon(html: &Html) -> bool {
+    let selector = Selector::parse("img").expect("`img` should be a valid selector");
+
+    let mut has_patreon = false;
+
+    for element in html.select(&selector) {
+        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
+        if let Some(alt) = element.value().attr("alt") {
+            if alt == "PATREON" {
+                has_patreon = true;
+                break;
+            }
+        }
+    }
+
+    has_patreon
 }
 
 #[allow(unused)]
