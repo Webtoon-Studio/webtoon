@@ -123,7 +123,9 @@ async fn posts() -> Result<(), Error> {
             // If has valid session and user has moderating permission(is the creator)
             // post.poster().block().await;
 
-            post.reply("REPLY", true).await.unwrap();
+            if !post.is_deleted() {
+                post.reply("REPLY", true).await.unwrap();
+            }
 
             let replies = post.replies::<Posts>().await.unwrap();
 
@@ -135,7 +137,7 @@ async fn posts() -> Result<(), Error> {
             }
 
             // Delete just added post
-            if post.body().contents() == "MESSAGE" {
+            if post.body().contents() == "MESSAGE" && !post.is_deleted() {
                 post.delete().await.unwrap();
             }
         }
