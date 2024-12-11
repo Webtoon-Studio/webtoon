@@ -11,6 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!("username: {}", creator.username());
     println!("followers: {:?}", creator.followers().await?);
+    println!("has_patreon: {:?}", creator.has_patreon().await?);
     println!("webtoons: {:#?}", creator.webtoons().await?);
 
     Ok(())
