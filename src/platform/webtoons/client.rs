@@ -330,7 +330,8 @@ impl Client {
             client: self.clone(),
             language,
             profile: Some(profile.into()),
-            username: page.username,
+            username: page.username.clone(),
+            page: Arc::new(Mutex::new(Some(page))),
         }))
     }
 

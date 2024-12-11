@@ -3,10 +3,10 @@
 use anyhow::{anyhow, Context};
 use core::fmt::{self, Debug};
 use scraper::{Html, Selector};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use super::{errors::CreatorError, Client, Language, Type, Webtoon};
-
-// TODO: Implement page caching
 
 /// Represents a creator of a webtoon.
 ///
@@ -18,6 +18,7 @@ pub struct Creator {
     pub(super) username: String,
     // Originals authors might not have a profile: Korean, Chinese, German, and French
     pub(super) profile: Option<String>,
+    pub(super) page: Arc<Mutex<Option<Page>>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -32,9 +33,11 @@ impl Debug for Creator {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct Page {
     pub username: String,
     pub followers: u32,
+    pub id: String,
 }
 
 impl Creator {
@@ -55,13 +58,19 @@ impl Creator {
     /// Will return `None` if profile page is not supported for language version.
     /// - French, German, Korean, and Chinese.
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        let Some(profile) = self.profile.as_deref() else {
-            return Ok(None);
-        };
+        let mut lock = self.page.lock().await;
 
-        let followers = page(self.language, profile, &self.client)
-            .await?
-            .map(|page| page.followers);
+        if lock.is_none() {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            *lock = page(self.language, profile, &self.client).await?;
+        }
+
+        let followers = lock.as_ref().map(|page| page.followers);
+
+        drop(lock);
 
         Ok(followers)
     }
@@ -82,20 +91,57 @@ impl Creator {
     ///
     /// Will error if scrape encountered an unexpected html shape, or if network request encounter issues.
     pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
-        let Some(profile) = self.profile.as_deref() else {
+        let Some(profile) = self
+            .profile
+            .as_deref()
+            // Profiles can be prefixed with `_` but the url needs it trimmed to work.
+            .map(|profile| profile.trim_start_matches('_'))
+        else {
             return Ok(None);
         };
 
-        let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles");
+        let language = self.language.as_str_caps();
 
-        let response = self
+        let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}");
+
+        let response = if let Ok(response) = self
             .client
             .http
             .get(url)
             .send()
             .await?
             .json::<api::Response>()
-            .await?;
+            .await
+        {
+            response
+        } else {
+            let mut lock = self.page.lock().await;
+
+            if lock.is_none() {
+                let Some(profile) = self.profile.as_deref() else {
+                    return Ok(None);
+                };
+
+                *lock = page(self.language, profile, &self.client).await?;
+            }
+
+            let profile = lock
+                .as_ref()
+                .map(|page| page.id.clone())
+                .context("failed to find creator profile property on creator page html")?;
+
+            drop(lock);
+
+            let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}");
+
+            self.client
+                .http
+                .get(url)
+                .send()
+                .await?
+                .json::<api::Response>()
+                .await?
+        };
 
         let mut webtoons = Vec::with_capacity(response.result.total_count);
 
@@ -111,6 +157,42 @@ impl Creator {
         }
 
         Ok(Some(webtoons))
+    }
+
+    /// Clears the cached metadata for the current `Creator`, forcing future requests to retrieve fresh data from the network.
+    ///
+    /// ### Behavior
+    ///
+    /// - **Cache Eviction**:
+    ///   - This method clears the cached creator metadata (such as username, followers, and other page information) that has been stored for performance reasons.
+    ///   - After calling this method, subsequent calls that rely on this metadata will trigger a network request to re-fetch the data.
+    ///
+    /// ### Use Case
+    ///
+    /// - Use this method if you suspect the cached data is outdated or if you want to ensure that future data retrieval reflects the latest updates from the creator's page.
+    ///
+    /// ### Example
+    ///
+    /// ```rust,no_run
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// # let client = Client::new();
+    /// # if let Some(creator) = client.creator("JennyToons", Language::En).await? {
+    /// creator.evict_cache().await;
+    /// println!("Cache cleared. Future requests will fetch fresh data.");
+    /// # }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ### Notes
+    ///
+    /// - There are no errors returned from this function, as it only resets the cache.
+    /// - Cache eviction is useful if the creators metadata has changed or if up-to-date information is needed for further operations.
+    pub async fn evict_cache(&self) {
+        let mut page = self.page.lock().await;
+        *page = None;
     }
 }
 
@@ -136,6 +218,7 @@ pub(super) async fn page(
     Ok(Some(Page {
         username: username(&html)?,
         followers: followers(&html)?,
+        id: id(&html)?,
     }))
 }
 
@@ -187,6 +270,58 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
 
     Err(CreatorError::Unexpected(anyhow!(
         "failed to find creator follower count on creator page"
+    )))
+}
+
+fn id(html: &Html) -> Result<String, CreatorError> {
+    let selector = Selector::parse("script").expect("`script` should be a valid selector");
+
+    for element in html.select(&selector) {
+        if let Some(inner) = element.text().next() {
+            if let Some(idx) = inner.find("creatorId") {
+                let mut quotes = 0;
+
+                // EXAMPLE: `creatorId\":\"n5z4d\"`
+                let bytes = &inner.as_bytes()[idx..];
+
+                let mut start = 0;
+                let mut idx = 0;
+
+                let mut found_start = false;
+
+                loop {
+                    if bytes[idx] == b'"' {
+                        quotes += 1;
+                    }
+
+                    if quotes == 2 && !found_start {
+                        // `creatorId\":\"n5z4d\"`
+                        //           idx ^
+                        // Advance beyond quote:
+                        //
+                        // `creatorId\":\"n5z4d\"`
+                        //          start ^
+                        start = idx + 1;
+                        found_start = true;
+                    }
+
+                    if quotes == 3 {
+                        // `creatorId\":\"n5z4d\"`
+                        //          start ^     ^ idx
+                        return Ok(std::str::from_utf8(&bytes[start..idx])
+                            .expect("parsed creator id should be valid utf-8")
+                            .trim_end_matches('\\')
+                            .to_string());
+                    }
+
+                    idx += 1;
+                }
+            }
+        }
+    }
+
+    Err(CreatorError::Unexpected(anyhow!(
+        "failed to find alternate creator profile in creatior page html"
     )))
 }
 

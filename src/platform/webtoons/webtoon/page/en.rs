@@ -142,6 +142,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
             language: Language::En,
             profile: Some(profile.into()),
             username,
+            page: Arc::new(Mutex::new(None)),
         });
     }
 
@@ -181,6 +182,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                     language: Language::En,
                     profile: None,
                     username: username.into(),
+                    page: Arc::new(Mutex::new(None)),
                 });
             }
         }

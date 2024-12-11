@@ -89,6 +89,28 @@ impl Language {
             Self::De => "de",
         }
     }
+
+    /// Returns a string representation of the language.
+    /// - En -> "en"
+    /// - Zh -> "zh-hant"
+    /// - Th -> "th"
+    /// - Id -> "id"
+    /// - Es -> "es"
+    /// - Fr -> "fr"
+    /// - De -> "de"
+    #[must_use]
+    pub const fn as_str_caps(self) -> &'static str {
+        match self {
+            Self::En => "ENGLISH",
+            Self::Th => "THAI",
+            Self::Id => "INDONESIAN",
+            Self::Es => "SPANISH",
+            // Below haven't been confirmed.
+            Self::Zh => "CHINESE",
+            Self::De => "GERMAN",
+            Self::Fr => "FRENCH",
+        }
+    }
 }
 
 /// Represents the type a webtoon can be on webtoons.com.
