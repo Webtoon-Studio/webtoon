@@ -151,37 +151,33 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
 
     // Originals creators that have no Webtoon account, or a mix of no accounts and `webtoons.com` accounts.
     if let Some(selected) = html.select(&selector).next() {
-        'text: for text in selected.text() {
+        for text in selected.text() {
             // The last text block in the element meaning all creators have been gone through.
             if text == "author info" {
                 break;
             }
 
-            // `webtoons.com` creators have their name come up again in this loop.
-            // The text should be the exact same so its safe to check if they already exist in the vector,
-            // continuing to the next text block if so.
-            for creator in &creators {
-                if creator.username == text {
-                    continue 'text;
-                }
-            }
-
-            for username in text.split_whitespace() {
-                // This is only at the end of the creator text, so we can stop here.
-                if username == "..." {
-                    break 'text;
-                }
-
-                // Incase a creator has a comma in their name, this check and `continue` would filter this case.
-                if username == "," {
+            'username: for username in text.split(',') {
+                let username = username.trim().trim_end_matches("...").trim();
+                if username.is_empty() {
                     continue;
+                }
+                eprintln!("`{username}`");
+
+                // `webtoons.com` creators have their name come up again in this loop.
+                // The text should be the exact same so its safe to check if they already exist in the vector,
+                // continuing to the next text block if so.
+                for creator in &creators {
+                    if creator.username == username {
+                        continue 'username;
+                    }
                 }
 
                 creators.push(Creator {
                     client: client.clone(),
                     language: Language::En,
                     profile: None,
-                    username: username.into(),
+                    username: username.trim().into(),
                     page: Arc::new(Mutex::new(None)),
                 });
             }
