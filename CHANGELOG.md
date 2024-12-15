@@ -1,4 +1,11 @@
+## What's Changed in 0.3.2
+* chore: bump version from 0.3.1 to 0.3.2
+* fix: remove leftover `eprintln!` by @RoloEdits in [#33](https://github.com/Webtoon-Studio/webtoon/pull/33)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.3.1...0.3.2
+
 ## What's Changed in 0.3.1
+* chore: bump version from 0.3.0 to 0.3.1 by @RoloEdits in [#32](https://github.com/Webtoon-Studio/webtoon/pull/32)
 * fix(page): correct parsing of creator names by @RoloEdits in [#31](https://github.com/Webtoon-Studio/webtoon/pull/31)
 
 **Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.3.0...0.3.1
