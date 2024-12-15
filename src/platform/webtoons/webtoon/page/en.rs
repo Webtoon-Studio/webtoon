@@ -162,7 +162,6 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                 if username.is_empty() {
                     continue;
                 }
-                eprintln!("`{username}`");
 
                 // `webtoons.com` creators have their name come up again in this loop.
                 // The text should be the exact same so its safe to check if they already exist in the vector,

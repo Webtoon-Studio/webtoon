@@ -1023,8 +1023,7 @@ impl Client {
 
         let session = self.session.as_ref().unwrap();
 
-        let response = self
-            .http
+        self.http
             .post(url)
             .header("Referer", "https://www.webtoons.com/")
             // NOTE: `wtu` just has to have something as a value and it works
@@ -1032,9 +1031,6 @@ impl Client {
             .form(&form)
             .send()
             .await?;
-
-        let rating = response.text().await?;
-        eprintln!("new rating: {rating}");
 
         Ok(())
     }
