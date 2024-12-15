@@ -1,9 +1,21 @@
+## What's Changed in 0.3.1
+* fix(page): correct parsing of creator names by @RoloEdits in [#31](https://github.com/Webtoon-Studio/webtoon/pull/31)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.3.0...0.3.1
+
 ## What's Changed in 0.3.0
-* chore: bump version from 0.2.3 to 0.3.0
+* chore: bump version from 0.2.3 to 0.3.0 by @RoloEdits in [#29](https://github.com/Webtoon-Studio/webtoon/pull/29)
+* chore: bump version from 0.2.3 to 0.3.0 by @RoloEdits
+* fix(tests): check if post is deleted before replying by @RoloEdits in [#30](https://github.com/Webtoon-Studio/webtoon/pull/30)
+* fix(tests): check if post is deleted before replying by @RoloEdits
 * feat: add integration tests by @RoloEdits in [#26](https://github.com/Webtoon-Studio/webtoon/pull/26)
+* feat: add integration tests by @RoloEdits
 * doc(posts): if no session default to `Reaction::None` by @RoloEdits in [#25](https://github.com/Webtoon-Studio/webtoon/pull/25)
+* doc(posts): if no session default to `Reaction::None` by @RoloEdits
 * feat(creator): add `has_patreon` function to `Creator` by @RoloEdits in [#24](https://github.com/Webtoon-Studio/webtoon/pull/24)
+* feat(creator): add `has_patreon` function to `Creator` by @RoloEdits
 * fix(creator): handle edge case for old accounts by @RoloEdits in [#23](https://github.com/Webtoon-Studio/webtoon/pull/23)
+* fix(creator): handle edgecase for old accounts by @RoloEdits
 
 **Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.2.3...0.3.0
 
