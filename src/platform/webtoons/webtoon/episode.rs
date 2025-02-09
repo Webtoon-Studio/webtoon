@@ -1220,7 +1220,7 @@ impl Episode {
     }
 
     /// Scrapes episode page, getting `note`, `length`, `title`, `thumbnail` and the urls for the panels.
-    async fn scrape<'a>(&self) -> Result<Page, EpisodeError> {
+    async fn scrape(&self) -> Result<Page, EpisodeError> {
         let response = self
             .webtoon
             .client

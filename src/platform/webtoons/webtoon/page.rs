@@ -36,7 +36,7 @@ pub struct Page {
 }
 
 #[inline]
-pub async fn scrape<'a>(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
+pub async fn scrape(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
     let response = webtoon.client.get_webtoon_page(webtoon, None).await?;
 
     let document = response.text().await?;
