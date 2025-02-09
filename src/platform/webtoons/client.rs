@@ -848,7 +848,9 @@ impl Client {
             .await?
             .json()
             .await
-            .context("`userInfo` json should have a `loginUser`field")?;
+            .map_err(|err| {
+                ClientError::Unexpected(anyhow!("failed to deserialize `userInfo` endpoint: {err}"))
+            })?;
         Ok(user_info)
     }
 
