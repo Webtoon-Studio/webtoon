@@ -360,7 +360,10 @@ pub fn original_thumbnail(html: &Html) -> Result<Url, WebtoonError> {
         .captures(style)
         .context("failed to find thumbail url on page: should have `url(...)` in style tag")?;
 
-    let mut thumbnail = Url::parse(&cap["url"])?;
+    // Url is surrounded by single quotes: `'`
+    let url = cap["url"].trim_matches('\'');
+
+    let mut thumbnail = Url::parse(url)?;
 
     thumbnail
         // This host doesn't need a `referer` header to see the image.
