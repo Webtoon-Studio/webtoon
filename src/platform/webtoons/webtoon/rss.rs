@@ -106,7 +106,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
             page: Arc::new(Mutex::new(None)),
             views: None,
             ad_status: None,
-            // RSS can only be generated for public and free(not behiong ad or fast-pass) episodes.
+            // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.
             published_status: Some(PublishedStatus::Published),
         });
     }
