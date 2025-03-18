@@ -25,7 +25,7 @@ use reqwest::Response;
 use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc};
+use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
@@ -840,17 +840,36 @@ impl Client {
     ///
     /// Will return an error if there was an issue with the network request or deserilization.
     pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, ClientError> {
-        let user_info: UserInfo = self
-            .http
-            .get("https://www.webtoons.com/en/member/userInfo")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
-            .await?
-            .json()
-            .await
-            .map_err(|err| {
-                ClientError::Unexpected(anyhow!("failed to deserialize `userInfo` endpoint: {err}"))
-            })?;
+        let mut count = 5;
+
+        let text = loop {
+            eprintln!("count");
+            if count == 0 {
+                return Err(ClientError::RateLimitExceeded);
+            }
+
+            let response = self
+                .http
+                .get("https://www.webtoons.com/en/member/userInfo")
+                .header("Cookie", format!("NEO_SES={session}"))
+                .send()
+                .await?
+                .text()
+                .await?;
+
+            count -= 1;
+
+            if !response.contains("429 Too Many Requests") {
+                break response;
+            }
+
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        };
+
+        let user_info: UserInfo = serde_json::from_str(&text).map_err(|err| {
+            ClientError::Unexpected(anyhow!("failed to deserialize `userInfo` endpoint: {err}"))
+        })?;
+
         Ok(user_info)
     }
 

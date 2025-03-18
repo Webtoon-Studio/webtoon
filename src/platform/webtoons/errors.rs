@@ -40,7 +40,7 @@ pub enum ClientError {
     #[error("Provided session is invalid or expired")]
     InvalidSession,
     #[error("Rate limit was exceeded")]
-    RateLimitExceeded(u64),
+    RateLimitExceeded,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }

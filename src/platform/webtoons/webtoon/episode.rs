@@ -1232,18 +1232,7 @@ impl Episode {
         }
 
         if response.status() == 429 {
-            let retry_after: u64 = response
-                .headers()
-                .get("Retry-After")
-                .expect("A 429 HTTP response should always have a `Retry-After` header")
-                .to_str()
-                .expect("`Retry-After` value should always be ascii digits")
-                .parse()
-                .expect("`Retry-After` should always be parsable digits");
-
-            return Err(EpisodeError::ClientError(ClientError::RateLimitExceeded(
-                retry_after,
-            )));
+            return Err(EpisodeError::ClientError(ClientError::RateLimitExceeded));
         }
 
         let text = response.text().await?;
