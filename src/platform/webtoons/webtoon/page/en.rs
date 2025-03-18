@@ -4,7 +4,7 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
 use crate::platform::webtoons::{
@@ -142,7 +142,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
             language: Language::En,
             profile: Some(profile.into()),
             username,
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
         });
     }
 
@@ -177,7 +177,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                     language: Language::En,
                     profile: None,
                     username: username.trim().into(),
-                    page: Arc::new(Mutex::new(None)),
+                    page: Arc::new(RwLock::new(None)),
                 });
             }
         }

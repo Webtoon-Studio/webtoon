@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
 use scraper::{Html, Selector};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use super::{Client, Language, Type, Webtoon, errors::CreatorError};
 
@@ -18,7 +18,7 @@ pub struct Creator {
     pub(super) username: String,
     // Originals authors might not have a profile: Korean, Chinese, German, and French
     pub(super) profile: Option<String>,
-    pub(super) page: Arc<Mutex<Option<Page>>>,
+    pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -59,21 +59,18 @@ impl Creator {
     /// Will return `None` if profile page is not supported for language version.
     /// - French, German, Korean, and Chinese.
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        let mut lock = self.page.lock().await;
-
-        if lock.is_none() {
+        if let Some(page) = &*self.page.read().await {
+            Ok(Some(page.followers))
+        } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            *lock = page(self.language, profile, &self.client).await?;
+            let page = page(self.language, profile, &self.client).await?;
+            let followers = page.as_ref().map(|page| page.followers);
+            *self.page.write().await = page;
+            Ok(followers)
         }
-
-        let followers = lock.as_ref().map(|page| page.followers);
-
-        drop(lock);
-
-        Ok(followers)
     }
 
     /// Scrapes the profile page for the public facing webtoons.
@@ -118,22 +115,12 @@ impl Creator {
         {
             response
         } else {
-            let mut lock = self.page.lock().await;
-
-            if lock.is_none() {
-                let Some(profile) = self.profile.as_deref() else {
-                    return Ok(None);
-                };
-
-                *lock = page(self.language, profile, &self.client).await?;
-            }
-
-            let profile = lock
+            let page = page(self.language, profile, &self.client).await?;
+            let profile = page
                 .as_ref()
                 .map(|page| page.id.clone())
                 .context("failed to find creator profile property on creator page html")?;
-
-            drop(lock);
+            *self.page.write().await = page;
 
             let url = format!(
                 "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
@@ -156,7 +143,7 @@ impl Creator {
                 .parse::<u32>()
                 .context("failed to parse webtoon id to number")?;
 
-            let r#type = webtoon.r#type.parse::<Type>()?;
+            let r#type: Type = webtoon.r#type.parse()?;
 
             webtoons.push(Webtoon::new_with_client(id, r#type, &self.client).await?);
         }
@@ -168,21 +155,18 @@ impl Creator {
     ///
     /// Will return `None` if the language version of the site doesn't support profile pages.
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        let mut lock = self.page.lock().await;
-
-        if lock.is_none() {
+        if let Some(page) = &*self.page.read().await {
+            Ok(Some(page.has_patreon))
+        } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            *lock = page(self.language, profile, &self.client).await?;
+            let page = page(self.language, profile, &self.client).await?;
+            let has_patreon = page.as_ref().map(|page| page.has_patreon);
+            *self.page.write().await = page;
+            Ok(has_patreon)
         }
-
-        let has_patreon = lock.as_ref().map(|page| page.has_patreon);
-
-        drop(lock);
-
-        Ok(has_patreon)
     }
 
     /// Clears the cached metadata for the current `Creator`, forcing future requests to retrieve fresh data from the network.
@@ -217,8 +201,7 @@ impl Creator {
     /// - There are no errors returned from this function, as it only resets the cache.
     /// - Cache eviction is useful if the creators metadata has changed or if up-to-date information is needed for further operations.
     pub async fn evict_cache(&self) {
-        let mut page = self.page.lock().await;
-        *page = None;
+        *self.page.write().await = None;
     }
 }
 
