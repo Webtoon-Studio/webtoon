@@ -26,7 +26,7 @@ use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc, time::Duration};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
@@ -738,7 +738,7 @@ impl Client {
             language,
             scope,
             slug: Arc::from(slug),
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
         };
 
         Ok(Some(webtoon))
@@ -834,7 +834,7 @@ impl Client {
             scope,
             slug: Arc::from(slug),
             id,
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
         };
 
         Ok(webtoon)
