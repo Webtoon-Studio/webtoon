@@ -79,7 +79,9 @@ impl From<reqwest::Error> for WebtoonError {
 pub enum CreatorError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
-    #[error("At this time `Language::Zh`, `Language::De`, and `Language::Fr` are not given profile pages by webtoons.com")]
+    #[error(
+        "At this time `Language::Zh`, `Language::De`, and `Language::Fr` are not given profile pages by webtoons.com"
+    )]
     UnsupportedLanguage,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),

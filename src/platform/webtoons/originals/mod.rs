@@ -8,7 +8,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::{errors::OriginalsError, Client, Language, Webtoon};
+use super::{Client, Language, Webtoon, errors::OriginalsError};
 
 pub(super) async fn scrape(
     client: &Client,

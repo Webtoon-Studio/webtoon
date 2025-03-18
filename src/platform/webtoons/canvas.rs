@@ -17,13 +17,13 @@
 //! # }
 //! ```
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use scraper::{Html, Selector};
 use std::{fmt::Display, ops::RangeBounds, time::Duration};
 
 use super::{
-    errors::{CanvasError, ClientError},
     Client, Language, Webtoon,
+    errors::{CanvasError, ClientError},
 };
 
 pub(super) async fn scrape(

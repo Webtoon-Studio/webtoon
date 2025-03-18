@@ -7,10 +7,10 @@ use tokio::sync::Mutex;
 
 use super::Page;
 use crate::platform::webtoons::{
+    Webtoon,
     meta::Scope,
     originals::Release,
-    webtoon::{episode::Episode, WebtoonError},
-    Webtoon,
+    webtoon::{WebtoonError, episode::Episode},
 };
 
 pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {

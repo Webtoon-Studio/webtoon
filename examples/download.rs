@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{errors::Error, Client, Type};
+use webtoon::platform::webtoons::{Client, Type, errors::Error};
 
 // NOTE: To run: `cargo run --example download --features download`
 #[tokio::main(flavor = "current_thread")]

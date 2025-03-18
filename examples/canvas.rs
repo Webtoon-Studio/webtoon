@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{canvas::Sort, Client, Language};
+use webtoon::platform::webtoons::{Client, Language, canvas::Sort};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {

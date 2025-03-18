@@ -8,11 +8,11 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::platform::webtoons::{
+    Client, Language, Webtoon,
     creator::Creator,
     meta::{Genre, Scope},
     originals::Release,
-    webtoon::{episode::Episode, WebtoonError},
-    Client, Language, Webtoon,
+    webtoon::{WebtoonError, episode::Episode},
 };
 
 use super::Page;

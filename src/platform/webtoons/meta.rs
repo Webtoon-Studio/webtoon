@@ -10,7 +10,9 @@ use thiserror::Error;
 
 /// An error that can occur when parsing a language from a URL path.
 #[derive(Debug, Error)]
-#[error("failed to parse `{0}` into `Language` should be one of `en`, `zh-hant`, `th`, `id`, `de`, `es`, `fr`")]
+#[error(
+    "failed to parse `{0}` into `Language` should be one of `en`, `zh-hant`, `th`, `id`, `de`, `es`, `fr`"
+)]
 pub struct ParseLanguageError(String);
 
 /// Represents the languages that `webtoons.com` has.

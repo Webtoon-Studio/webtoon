@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 // use chrono::serde::ts_milliseconds_option;
 use serde::{Deserialize, Serialize};
 use serde_with::DeserializeFromStr;
@@ -110,7 +110,9 @@ impl DashboardStatus {
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
-#[error("failed to parse `{0}` into a `DashboardStatus` expected one of PUBLISHED, READY, DRAFT, IN_REVIEW, APPROVED, REMOVED, AD_ON, or AD_OFF")]
+#[error(
+    "failed to parse `{0}` into a `DashboardStatus` expected one of PUBLISHED, READY, DRAFT, IN_REVIEW, APPROVED, REMOVED, AD_ON, or AD_OFF"
+)]
 pub struct DashboardStatusParseError(String);
 
 impl FromStr for DashboardStatus {

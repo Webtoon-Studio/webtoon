@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 
-use crate::platform::webtoons::{webtoon::WebtoonError, Webtoon};
+use crate::platform::webtoons::{Webtoon, webtoon::WebtoonError};
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
 pub struct Stats {
