@@ -1,5 +1,17 @@
+## What's Changed in 0.4.0
+* chore: bump version from 0.3.2 to 0.4.0
+* dev: add Justfile by @RoloEdits in [#45](https://github.com/Webtoon-Studio/webtoon/pull/45)
+* fix(client): add retry when encounter a 429 response by @RoloEdits
+* fix: webtoon thumbnail parse by @RoloEdits in [#43](https://github.com/Webtoon-Studio/webtoon/pull/43)
+* build(deps): update scraper requirement from 0.22 to 0.23 by @dependabot[bot] in [#42](https://github.com/Webtoon-Studio/webtoon/pull/42)
+* fix(client): return proper deserialization error for `userInfo` endpoint by @RoloEdits in [#39](https://github.com/Webtoon-Studio/webtoon/pull/39)
+* fix(lints): fix clippy lints by @RoloEdits in [#40](https://github.com/Webtoon-Studio/webtoon/pull/40)
+* build(deps): update scraper requirement from 0.21 to 0.22 by @dependabot[bot] in [#38](https://github.com/Webtoon-Studio/webtoon/pull/38)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.3.2...0.4.0
+
 ## What's Changed in 0.3.2
-* chore: bump version from 0.3.1 to 0.3.2
+* chore: bump version from 0.3.1 to 0.3.2 by @RoloEdits in [#34](https://github.com/Webtoon-Studio/webtoon/pull/34)
 * fix: remove leftover `eprintln!` by @RoloEdits in [#33](https://github.com/Webtoon-Studio/webtoon/pull/33)
 
 **Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.3.1...0.3.2
