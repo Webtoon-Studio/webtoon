@@ -77,6 +77,16 @@ impl Webtoon {
         }
     }
 
+    /// Returns if webtoon is an original type.
+    pub fn is_original(&self) -> bool {
+        self.r#type() == Type::Original
+    }
+
+    /// Returns if webtoon is a canvas type.
+    pub fn is_canvas(&self) -> bool {
+        self.r#type() == Type::Canvas
+    }
+
     /// Returns the title of this `Webtoon`.
     pub async fn title(&self) -> Result<String, WebtoonError> {
         let mut guard = self.page.lock().await;
