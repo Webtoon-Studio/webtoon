@@ -15,7 +15,6 @@ use regex::Regex;
 use scraper::Html;
 use serde_json::json;
 use std::collections::HashSet;
-use std::future::Future;
 use std::sync::Arc;
 use std::{hash::Hash, str::FromStr};
 use tokio::sync::Mutex;
@@ -515,7 +514,7 @@ impl Episode {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # if let Some(episode) = webtoon.episode(1).await? {
-    /// episode.posts_for_each(|post| async move {
+    /// episode.posts_for_each( async |post| {
     ///     println!("Processing comment: {}", post.body().contents());
     /// }).await?;
     /// # }
@@ -531,11 +530,7 @@ impl Episode {
     /// ### Usage Consideration
     ///
     /// If your application has limited memory and the collection of all posts at once is not feasible, this method provides a better alternative. However, consider the trade-offs, such as possible duplicates and lack of guaranteed publish order.
-    pub async fn posts_for_each<F, Fut>(&self, callback: F) -> Result<(), PostError>
-    where
-        F: Fn(Post) -> Fut + Send,
-        Fut: Future<Output = ()> + Send,
-    {
+    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
         // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
         // This extra step to the other API is a one off to get only the top comment info attached to
         // the top 3 posts.
@@ -566,7 +561,7 @@ impl Episode {
 
         if let Some(tops) = api.result.tops {
             for post in tops {
-                callback(Post::try_from((self, post))?).await;
+                closure(Post::try_from((self, post))?).await;
             }
         }
 
@@ -584,7 +579,7 @@ impl Episode {
 
         // Add first posts
         for post in api.result.posts {
-            callback(Post::try_from((self, post))?).await;
+            closure(Post::try_from((self, post))?).await;
         }
 
         // Get rest if any
@@ -600,7 +595,7 @@ impl Episode {
             let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
             for post in api.result.posts {
-                callback(Post::try_from((self, post))?).await;
+                closure(Post::try_from((self, post))?).await;
             }
 
             next = api.result.pagination.next;

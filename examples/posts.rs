@@ -81,7 +81,7 @@ async fn main() -> Result<(), Error> {
 
     println!("`for_each`:");
     episode
-        .posts_for_each(|post| async move {
+        .posts_for_each(async |post| {
             // Simulating async io.
             let mut stdout = tokio::io::stdout();
             let post = format!("{post:#?}");
