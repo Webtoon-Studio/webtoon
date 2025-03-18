@@ -59,8 +59,8 @@ pub(super) async fn scrape(
     for page in start..end {
         let response = match client.get_canvas_page(language, page, sort).await {
             Ok(response) => response,
-            Err(ClientError::RateLimitExceeded(retry_after)) => {
-                tokio::time::sleep(Duration::from_secs(retry_after)).await;
+            Err(ClientError::RateLimitExceeded) => {
+                tokio::time::sleep(Duration::from_secs(10)).await;
                 client.get_canvas_page(language, page, sort).await?
             }
             Err(err) => return Err(CanvasError::ClientError(err)),
