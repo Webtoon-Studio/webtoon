@@ -23,8 +23,10 @@ async fn creator() -> anyhow::Result<()> {
 
     let _username = creator.username();
     let _followers = creator.followers().await.unwrap();
-    let _has_patreon = creator.has_patreon().await.unwrap();
+    let has_patreon = creator.has_patreon().await.unwrap();
     let _webtoons = creator.webtoons().await.unwrap();
+
+    assert_eq!(Some(true), has_patreon);
 
     Ok(())
 }
