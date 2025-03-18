@@ -5,11 +5,11 @@ use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::platform::webtoons::{creator::Creator, Language};
+use crate::platform::webtoons::{Language, creator::Creator};
 
 use super::{
-    episode::{Episode, PublishedStatus},
     Webtoon, WebtoonError,
+    episode::{Episode, PublishedStatus},
 };
 
 // TODO: implement rss for other languages: need to parse the dates

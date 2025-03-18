@@ -3,7 +3,7 @@ use chrono::DateTime;
 pub use json::*;
 use tokio::sync::Mutex;
 
-use crate::platform::webtoons::{errors::EpisodeError, webtoon::episode::Episode, Webtoon};
+use crate::platform::webtoons::{Webtoon, errors::EpisodeError, webtoon::episode::Episode};
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {

@@ -23,14 +23,14 @@ use tokio::sync::Mutex;
 use self::page::Page;
 use self::posts::Posts;
 use crate::platform::webtoons::client::likes::Likes;
-use crate::platform::webtoons::client::posts::id::Id;
 use crate::platform::webtoons::client::posts::PostsResult;
+use crate::platform::webtoons::client::posts::id::Id;
 use crate::platform::webtoons::{
     errors::{ClientError, EpisodeError, PostError},
     meta::Scope,
 };
 
-use super::{dashboard::episodes::DashboardStatus, Webtoon};
+use super::{Webtoon, dashboard::episodes::DashboardStatus};
 
 // TODO: `episode.post_with_sticker("POST", false, Sticker::from_str("")?)`
 // TODO: `episode.post_with_webtoons("POST", false, vec![Webtoon])`
@@ -448,7 +448,9 @@ impl Episode {
             self.number
         );
 
-        let url = format!("https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
+        );
 
         let response = self
             .webtoon
@@ -544,7 +546,9 @@ impl Episode {
             self.number
         );
 
-        let url = format!("https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
+        );
 
         let response = self
             .webtoon

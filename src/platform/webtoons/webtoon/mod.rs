@@ -16,15 +16,15 @@ pub mod rss;
 use rss::Rss;
 
 use self::{
-    episode::{posts::Posts, Episode, Episodes},
+    episode::{Episode, Episodes, posts::Posts},
     page::Page,
 };
 
+use super::Type;
 use super::errors::{ClientError, EpisodeError, PostError, WebtoonError};
 use super::meta::{Genre, Scope};
 use super::originals::Release;
-use super::Type;
-use super::{creator::Creator, Client, Language};
+use super::{Client, Language, creator::Creator};
 
 // TODO: implement dashboards scraping for other languages
 
@@ -1004,7 +1004,9 @@ impl Webtoon {
 
         // Webtoon doesn't exist
         if response.status() == 404 {
-            anyhow::bail!("Webtoon should always exist when using `new_with_client` which is designed for internal use only.");
+            anyhow::bail!(
+                "Webtoon should always exist when using `new_with_client` which is designed for internal use only."
+            );
         }
 
         let mut segments = response

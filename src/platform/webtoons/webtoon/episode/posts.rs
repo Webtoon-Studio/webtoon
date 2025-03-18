@@ -1,6 +1,6 @@
 //! Module containing things related to posts and their posters.
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use chrono::{DateTime, Utc};
 use core::fmt;
 use serde_json::json;
@@ -119,11 +119,10 @@ pub use crate::platform::webtoons::client::posts::Id;
 
 use crate::{
     platform::webtoons::{
-        self,
+        self, Webtoon,
         client::posts::{Count, PostsResult, Section},
         errors::{ClientError, PostError, PosterError, ReplyError},
         meta::Scope,
-        Webtoon,
     },
     private::Sealed,
 };
@@ -494,9 +493,15 @@ impl Post {
 
         let reaction = self.poster.reaction.read().await;
         let url = match *reaction {
-            Reaction::Upvote => format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like", self.id),
-            Reaction::Downvote =>format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike", self.id) ,
-            Reaction::None => return self.upvotes_and_downvotes().await
+            Reaction::Upvote => format!(
+                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like",
+                self.id
+            ),
+            Reaction::Downvote => format!(
+                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike",
+                self.id
+            ),
+            Reaction::None => return self.upvotes_and_downvotes().await,
         };
         // Drop read lock
         drop(reaction);
@@ -749,7 +754,9 @@ impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
                     // Ignore super likes
                     continue;
                 } else {
-                    bail!("Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}");
+                    bail!(
+                        "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
+                    );
                 }
             }
             Some(Flare::Webtoons(webtoons))
@@ -932,7 +939,7 @@ impl FromStr for Sticker {
                         format!(
                             "Sticker pack number couldn't be parsed into a number: {err} `{part}`"
                         ),
-                    ))
+                    ));
                 }
             },
             None => {
@@ -956,7 +963,7 @@ impl FromStr for Sticker {
                             format!(
                                 "Sticker version couldn't be parsed into a number: {err} `{part}`"
                             ),
-                        ))
+                        ));
                     }
                 };
             } else {
@@ -966,7 +973,7 @@ impl FromStr for Sticker {
                         return Err(ParseStickerError(
                             id.to_string(),
                             format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
-                        ))
+                        ));
                     }
                 };
             }
@@ -979,7 +986,7 @@ impl FromStr for Sticker {
                     return Err(ParseStickerError(
                         id.to_string(),
                         format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
-                    ))
+                    ));
                 }
             };
         }

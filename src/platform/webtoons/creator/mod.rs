@@ -1,12 +1,12 @@
 //! Module containing things related to a creator on webtoons.com.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
 use scraper::{Html, Selector};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::{errors::CreatorError, Client, Language, Type, Webtoon};
+use super::{Client, Language, Type, Webtoon, errors::CreatorError};
 
 /// Represents a creator of a webtoon.
 ///
@@ -103,7 +103,9 @@ impl Creator {
 
         let language = self.language.as_str_caps();
 
-        let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}");
+        let url = format!(
+            "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
+        );
 
         let response = if let Ok(response) = self
             .client
@@ -133,7 +135,9 @@ impl Creator {
 
             drop(lock);
 
-            let url = format!("https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}");
+            let url = format!(
+                "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
+            );
 
             self.client
                 .http

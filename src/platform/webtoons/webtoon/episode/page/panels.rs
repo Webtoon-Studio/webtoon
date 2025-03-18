@@ -1,10 +1,10 @@
 use crate::platform::webtoons::webtoon::episode::EpisodeError;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 use url::Url;
 
 #[cfg(feature = "download")]
-use crate::platform::webtoons::{errors::DownloadError, Client};
+use crate::platform::webtoons::{Client, errors::DownloadError};
 #[cfg(feature = "download")]
 use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]

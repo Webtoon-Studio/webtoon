@@ -11,13 +11,13 @@ use std::time::Duration;
 use url::Url;
 
 use crate::platform::webtoons::{
+    Webtoon,
     creator::Creator,
     meta::{Genre, Language},
     originals::Release,
-    Webtoon,
 };
 
-use super::{episode::Episode, WebtoonError};
+use super::{WebtoonError, episode::Episode};
 
 #[allow(dead_code)]
 #[derive(Debug)]

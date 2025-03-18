@@ -5,6 +5,7 @@ pub(super) mod posts;
 pub mod search;
 
 use super::{
+    Language, Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
     errors::{
@@ -14,12 +15,11 @@ use super::{
     meta::Scope,
     originals::{self},
     webtoon::episode::{
-        posts::{Post, Reaction},
         Episode,
+        posts::{Post, Reaction},
     },
-    Language, Type, Webtoon,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use posts::id::Id;
 use reqwest::Response;
 use search::Item;
@@ -403,7 +403,9 @@ impl Client {
         // - ALL
         // - CHALLENGE
         // - WEBTOON
-        let url = format!("https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}"
+        );
 
         let response = self.http.get(url).send().await?;
 
@@ -436,7 +438,9 @@ impl Client {
 
         let mut next = originals.pagination.next;
         while let Some(ref cursor) = next {
-            let url = format!("https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}&cursor={cursor}");
+            let url = format!(
+                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}&cursor={cursor}"
+            );
             let response = self.http.get(url).send().await?;
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
@@ -468,7 +472,9 @@ impl Client {
             next = originals.pagination.next;
         }
 
-        let url = format!("https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}"
+        );
 
         let response = self.http.get(url).send().await?;
 
@@ -501,7 +507,9 @@ impl Client {
 
         let mut next = canvas.pagination.next;
         while let Some(ref cursor) = next {
-            let url = format!("https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}&cursor={cursor}");
+            let url = format!(
+                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}&cursor={cursor}"
+            );
             let response = self.http.get(url).send().await?;
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
@@ -1202,7 +1210,7 @@ impl Client {
 
             let language = episode.webtoon.language;
 
-            let url =  format!(
+            let url = format!(
                 "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
             );
 
@@ -1246,7 +1254,7 @@ impl Client {
 
             let language = episode.webtoon.language;
 
-            let url =  format!(
+            let url = format!(
                 "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
             );
 
@@ -1284,7 +1292,9 @@ impl Client {
 
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
-        let url = format!("https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
+        );
 
         self.http
             .get(url)
@@ -1315,7 +1325,10 @@ impl Client {
             post.episode.number
         );
 
-        let url =format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/count", post.id) ;
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/count",
+            post.id
+        );
 
         let response = self
             .http
@@ -1344,7 +1357,9 @@ impl Client {
 
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
-        let url = format!("https://www.webtoons.com/p/api/community/v2/post/{post_id}/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=false");
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/post/{post_id}/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=false"
+        );
 
         let response = self
             .http
@@ -1445,8 +1460,14 @@ impl Client {
         );
 
         let url = match reaction {
-            Reaction::Upvote => format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like", post.id),
-            Reaction::Downvote => format!("https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike", post.id),
+            Reaction::Upvote => format!(
+                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like",
+                post.id
+            ),
+            Reaction::Downvote => format!(
+                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike",
+                post.id
+            ),
             Reaction::None => unreachable!("Should never be used with `Reaction::None`"),
         };
 

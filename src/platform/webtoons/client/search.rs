@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::webtoons::{errors::WebtoonError, Type, Webtoon};
+use crate::platform::webtoons::{Type, Webtoon, errors::WebtoonError};
 
 use super::Client;
 

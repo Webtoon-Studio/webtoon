@@ -1,8 +1,8 @@
 use tokio::io::AsyncWriteExt;
 use webtoon::platform::webtoons::{
+    Client, Type,
     errors::{Error, PosterError},
     webtoon::episode::posts::Posts,
-    Client, Type,
 };
 
 #[tokio::main(flavor = "current_thread")]
