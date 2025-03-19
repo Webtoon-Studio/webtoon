@@ -363,6 +363,29 @@ impl Webtoon {
         }
     }
 
+    /// Returns if Webtoon is completed.
+    ///
+    /// Canvas stories always return false and cannot fail.
+    ///
+    /// ### Errors
+    ///
+    /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
+    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the release schedule.
+    pub async fn is_completed(&self) -> Result<bool, WebtoonError> {
+        if self.r#type() == Type::Canvas {
+            return Ok(false);
+        }
+
+        if let Some(page) = &*self.page.read() {
+            Ok(page.schedule() == Some(&Schedule::Completed))
+        } else {
+            let page = page::scrape(self).await?;
+            let is_completed = page.schedule() == Some(&Schedule::Completed);
+            *self.page.write() = Some(page);
+            Ok(is_completed)
+        }
+    }
+
     /// Retrieves the banner image URL for this `Webtoon`.
     ///
     /// ### Behavior
