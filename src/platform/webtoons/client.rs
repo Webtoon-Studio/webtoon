@@ -20,13 +20,13 @@ use super::{
     },
 };
 use anyhow::{Context, anyhow};
+use parking_lot::RwLock;
 use posts::id::Id;
 use reqwest::Response;
 use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc, time::Duration};
-use tokio::sync::RwLock;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 

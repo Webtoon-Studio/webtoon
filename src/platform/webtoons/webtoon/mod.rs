@@ -6,9 +6,9 @@ mod page;
 
 use anyhow::Context;
 use core::fmt;
+use parking_lot::RwLock;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[cfg(feature = "rss")]
 pub mod rss;
@@ -89,24 +89,24 @@ impl Webtoon {
 
     /// Returns the title of this `Webtoon`.
     pub async fn title(&self) -> Result<String, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.title().to_string())
         } else {
             let page = page::scrape(self).await?;
             let title = page.title().to_owned();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(title)
         }
     }
 
     /// Returns a list of [`Creator`] for this `Webtoon`.
     pub async fn creators(&self) -> Result<Vec<Creator>, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.creators().to_vec())
         } else {
             let page = page::scrape(self).await?;
             let creators = page.creators().to_vec();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(creators)
         }
     }
@@ -115,24 +115,24 @@ impl Webtoon {
     ///
     /// For Originals, the genres are supplemented from the `/genres` page, so you may see more genres than you initially expect.
     pub async fn genres(&self) -> Result<Vec<Genre>, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.genres().to_vec())
         } else {
             let page = page::scrape(self).await?;
             let genres = page.genres().to_vec();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(genres)
         }
     }
 
     /// Returns the summary for this `Webtoon`.
     pub async fn summary(&self) -> Result<String, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.summary().to_owned())
         } else {
             let page = page::scrape(self).await?;
             let summary = page.summary().to_owned();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(summary)
         }
     }
@@ -200,7 +200,7 @@ impl Webtoon {
             Err(err) => return Err(EpisodeError::ClientError(err)),
         }
 
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.views())
         } else {
             let page = page::scrape(self).await.map_err(|err| match err {
@@ -208,7 +208,7 @@ impl Webtoon {
                 error => EpisodeError::Unexpected(error.into()),
             })?;
             let views = page.views();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(views)
         }
     }
@@ -274,36 +274,36 @@ impl Webtoon {
             Err(err) => return Err(WebtoonError::ClientError(err)),
         }
 
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.subscribers())
         } else {
             let page = page::scrape(self).await?;
             let subscribers = page.subscribers();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(subscribers)
         }
     }
 
     /// Returns the rating for this `Webtoon`.
     pub async fn rating(&self) -> Result<f64, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.rating())
         } else {
             let page = page::scrape(self).await?;
             let rating = page.rating();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(rating)
         }
     }
 
     /// Returns the thumbnail url for this `Webtoon`.
     pub async fn thumbnail(&self) -> Result<String, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail().to_owned())
         } else {
             let page = page::scrape(self).await?;
             let thumbnail = page.thumbnail().to_owned();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(thumbnail)
         }
     }
@@ -350,12 +350,12 @@ impl Webtoon {
     /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
     /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the release schedule.
     pub async fn release(&self) -> Result<Option<Vec<Release>>, WebtoonError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.release().map(|release| release.to_vec()))
         } else {
             let page = page::scrape(self).await?;
             let release = page.release().map(|release| release.to_vec());
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(release)
         }
     }
@@ -403,12 +403,12 @@ impl Webtoon {
             return Ok(None);
         }
 
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.banner().map(|banner| banner.to_owned()))
         } else {
             let page = page::scrape(self).await?;
             let release = page.banner().map(|release| release.to_owned());
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(release)
         }
     }
@@ -930,7 +930,7 @@ impl Webtoon {
     /// - There are no errors returned from this function, as it only resets the cache.
     /// - Cache eviction is useful if the webtoon metadata has changed or if up-to-date information is needed for further operations.
     pub async fn evict_cache(&self) {
-        *self.page.write().await = None;
+        *self.page.write() = None;
     }
 }
 

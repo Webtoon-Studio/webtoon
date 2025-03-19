@@ -2,9 +2,9 @@
 
 use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
+use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use super::{Client, Language, Type, Webtoon, errors::CreatorError};
 
@@ -59,7 +59,7 @@ impl Creator {
     /// Will return `None` if profile page is not supported for language version.
     /// - French, German, Korean, and Chinese.
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(Some(page.followers))
         } else {
             let Some(profile) = self.profile.as_deref() else {
@@ -68,7 +68,7 @@ impl Creator {
 
             let page = page(self.language, profile, &self.client).await?;
             let followers = page.as_ref().map(|page| page.followers);
-            *self.page.write().await = page;
+            *self.page.write() = page;
             Ok(followers)
         }
     }
@@ -120,7 +120,7 @@ impl Creator {
                 .as_ref()
                 .map(|page| page.id.clone())
                 .context("failed to find creator profile property on creator page html")?;
-            *self.page.write().await = page;
+            *self.page.write() = page;
 
             let url = format!(
                 "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
@@ -155,7 +155,7 @@ impl Creator {
     ///
     /// Will return `None` if the language version of the site doesn't support profile pages.
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(Some(page.has_patreon))
         } else {
             let Some(profile) = self.profile.as_deref() else {
@@ -164,7 +164,7 @@ impl Creator {
 
             let page = page(self.language, profile, &self.client).await?;
             let has_patreon = page.as_ref().map(|page| page.has_patreon);
-            *self.page.write().await = page;
+            *self.page.write() = page;
             Ok(has_patreon)
         }
     }
@@ -201,7 +201,7 @@ impl Creator {
     /// - There are no errors returned from this function, as it only resets the cache.
     /// - Cache eviction is useful if the creators metadata has changed or if up-to-date information is needed for further operations.
     pub async fn evict_cache(&self) {
-        *self.page.write().await = None;
+        *self.page.write() = None;
     }
 }
 

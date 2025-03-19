@@ -1,8 +1,8 @@
 //! Module representing a webtoons rss feed.
 
 use chrono::{DateTime, Utc};
+use parking_lot::RwLock;
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
 use url::Url;
 
 use crate::platform::webtoons::{Language, creator::Creator};

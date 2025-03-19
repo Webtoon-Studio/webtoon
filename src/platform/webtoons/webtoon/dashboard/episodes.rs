@@ -1,7 +1,7 @@
 mod json;
 use chrono::DateTime;
 pub use json::*;
-use tokio::sync::RwLock;
+use parking_lot::RwLock;
 
 use crate::platform::webtoons::{Webtoon, errors::EpisodeError, webtoon::episode::Episode};
 use std::{collections::HashSet, sync::Arc, time::Duration};
