@@ -75,7 +75,7 @@ async fn webtoon() -> Result<(), Error> {
     let _rating = webtoon.rating().await.unwrap();
     let _summary = webtoon.summary().await.unwrap();
 
-    if let Ok(true) = client.has_valid_session().await {
+    if client.has_session() {
         webtoon.rate(10).await.unwrap();
         webtoon.is_subscribed().await.unwrap();
         webtoon.subscribe().await.unwrap();
@@ -100,12 +100,7 @@ async fn posts() -> Result<(), Error> {
         .unwrap()
         .expect("No episode for given number");
 
-    let has_session = client
-        .has_valid_session()
-        .await
-        .is_ok_and(|has_session| has_session);
-
-    if has_session {
+    if client.has_session() {
         // Post content and if its marked as a spoiler.
         episode.post("MESSAGE", false).await.unwrap();
     }
@@ -115,7 +110,7 @@ async fn posts() -> Result<(), Error> {
     for post in posts {
         for _reply in post.replies::<Posts>().await.unwrap() {}
 
-        if has_session {
+        if client.has_session() {
             post.upvote().await.unwrap();
             post.downvote().await.unwrap();
             post.unvote().await.unwrap();
