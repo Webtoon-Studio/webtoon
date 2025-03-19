@@ -1,15 +1,14 @@
-use std::{str::FromStr, sync::Arc};
-
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use scraper::{ElementRef, Html, Selector};
+use std::sync::Arc;
 
 use super::Page;
 use crate::platform::webtoons::{
     Webtoon,
     meta::Scope,
-    originals::Release,
+    originals::Schedule,
     webtoon::{WebtoonError, episode::Episode},
 };
 
@@ -23,7 +22,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: views(html)?,
             subscribers: subscribers(html)?,
             rating: rating(html)?,
-            release: Some(release(html)?),
+            schedule: Some(schedule(html)?),
             thumbnail: super::en::original_thumbnail(html)?,
             banner: Some(super::en::banner(html)?),
             pages: super::en::calculate_total_pages(html)?,
@@ -36,7 +35,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: views(html)?,
             subscribers: subscribers(html)?,
             rating: rating(html)?,
-            release: None,
+            schedule: None,
             thumbnail: super::en::canvas_thumbnail(html)?,
             banner: Some(super::en::banner(html)?),
             pages: super::en::calculate_total_pages(html)?,
@@ -127,7 +126,7 @@ fn rating(html: &Html) -> Result<f64, WebtoonError> {
     Ok(rating.parse::<f64>().context(rating)?)
 }
 
-fn release(html: &Html) -> Result<Vec<Release>, WebtoonError> {
+fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
     let selector = Selector::parse(r"p.day_info").expect("`p.day_info` should be a valid selector");
 
     let mut releases = Vec::new();
@@ -143,27 +142,27 @@ fn release(html: &Html) -> Result<Vec<Release>, WebtoonError> {
         }
 
         if text == "Diupdate setiap hari" {
-            releases.push(Release::Daily);
+            return Ok(Schedule::Daily);
         } else if text == "Baca Tiap Hari" {
-            releases.push(Release::Completed);
-        } else {
-            for release in text.split_whitespace() {
-                // `SEN,` -> `SEN`
-                let release = release.trim_end_matches(',');
+            return Ok(Schedule::Completed);
+        }
 
-                if release == "Update" {
-                    continue;
-                }
+        for release in text.split_whitespace() {
+            // `SEN,` -> `SEN`
+            let release = release.trim_end_matches(',');
 
-                releases.push(
-                    Release::from_str(release)
-                        .map_err(|err| WebtoonError::Unexpected(err.into()))?,
-                );
+            if release == "Update" {
+                continue;
             }
+
+            releases.push(release);
         }
     }
 
-    Ok(releases)
+    let schedule = Schedule::try_from(releases) //
+        .map_err(|err| WebtoonError::Unexpected(err.into()))?;
+
+    Ok(schedule)
 }
 
 pub(super) fn episode(

@@ -41,11 +41,54 @@ pub(super) async fn scrape(
 
 /// Represents a kind of release schedule for Originals.  
 ///
-/// For the days of the week, a webtoon can have multiple.
+/// For the days of the week, a Webtoon can have multiple.
 ///
 /// If its not a day of the week, it can only be either `Daily` or `Completed`, alone.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Schedule {
+    /// Released on a single day of the week
+    Weekday(Weekday),
+    /// Released multiple days of the week
+    Weekdays(Vec<Weekday>),
+    /// Released daily
+    Daily,
+    /// Webtoon is completed
+    Completed,
+}
+
+impl TryFrom<Vec<&str>> for Schedule {
+    type Error = ParseScheduleError;
+
+    fn try_from(releases: Vec<&str>) -> Result<Self, Self::Error> {
+        if releases.len() == 1 {
+            let release = releases
+                .first()
+                .expect("already checked that there is at least one element");
+
+            if let Ok(weekday) = try_parse_weekday(release) {
+                Ok(weekday)
+            } else if let Ok(completed) = try_parse_completed(release) {
+                Ok(completed)
+            } else if let Ok(daily) = try_parse_daily(release) {
+                Ok(daily)
+            } else {
+                Err(ParseScheduleError((*release).to_string()))
+            }
+        } else {
+            // If there is more than one element it means that there are multiple days
+            let mut weekdays = Vec::with_capacity(7);
+            for release in releases {
+                let weekday = Weekday::from_str(release)?;
+                weekdays.push(weekday);
+            }
+            Ok(Self::Weekdays(weekdays))
+        }
+    }
+}
+
+/// Represents a day of the week
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Release {
+pub enum Weekday {
     /// Released on Sunday
     Sunday,
     /// Released on Monday
@@ -60,19 +103,15 @@ pub enum Release {
     Friday,
     /// Released on Saturday
     Saturday,
-    /// Released daily
-    Daily,
-    /// Webtoon is completed
-    Completed,
 }
 
 /// An error which can happen when parsing a string to a [`Release`].
 #[derive(Debug, Error)]
 #[error("failed to parse `{0}` into a `Release`")]
-pub struct ParseReleaseError(String);
+pub struct ParseScheduleError(String);
 
-impl FromStr for Release {
-    type Err = ParseReleaseError;
+impl FromStr for Weekday {
+    type Err = ParseScheduleError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "MONDAY"
@@ -161,6 +200,15 @@ impl FromStr for Release {
             | "วันอาทิตย์"
             | "อาทิตย์"
             | "週日" => Ok(Self::Sunday),
+            _ => Err(ParseScheduleError(s.to_owned())),
+        }
+    }
+}
+
+impl FromStr for Schedule {
+    type Err = ParseScheduleError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim() {
             "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => Ok(Self::Daily),
             "COMPLETED"
             | "COM"
@@ -169,7 +217,30 @@ impl FromStr for Release {
             | "FINALIZADAS"
             | "ฟรีทุกวัน"
             | "完結" => Ok(Self::Completed),
-            _ => Err(ParseReleaseError(s.to_owned())),
+            _ => Err(ParseScheduleError(s.to_owned())),
         }
     }
+}
+
+fn try_parse_completed(release: &str) -> Result<Schedule, &str> {
+    match release.trim() {
+        "COMPLETED" | "COM" | "ABGESCHLOSSEN" | "TERMINÉ" | "FINALIZADAS" | "ฟรีทุกวัน" | "完結" => {
+            Ok(Schedule::Completed)
+        }
+        release => Err(release),
+    }
+}
+
+fn try_parse_daily(release: &str) -> Result<Schedule, &str> {
+    match release.trim() {
+        "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => Ok(Schedule::Daily),
+        release => Err(release),
+    }
+}
+
+fn try_parse_weekday(release: &str) -> Result<Schedule, &str> {
+    let Ok(weekday) = Weekday::from_str(release.trim()) else {
+        return Err(release.trim());
+    };
+    Ok(Schedule::Weekday(weekday))
 }

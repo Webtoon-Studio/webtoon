@@ -1,17 +1,16 @@
-use std::{str::FromStr, sync::Arc};
-
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
+use std::{str::FromStr, sync::Arc};
 use url::Url;
 
 use crate::platform::webtoons::{
     Client, Language, Webtoon,
     creator::Creator,
     meta::{Genre, Scope},
-    originals::Release,
+    originals::Schedule,
     webtoon::{WebtoonError, episode::Episode},
 };
 
@@ -27,7 +26,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: views(html)?,
             subscribers: subscribers(html)?,
             rating: rating(html)?,
-            release: Some(release(html)?),
+            schedule: Some(schedule(html)?),
             thumbnail: original_thumbnail(html)?,
             banner: Some(banner(html)?),
             pages: calculate_total_pages(html)?,
@@ -40,7 +39,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: views(html)?,
             subscribers: subscribers(html)?,
             rating: rating(html)?,
-            release: None,
+            schedule: None,
             thumbnail: canvas_thumbnail(html)?,
             banner: Some(banner(html)?),
             pages: calculate_total_pages(html)?,
@@ -284,7 +283,7 @@ pub(super) fn rating(html: &Html) -> Result<f64, WebtoonError> {
 
 // NOTE: Could also parse from the json on the story page `logParam`
 // *ONLY* for Originals.
-pub(super) fn release(html: &Html) -> Result<Vec<Release>, WebtoonError> {
+pub(super) fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
     let selector = Selector::parse(r"p.day_info").expect("`p.day_info` should be a valid selector");
 
     let mut releases = Vec::new();
@@ -307,13 +306,14 @@ pub(super) fn release(html: &Html) -> Result<Vec<Release>, WebtoonError> {
                 continue;
             }
 
-            releases.push(
-                Release::from_str(release).map_err(|err| WebtoonError::Unexpected(err.into()))?,
-            );
+            releases.push(release);
         }
     }
 
-    Ok(releases)
+    let schedule = Schedule::try_from(releases) //
+        .map_err(|err| WebtoonError::Unexpected(err.into()))?;
+
+    Ok(schedule)
 }
 
 pub(super) fn summary(html: &Html) -> Result<String, WebtoonError> {

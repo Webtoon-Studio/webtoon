@@ -23,7 +23,7 @@ use self::{
 use super::Type;
 use super::errors::{ClientError, EpisodeError, PostError, WebtoonError};
 use super::meta::{Genre, Scope};
-use super::originals::Release;
+use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 
 // TODO: implement dashboards scraping for other languages
@@ -313,33 +313,32 @@ impl Webtoon {
     /// ### Behavior
     ///
     /// - **Original Webtoons**: If the webtoon is an Original series, this method fetches the release schedule and
-    ///   returns it as a `Vec<Release>`. The release schedule contains information about upcoming or regular episode drops.
+    ///   returns it as a `Some(Schedule)`. The release schedule contains information about upcoming or regular episode drops.
     /// - **Canvas Webtoons**: If the webtoon is part of the Canvas section, there is no official release schedule, and this
     ///   method will return `None`.
-    ///
-    /// ### Returns
-    ///
-    /// Returns a `Result<Option<Vec<Release>>, WebtoonError>` containing:
-    ///
-    /// - `Ok(Some(Vec<Release>))`: A vector of `Release` objects that detail the webtoon's release schedule if the webtoon is an Original.
-    /// - `Ok(None)`: If the webtoon is a Canvas series, the release schedule is not available.
-    /// - `Err(WebtoonError)`: An error if scraping the release schedule fails due to a client or network issue.
     ///
     /// ### Example
     ///
     /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, originals::Schedule, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// if let Some(release_schedule) = webtoon.release().await? {
-    ///     for release in release_schedule {
-    ///         println!("Upcoming release: {release:?}");
+    /// match webtoon.schedule().await? {
+    ///     Some(Schedule::Weekday(weekday)) => println!("Webtoon releases on `{weekday:?}`"),
+    ///     Some(Schedule::Daily) => println!("Webtoon releases daily"),
+    ///     Some(Schedule::Completed) => println!("Webtoon is completed"),
+    ///     Some(Schedule::Weekdays(weekdays)) => {
+    ///        print!("Webtoon releases on ");
+    ///        for day in weekdays {
+    ///            print!("{day:?}");
+    ///        }
+    ///        println!();
     ///     }
-    /// } else {
-    ///     println!("This webtoon does not have a release schedule (Canvas).");
+    ///     None => println!("This webtoon does not have a release schedule (Canvas)."),
     /// }
+    ///
     /// # }
     /// # Ok(())
     /// # }
@@ -349,12 +348,16 @@ impl Webtoon {
     ///
     /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
     /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the release schedule.
-    pub async fn release(&self) -> Result<Option<Vec<Release>>, WebtoonError> {
+    pub async fn schedule(&self) -> Result<Option<Schedule>, WebtoonError> {
+        if self.r#type() == Type::Canvas {
+            return Ok(None);
+        }
+
         if let Some(page) = &*self.page.read() {
-            Ok(page.release().map(|release| release.to_vec()))
+            Ok(page.schedule().cloned())
         } else {
             let page = page::scrape(self).await?;
-            let release = page.release().map(|release| release.to_vec());
+            let release = page.schedule().cloned();
             *self.page.write() = Some(page);
             Ok(release)
         }
