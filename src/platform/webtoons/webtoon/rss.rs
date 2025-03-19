@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use url::Url;
 
 use crate::platform::webtoons::{Language, creator::Creator};
@@ -100,10 +100,10 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
         episodes.push(Episode {
             webtoon: webtoon.clone(),
             number,
-            season: Arc::new(Mutex::new(None)),
-            title: Arc::new(Mutex::new(Some(title))),
+            season: Arc::new(RwLock::new(None)),
+            title: Arc::new(RwLock::new(Some(title))),
             published: Some(published),
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
             views: None,
             ad_status: None,
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.

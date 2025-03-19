@@ -4,7 +4,7 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use url::Url;
 
 use crate::platform::webtoons::{
@@ -479,11 +479,11 @@ pub(super) fn episode(
 
     Ok(Episode {
         webtoon: webtoon.clone(),
-        season: Arc::new(Mutex::new(super::super::episode::season(&title))),
-        title: Arc::new(Mutex::new(Some(title))),
+        season: Arc::new(RwLock::new(super::super::episode::season(&title))),
+        title: Arc::new(RwLock::new(Some(title))),
         number,
         published: Some(published),
-        page: Arc::new(Mutex::new(None)),
+        page: Arc::new(RwLock::new(None)),
         views: None,
         // NOTE: Impossible to say from this page. In general any random Original episode would have been
         // behind fast-pass, but the initial release episodes which never were would be impossible to tell.
