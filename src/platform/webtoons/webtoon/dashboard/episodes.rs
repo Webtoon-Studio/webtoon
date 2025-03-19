@@ -1,7 +1,7 @@
 mod json;
 use chrono::DateTime;
 pub use json::*;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use crate::platform::webtoons::{Webtoon, errors::EpisodeError, webtoon::episode::Episode};
 use std::{collections::HashSet, sync::Arc, time::Duration};
@@ -26,15 +26,15 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,
-            season: Arc::new(Mutex::new(super::super::episode::season(
+            season: Arc::new(RwLock::new(super::super::episode::season(
                 &episode.metadata.title,
             ))),
-            title: Arc::new(Mutex::new(Some(episode.metadata.title))),
+            title: Arc::new(RwLock::new(Some(episode.metadata.title))),
             published: episode.published.map(|timestamp| {
                 DateTime::from_timestamp_millis(timestamp)
                     .expect("webtoons should be using proper timestamps")
             }),
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
             views: Some(episode.metadata.views),
             ad_status: Some(episode.dashboard_status.ad_status()),
             published_status: Some(episode.dashboard_status.into()),
@@ -55,15 +55,15 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             episodes.insert(Episode {
                 webtoon: webtoon.clone(),
                 number: episode.metadata.number,
-                season: Arc::new(Mutex::new(super::super::episode::season(
+                season: Arc::new(RwLock::new(super::super::episode::season(
                     &episode.metadata.title,
                 ))),
-                title: Arc::new(Mutex::new(Some(episode.metadata.title))),
+                title: Arc::new(RwLock::new(Some(episode.metadata.title))),
                 published: episode.published.map(|timestamp| {
                     DateTime::from_timestamp_millis(timestamp)
                         .expect("webtoons should be using proper timestamps")
                 }),
-                page: Arc::new(Mutex::new(None)),
+                page: Arc::new(RwLock::new(None)),
                 views: Some(episode.metadata.views),
                 ad_status: Some(episode.dashboard_status.ad_status()),
                 published_status: Some(episode.dashboard_status.into()),

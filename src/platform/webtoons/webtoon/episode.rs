@@ -17,7 +17,7 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{hash::Hash, str::FromStr};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use self::page::Page;
 use self::posts::Posts;
@@ -81,10 +81,10 @@ use super::{Webtoon, dashboard::episodes::DashboardStatus};
 pub struct Episode {
     pub(crate) webtoon: Webtoon,
     pub(crate) number: u16,
-    pub(crate) season: Arc<Mutex<Option<u8>>>,
-    pub(crate) title: Arc<Mutex<Option<String>>>,
+    pub(crate) season: Arc<RwLock<Option<u8>>>,
+    pub(crate) title: Arc<RwLock<Option<String>>>,
     pub(crate) published: Option<DateTime<Utc>>,
-    pub(crate) page: Arc<Mutex<Option<Page>>>,
+    pub(crate) page: Arc<RwLock<Option<Page>>>,
     pub(crate) views: Option<u32>,
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
@@ -118,29 +118,18 @@ impl Episode {
 
     /// Returns the title of the episode.
     pub async fn title(&self) -> Result<String, EpisodeError> {
-        let mut title = self.title.lock().await;
-
-        if title.is_none() {
-            let mut page = self.page.lock().await;
-
-            if page.is_none() {
-                *page = Some(self.scrape().await?);
-            }
-
-            *title = Some(
-                page.as_ref()
-                    .context(
-                        "page should have been scraped with `self.scrape` and so should be `Some`",
-                    )?
-                    .title
-                    .clone(),
-            );
+        if let Some(title) = &*self.title.read().await {
+            Ok(title.clone())
+        } else {
+            let page = Some(self.scrape().await?);
+            let title = page
+                .as_ref()
+                .map(|page| page.title.clone())
+                .context("title should have been scraped with the page scrape")?;
+            *self.page.write().await = page;
+            *self.title.write().await = Some(title.clone());
+            Ok(title)
         }
-
-        Ok(title
-            .as_ref()
-            .context("title should have been scraped from prior Page scrape")?
-            .clone())
     }
 
     /// Returns the season number if a pattern is detected in the episode's title.
@@ -178,50 +167,34 @@ impl Episode {
     /// ### Errors:
     /// - Returns an [`EpisodeError`] if an error occurs during the retrieval of the episode title or unexpected issues occur.
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
-        let mut season = self.season.lock().await;
-
-        if season.is_none() {
-            let title = self.title().await?;
-            *season = self::season(&title);
-        }
-
-        Ok(*season)
+        let title = self.title().await?;
+        let season = self::season(&title);
+        *self.season.write().await = season;
+        Ok(season)
     }
 
     /// Returns the creator note for episode.
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
-        let mut page = self.page.lock().await;
-
-        if page.is_none() {
-            *page = Some(self.scrape().await?);
+        if let Some(page) = &*self.page.read().await {
+            Ok(page.note.clone())
+        } else {
+            let page = self.scrape().await?;
+            let note = page.note.clone();
+            *self.page.write().await = Some(page);
+            Ok(note)
         }
-
-        let note = page
-            .as_ref()
-            .map(|page| page.note.clone())
-            .context("episode `page` should have been updated with the call to `self.scrape`")?;
-
-        drop(page);
-
-        Ok(note)
     }
 
     /// Returns the sum of the vertical length in pixels.
     pub async fn length(&self) -> Result<u32, EpisodeError> {
-        let mut page = self.page.lock().await;
-
-        if page.is_none() {
-            *page = Some(self.scrape().await?);
+        if let Some(page) = &*self.page.read().await {
+            Ok(page.length)
+        } else {
+            let page = self.scrape().await?;
+            let length = page.length;
+            *self.page.write().await = Some(page);
+            Ok(length)
         }
-
-        let length = page
-            .as_ref()
-            .context("episode `page` should have been updated with the call to `self.scrape`")?
-            .length;
-
-        drop(page);
-
-        Ok(length)
     }
 
     /// Returns the published timestamp of the episode.
@@ -851,41 +824,30 @@ impl Episode {
     ///
     /// - Returns an [`EpisodeError`] if there is a failure in fetching or processing the episode data.
     pub async fn panels(&self) -> Result<Vec<Panel>, EpisodeError> {
-        let mut page = self.page.lock().await;
-
-        if page.is_none() {
-            *page = Some(self.scrape().await?);
+        if let Some(page) = &*self.page.read().await {
+            Ok(page.panels.clone())
+        } else {
+            let page = self.scrape().await?;
+            let panels = page.panels.clone();
+            *self.page.write().await = Some(page);
+            Ok(panels)
         }
-
-        let panels = page
-            .as_ref()
-            .context("episode `page` should have been updated with the call to `self.scrape")?
-            .panels
-            .clone();
-
-        drop(page);
-
-        Ok(panels)
     }
 
     /// Returns the thumbnail URL for episode.
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
-        let mut page = self.page.lock().await;
+        // TODO: As `thumbnail` is not stored directly in `Episode`, and only in `page`, a request must be made to the
+        // episode page every time (if another function didn't already populate the page). Even if constructed via the
+        // episode dashboard, which has thumbnail information on first scrape.
 
-        if page.is_none() {
-            *page = Some(self.scrape().await?);
+        if let Some(page) = &*self.page.read().await {
+            Ok(page.thumbnail.to_string())
+        } else {
+            let page = self.scrape().await?;
+            let thumbnail = page.thumbnail.clone();
+            *self.page.write().await = Some(page);
+            Ok(thumbnail.to_string())
         }
-
-        let thumbnail = page
-            .as_ref()
-            .context("episode `page` should have been updated with the call to `self.scrape")?
-            .thumbnail
-            .as_str()
-            .to_string();
-
-        drop(page);
-
-        Ok(thumbnail)
     }
 
     /// Returns the [`PublishedStatus`] for the episode, indicating whether the episode is published, a draft, or removed.
@@ -1126,18 +1088,14 @@ impl Episode {
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
-        let mut page = self.page.lock().await;
-        if page.is_none() {
-            *page = Some(self.scrape().await?);
-        }
-
-        let mut panels = page
-            .as_ref()
-            .context("`panel_urls` should be `Some` if scrape succeeded")?
-            .panels
-            .clone();
-
-        drop(page);
+        let mut panels = if let Some(page) = &*self.page.read().await {
+            page.panels.clone()
+        } else {
+            let page = self.scrape().await?;
+            let panels = page.panels.clone();
+            *self.page.write().await = Some(page);
+            panels
+        };
 
         // PERF: Download N panels at a time. Without this it will be a sequential.
         let semaphore = Semaphore::new(100);
@@ -1192,8 +1150,7 @@ impl Episode {
     /// ### Notes:
     /// - The cache is automatically populated when episode metadata is fetched. Use this method only if you want to invalidate that cache.
     pub async fn evict_cache(&self) {
-        let mut page = self.page.lock().await;
-        *page = None;
+        *self.page.write().await = None;
     }
 }
 
@@ -1203,15 +1160,15 @@ impl Episode {
         Self {
             webtoon: webtoon.clone(),
             number,
-            season: Arc::new(Mutex::new(None)),
-            title: Arc::new(Mutex::new(None)),
+            season: Arc::new(RwLock::new(None)),
+            title: Arc::new(RwLock::new(None)),
             // NOTE: Currently there is no way to get this info from an episodes page.
             // The only sources are the dashboard episode list data, and the episode list from the webtoons page.
             // This could be gotten, in theory, with the webtoons page episode data, but caching the episodes
             // would lead to a large refactor and be slow for when only getting one episodes data.
             // For now will just return None until a solution can be landed on.
             published: None,
-            page: Arc::new(Mutex::new(None)),
+            page: Arc::new(RwLock::new(None)),
             views: None,
             ad_status: None,
             published_status: None,
