@@ -10,6 +10,7 @@ pub use page::panels::Panels;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use core::fmt;
+use parking_lot::RwLock;
 use posts::Post;
 use regex::Regex;
 use scraper::Html;
@@ -17,7 +18,6 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{hash::Hash, str::FromStr};
-use tokio::sync::RwLock;
 
 use self::page::Page;
 use self::posts::Posts;
@@ -118,7 +118,7 @@ impl Episode {
 
     /// Returns the title of the episode.
     pub async fn title(&self) -> Result<String, EpisodeError> {
-        if let Some(title) = &*self.title.read().await {
+        if let Some(title) = &*self.title.read() {
             Ok(title.clone())
         } else {
             let page = Some(self.scrape().await?);
@@ -126,8 +126,8 @@ impl Episode {
                 .as_ref()
                 .map(|page| page.title.clone())
                 .context("title should have been scraped with the page scrape")?;
-            *self.page.write().await = page;
-            *self.title.write().await = Some(title.clone());
+            *self.page.write() = page;
+            *self.title.write() = Some(title.clone());
             Ok(title)
         }
     }
@@ -169,30 +169,30 @@ impl Episode {
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
         let season = self::season(&title);
-        *self.season.write().await = season;
+        *self.season.write() = season;
         Ok(season)
     }
 
     /// Returns the creator note for episode.
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.note.clone())
         } else {
             let page = self.scrape().await?;
             let note = page.note.clone();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(note)
         }
     }
 
     /// Returns the sum of the vertical length in pixels.
     pub async fn length(&self) -> Result<u32, EpisodeError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.length)
         } else {
             let page = self.scrape().await?;
             let length = page.length;
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(length)
         }
     }
@@ -824,12 +824,12 @@ impl Episode {
     ///
     /// - Returns an [`EpisodeError`] if there is a failure in fetching or processing the episode data.
     pub async fn panels(&self) -> Result<Vec<Panel>, EpisodeError> {
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.panels.clone())
         } else {
             let page = self.scrape().await?;
             let panels = page.panels.clone();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(panels)
         }
     }
@@ -840,12 +840,12 @@ impl Episode {
         // episode page every time (if another function didn't already populate the page). Even if constructed via the
         // episode dashboard, which has thumbnail information on first scrape.
 
-        if let Some(page) = &*self.page.read().await {
+        if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail.to_string())
         } else {
             let page = self.scrape().await?;
             let thumbnail = page.thumbnail.clone();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             Ok(thumbnail.to_string())
         }
     }
@@ -1088,12 +1088,12 @@ impl Episode {
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
-        let mut panels = if let Some(page) = &*self.page.read().await {
+        let mut panels = if let Some(page) = &*self.page.read() {
             page.panels.clone()
         } else {
             let page = self.scrape().await?;
             let panels = page.panels.clone();
-            *self.page.write().await = Some(page);
+            *self.page.write() = Some(page);
             panels
         };
 
@@ -1150,7 +1150,7 @@ impl Episode {
     /// ### Notes:
     /// - The cache is automatically populated when episode metadata is fetched. Use this method only if you want to invalidate that cache.
     pub async fn evict_cache(&self) {
-        *self.page.write().await = None;
+        *self.page.write() = None;
     }
 }
 

@@ -2,9 +2,9 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
+use parking_lot::RwLock;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use tokio::sync::RwLock;
 use url::Url;
 
 use crate::platform::webtoons::{

@@ -2,8 +2,8 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
+use parking_lot::RwLock;
 use scraper::{ElementRef, Html, Selector};
-use tokio::sync::RwLock;
 
 use super::Page;
 use crate::platform::webtoons::{
