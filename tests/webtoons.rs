@@ -68,7 +68,7 @@ async fn webtoon() -> Result<(), Error> {
     let _lang = webtoon.language();
     let _creators = webtoon.creators().await.unwrap();
     let _genres = webtoon.genres().await.unwrap();
-    let _release = webtoon.release().await.unwrap();
+    let _schedule = webtoon.schedule().await.unwrap();
     let _views = webtoon.views().await.unwrap();
     let _likes = webtoon.likes().await.unwrap();
     let _subscribers = webtoon.subscribers().await.unwrap();

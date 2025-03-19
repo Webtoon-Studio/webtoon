@@ -14,7 +14,7 @@ use crate::platform::webtoons::{
     Webtoon,
     creator::Creator,
     meta::{Genre, Language},
-    originals::Release,
+    originals::Schedule,
 };
 
 use super::{WebtoonError, episode::Episode};
@@ -29,7 +29,7 @@ pub struct Page {
     views: u64,
     subscribers: u32,
     rating: f64,
-    release: Option<Vec<Release>>,
+    schedule: Option<Schedule>,
     thumbnail: Url,
     banner: Option<Url>,
     pages: u8,
@@ -93,8 +93,8 @@ impl Page {
     }
 
     #[inline]
-    pub(crate) fn release(&self) -> Option<&[Release]> {
-        self.release.as_deref()
+    pub(crate) fn schedule(&self) -> Option<&Schedule> {
+        self.schedule.as_ref()
     }
 
     #[inline]
