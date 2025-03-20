@@ -21,7 +21,7 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("No episode for given number");
 
-    if client.has_session() {
+    if client.has_valid_session().await.is_ok_and(|result| result) {
         // Post content and if its marked as a spoiler.
         episode.post("MESSAGE", false).await?;
     }

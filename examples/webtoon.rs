@@ -25,7 +25,7 @@ async fn main() -> Result<(), Error> {
     println!("rating: {}", webtoon.rating().await?);
     println!("summary: {}", webtoon.summary().await?);
 
-    if client.has_session() {
+    if client.has_valid_session().await.is_ok_and(|result| result) {
         webtoon.rate(10).await?;
         webtoon.is_subscribed().await?;
         webtoon.subscribe().await?;
