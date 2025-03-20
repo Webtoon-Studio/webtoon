@@ -964,7 +964,15 @@ impl Client {
             format!("https://www.webtoons.com/{lang}/{scope}/{slug}/list?title_no={id}")
         };
 
-        let response = self.http.get(url).send().await?;
+        // Sane fallback if other limits weren't enough to prevent a rate limit error.
+        let response = loop {
+            let response = self.http.get(&url).send().await?;
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+            break response;
+        };
 
         Ok(response)
     }
