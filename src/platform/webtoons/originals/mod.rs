@@ -105,7 +105,7 @@ pub enum Weekday {
     Saturday,
 }
 
-/// An error which can happen when parsing a string to a [`Release`].
+/// An error which can happen when parsing a string to a release type.
 #[derive(Debug, Error)]
 #[error("failed to parse `{0}` into a `Release`")]
 pub struct ParseScheduleError(String);
