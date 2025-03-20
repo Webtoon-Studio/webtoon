@@ -407,7 +407,16 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}"
         );
 
-        let response = self.http.get(url).send().await?;
+        let response = loop {
+            let response = self.http.get(&url).send().await?;
+
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            break response;
+        };
 
         let api = serde_json::from_str::<search::Api>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
@@ -441,7 +450,17 @@ impl Client {
             let url = format!(
                 "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}&cursor={cursor}"
             );
-            let response = self.http.get(url).send().await?;
+
+            let response = loop {
+                let response = self.http.get(&url).send().await?;
+
+                if response.status() == 429 {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+
+                break response;
+            };
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
@@ -476,7 +495,16 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}"
         );
 
-        let response = self.http.get(url).send().await?;
+        let response = loop {
+            let response = self.http.get(&url).send().await?;
+
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            break response;
+        };
 
         let api = serde_json::from_str::<search::Api>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
@@ -510,7 +538,17 @@ impl Client {
             let url = format!(
                 "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}&cursor={cursor}"
             );
-            let response = self.http.get(url).send().await?;
+
+            let response = loop {
+                let response = self.http.get(&url).send().await?;
+
+                if response.status() == 429 {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+
+                break response;
+            };
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
@@ -697,7 +735,16 @@ impl Client {
             }
         );
 
-        let response = self.http.get(&url).send().await?;
+        let response = loop {
+            let response = self.http.get(&url).send().await?;
+
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            break response;
+        };
 
         // Webtoon doesn't exist
         if response.status() == 404 {
