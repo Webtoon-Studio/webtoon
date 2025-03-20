@@ -49,9 +49,34 @@ impl Creator {
     }
 
     /// Returns a `Creators` profile segment in `https://www.webtoons.com/*/creator/{profile}`
+    ///
+    /// Not all creators for a story have a webtoons profile (Korean stories for example).
     #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
+    }
+
+    /// Returns a `Creators` id.
+    ///
+    /// Sometimes this is just the `profile` but with the `_` prefix stripped.
+    /// If creator has no webtoon profile then this will always return `None`.
+    ///
+    /// # Errors
+    ///
+    /// Will error if failed to scrape the creators profile page.
+    pub async fn id(&self) -> Result<Option<String>, CreatorError> {
+        if let Some(page) = &*self.page.read() {
+            Ok(Some(page.id.clone()))
+        } else {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            let page = page(self.language, profile, &self.client).await?;
+            let followers = page.as_ref().map(|page| page.id.clone());
+            *self.page.write() = page;
+            Ok(followers)
+        }
     }
 
     /// Returns the number of followers for the `Creator`.
