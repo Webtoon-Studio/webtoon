@@ -1314,13 +1314,25 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
         );
 
-        self.http
-            .get(url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
-            .await
-            .map_err(|err| ClientError::Unexpected(err.into()))
+        // Sane fallback if other limits weren't enough to prevent a rate limit error.
+        let response = loop {
+            let response = self
+                .http
+                .get(&url)
+                .header("Service-Ticket-Id", "epicom")
+                .header("Cookie", format!("NEO_SES={session}"))
+                .send()
+                .await?;
+
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            break response;
+        };
+
+        Ok(response)
     }
 
     pub(super) async fn get_upvotes_and_downvotes_for_post(
