@@ -31,11 +31,13 @@ posting comments, subscribing, liking, and managing episode metadata.
 
 ### Installation
 
+MSRV: `1.85.0`
+
 To use this library, add `webtoon` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-webtoon = "0.3.2"
+webtoon = "0.5.0"
 ```
 
 ## Example Usage
