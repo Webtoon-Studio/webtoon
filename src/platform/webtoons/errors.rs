@@ -39,8 +39,6 @@ pub enum ClientError {
     NoSessionProvided,
     #[error("Provided session is invalid or expired")]
     InvalidSession,
-    #[error("Rate limit was exceeded")]
-    RateLimitExceeded,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
