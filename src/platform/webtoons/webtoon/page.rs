@@ -145,8 +145,8 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
             episodes.push(episode);
         }
 
-        // This page never returns a rate limt response, it just silently fails, leading to missed pages.
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
     // NOTE: Episodes are scraped from newest to oldest, this will make the returned Vec oldest first.
