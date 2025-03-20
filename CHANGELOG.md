@@ -1,5 +1,21 @@
+## What's Changed in 0.5.0
+* feat(poster): add super likes api on `Poster` by @RoloEdits in [#61](https://github.com/Webtoon-Studio/webtoon/pull/61)
+* feat(creator): add `id` method by @RoloEdits in [#60](https://github.com/Webtoon-Studio/webtoon/pull/60)
+* feat(webtoon): add `is_completed` method by @RoloEdits in [#59](https://github.com/Webtoon-Studio/webtoon/pull/59)
+* refactor: change `Release` into more accurate `Schedule` by @RoloEdits in [#58](https://github.com/Webtoon-Studio/webtoon/pull/58)
+* refactor: switch to `parking_lot::RwLock` inplace of `tokio` version by @RoloEdits in [#57](https://github.com/Webtoon-Studio/webtoon/pull/57)
+* refactor(episode): change `Mutex` for `RwLock` by @RoloEdits in [#56](https://github.com/Webtoon-Studio/webtoon/pull/56)
+* refactor(tests): use `has_session` instead of `has_valid_session` by @RoloEdits in [#55](https://github.com/Webtoon-Studio/webtoon/pull/55)
+* refactor(episode)!: change `posts_for_each` to async closure by @RoloEdits in [#54](https://github.com/Webtoon-Studio/webtoon/pull/54)
+* refactor(creator): change `Mutex` for `RwLock` on `Creator::page` by @RoloEdits in [#51](https://github.com/Webtoon-Studio/webtoon/pull/51)
+* refactor(webtoon): change `Mutex` for `RwLock` on `Webtoon::page` by @RoloEdits in [#49](https://github.com/Webtoon-Studio/webtoon/pull/49)
+* chore: update to rust 2024 edition by @RoloEdits in [#48](https://github.com/Webtoon-Studio/webtoon/pull/48)
+* feat(webtoon): add `is_orginal` and `is_canvas` to `Webtoon` by @RoloEdits in [#47](https://github.com/Webtoon-Studio/webtoon/pull/47)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.4.0...0.5.0
+
 ## What's Changed in 0.4.0
-* chore: bump version from 0.3.2 to 0.4.0
+* chore: bump version from 0.3.2 to 0.4.0 by @RoloEdits in [#46](https://github.com/Webtoon-Studio/webtoon/pull/46)
 * dev: add Justfile by @RoloEdits in [#45](https://github.com/Webtoon-Studio/webtoon/pull/45)
 * fix(client): add retry when encounter a 429 response by @RoloEdits
 * fix: webtoon thumbnail parse by @RoloEdits in [#43](https://github.com/Webtoon-Studio/webtoon/pull/43)
