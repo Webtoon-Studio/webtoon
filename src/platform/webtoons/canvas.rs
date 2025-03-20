@@ -19,12 +19,9 @@
 
 use anyhow::{Context, Result, anyhow};
 use scraper::{Html, Selector};
-use std::{fmt::Display, ops::RangeBounds, time::Duration};
+use std::{fmt::Display, ops::RangeBounds};
 
-use super::{
-    Client, Language, Webtoon,
-    errors::{CanvasError, ClientError},
-};
+use super::{Client, Language, Webtoon, errors::CanvasError};
 
 pub(super) async fn scrape(
     client: &Client,
@@ -59,10 +56,6 @@ pub(super) async fn scrape(
     for page in start..end {
         let response = match client.get_canvas_page(language, page, sort).await {
             Ok(response) => response,
-            Err(ClientError::RateLimitExceeded) => {
-                tokio::time::sleep(Duration::from_secs(10)).await;
-                client.get_canvas_page(language, page, sort).await?
-            }
             Err(err) => return Err(CanvasError::ClientError(err)),
         };
 

@@ -1187,10 +1187,6 @@ impl Episode {
             return Err(EpisodeError::NotViewable);
         }
 
-        if response.status() == 429 {
-            return Err(EpisodeError::ClientError(ClientError::RateLimitExceeded));
-        }
-
         let text = response.text().await?;
 
         let html = Html::parse_document(&text);
