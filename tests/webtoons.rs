@@ -22,6 +22,10 @@ async fn creator() -> anyhow::Result<()> {
         .unwrap();
 
     let _username = creator.username();
+    let profile = creator.profile();
+    assert_eq!(Some("JennyToons"), profile.as_deref());
+    let id = creator.id().await?;
+    assert_eq!(Some("n5z4d"), id.as_deref());
     let _followers = creator.followers().await.unwrap();
     let has_patreon = creator.has_patreon().await.unwrap();
     let _webtoons = creator.webtoons().await.unwrap();

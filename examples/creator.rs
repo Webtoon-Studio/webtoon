@@ -9,6 +9,7 @@ async fn main() -> anyhow::Result<()> {
         bail!("no creator exists with given id");
     };
 
+    println!("id: {:?}", creator.id().await?);
     println!("username: {}", creator.username());
     println!("followers: {:?}", creator.followers().await?);
     println!("has_patreon: {:?}", creator.has_patreon().await?);
