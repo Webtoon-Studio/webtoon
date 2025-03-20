@@ -70,7 +70,8 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             });
         }
 
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
     let mut episodes: Vec<Episode> = episodes.into_iter().collect();

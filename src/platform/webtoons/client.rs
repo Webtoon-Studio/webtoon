@@ -1086,12 +1086,22 @@ impl Client {
             "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}"
         );
 
-        let response = self
-            .http
-            .get(url)
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
-            .await?;
+        let response = loop {
+            let response = self
+                .http
+                .get(&url)
+                .header("Cookie", format!("NEO_SES={session}"))
+                .send()
+                .await?;
+
+            // Sane fallback if other limits weren't enough to prevent a rate limit error.
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            break response;
+        };
 
         Ok(response)
     }
