@@ -848,29 +848,20 @@ impl Client {
     ///
     /// Will return an error if there was an issue with the network request or deserilization.
     pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, ClientError> {
-        let mut count = 5;
-
         let text = loop {
-            if count == 0 {
-                return Err(ClientError::RateLimitExceeded);
-            }
-
             let response = self
                 .http
                 .get("https://www.webtoons.com/en/member/userInfo")
                 .header("Cookie", format!("NEO_SES={session}"))
                 .send()
-                .await?
-                .text()
                 .await?;
 
-            count -= 1;
-
-            if !response.contains("429 Too Many Requests") {
-                break response;
+            if response.status() == 429 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
             }
 
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            break response.text().await?;
         };
 
         let user_info: UserInfo = serde_json::from_str(&text).map_err(|err| {
