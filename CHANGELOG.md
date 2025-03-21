@@ -1,4 +1,14 @@
+## What's Changed
+* refactor(test): switch all session checks to validate checks by @RoloEdits
+* refactor(examples): switch all session checks to validate checks by @RoloEdits in [#68](https://github.com/Webtoon-Studio/webtoon/pull/68)
+* fix(client)!: add retry logic to internal and public impls by @RoloEdits in [#67](https://github.com/Webtoon-Studio/webtoon/pull/67)
+* fix(posts): add retry loop when getting posts by @RoloEdits in [#66](https://github.com/Webtoon-Studio/webtoon/pull/66)
+* fix(dashboard): adjust timer to prevent page rate limit by @RoloEdits in [#65](https://github.com/Webtoon-Studio/webtoon/pull/65)
+* fix(doc): remove broken intra-doc link by @RoloEdits in [#64](https://github.com/Webtoon-Studio/webtoon/pull/64)
+* fix(webtoon): adjust timer to prevent page rate limit by @RoloEdits in [#63](https://github.com/Webtoon-Studio/webtoon/pull/63)
+
 ## What's Changed in 0.5.0
+* chore: bump version from 0.4.0 to 0.5.0 by @RoloEdits in [#62](https://github.com/Webtoon-Studio/webtoon/pull/62)
 * feat(poster): add super likes api on `Poster` by @RoloEdits in [#61](https://github.com/Webtoon-Studio/webtoon/pull/61)
 * feat(creator): add `id` method by @RoloEdits in [#60](https://github.com/Webtoon-Studio/webtoon/pull/60)
 * feat(webtoon): add `is_completed` method by @RoloEdits in [#59](https://github.com/Webtoon-Studio/webtoon/pull/59)
