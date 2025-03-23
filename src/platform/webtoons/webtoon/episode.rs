@@ -145,7 +145,7 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -215,7 +215,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error,webtoon::episode::PublishedStatus};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -257,7 +257,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -347,7 +347,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -480,7 +480,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -601,14 +601,14 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error,webtoon::episode::PublishedStatus};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # if let Some(episode) = webtoon.episode(1).await? {
-    /// let posts = episode.posts_till_id("some-post-id").await?;
+    /// let posts = episode.posts_till_id("GW-epicom:0-c_843910_1-g").await?;
     /// for post in posts {
     ///     println!("Comment by {}: {}", post.poster().username(), post.body().contents());
     /// }
@@ -706,7 +706,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error,webtoon::episode::PublishedStatus};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -804,7 +804,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error, webtoon::episode::PublishedStatus};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -863,7 +863,7 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error,webtoon::episode::PublishedStatus};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -908,7 +908,7 @@ impl Episode {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -948,15 +948,18 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::{Error, EpisodeError, ClientError}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # if let Some(episode) = webtoon.episode(1).await? {
-    /// episode.like().await?;
-    /// println!("Episode liked successfully!");
+    /// match episode.like().await {
+    ///     Ok(_) => println!("liked episode!"),
+    ///     Err(EpisodeError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("session issue, failed to like episode."),
+    ///     Err(err) => panic!("{err}"),
+    /// }
     /// # }
     /// # }
     /// # Ok(())
@@ -983,15 +986,18 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::{Error, EpisodeError, ClientError}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # if let Some(episode) = webtoon.episode(1).await? {
-    /// episode.unlike().await?;
-    /// println!("Like removed from episode successfully!");
+    /// match episode.unlike().await {
+    ///     Ok(_) => println!("unliked episode!"),
+    ///     Err(EpisodeError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("session issue, failed to unlike episode."),
+    ///     Err(err) => panic!("{err}"),
+    /// }
     /// # }
     /// # }
     /// # Ok(())
@@ -1015,15 +1021,18 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::{Error, PostError, ClientError}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # if let Some(episode) = webtoon.episode(1).await? {
-    /// episode.post("Loved this episode!", false).await?;
-    /// episode.post("Shocking twist! *spoiler*", true).await?;
+    /// match episode.post("Loved this episode!", false).await {
+    ///    Ok(_) => println!("left post on episode!"),
+    ///    Err(PostError::ClientError(ClientError::NoSessionProvided | ClientError::InvalidSession)) => println!("session issue, failed to post"),
+    ///    Err(err) => panic!("err"),
+    /// }
     /// # }
     /// # }
     /// # Ok(())
@@ -1132,7 +1141,7 @@ impl Episode {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
