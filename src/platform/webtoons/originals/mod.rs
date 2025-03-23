@@ -24,10 +24,6 @@ pub(super) async fn scrape(
 
     let html = Html::parse_document(&document);
 
-    // TODO: Need to access the `genres` page as the home page of the webtoons only contains one genre when there could
-    // be many more.
-    // let genres = genres::scrape(client).await?;
-
     for card in html.select(&selector) {
         let href = card
             .attr("href")

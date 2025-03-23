@@ -885,16 +885,6 @@ pub struct Sticker {
 }
 
 impl Sticker {
-    // TODO: Implement so that users can make a Sticker when using `episode.post_with_sticker(Sticker::new(...))`
-    // pub fn new(pack: String, pack_number: u16, version: Option<u16>, id: u16) -> Self {
-    //     Self {
-    //         pack,
-    //         pack_number,
-    //         version,
-    //         id,
-    //     }
-    // }
-
     /// Returns the sticker's pack id as a String.
     ///
     /// Example: "`wt_001`"
@@ -1039,31 +1029,6 @@ impl Giphy {
         format!("https://media1.giphy.com/media/{}/giphy.gif", self.id)
     }
 }
-
-// TODO: implement user unblocking
-// DELETE https://www.webtoons.com/p/api/community/v1/restriction/type/write-post/page-group/c_843910/target/513630f0-a3cc-11e5-9630-000000007ff1
-// {"status":"success"}
-
-//TODO: This needs to be implemented just so that blockign can be checked.
-// Block user list
-// GET https://www.webtoons.com/p/api/community/v1/restriction/type/write-post/page-group/c_843910?cursor=
-// {
-//     "status": "success",
-//     "result": {
-//         "pagination": {},
-//         "restrictions": [
-//             {
-//                 "targetCuid": "513630f0-a3cc-11e5-9630-000000007ff1",
-//                 "targetMaskedUserId": "5136****",
-//                 "sourcePostId": "GW-epicom:0-c_843910_2-2",
-//                 "targetName": "Nen19",
-//                 "status": "SERVICE",
-//                 "createdAt": 1726965299280
-//             }
-//         ],
-//         "totalRestrictionCount": 1
-//     }
-// }
 
 /// Represents information about the poster of a [`Post`].
 #[allow(clippy::struct_excessive_bools)]

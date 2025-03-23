@@ -119,11 +119,6 @@ async fn posts() -> Result<(), Error> {
             post.downvote().await.unwrap();
             post.unvote().await.unwrap();
 
-            // TODO: Cannot block self, need to filter only non-self posts.
-            // TODO: Add unblock()
-            // If has valid session and user has moderating permission(is the creator)
-            // post.poster().block().await;
-
             if !post.is_deleted() {
                 post.reply("REPLY", true).await.unwrap();
             }

@@ -26,8 +26,6 @@ use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 
-// TODO: implement dashboards scraping for other languages
-
 /// Represents a Webtoon from `webtoons.com`.
 ///
 /// This can be thought of as a handle that the methods use to access various parts of the webtoons api for information about the webtoon.
@@ -185,7 +183,6 @@ impl Webtoon {
     ///   data is used for more precision. Otherwise, the views from the main page are returned.
     pub async fn views(&self) -> Result<u64, EpisodeError> {
         match self.client.get_user_info_for_webtoon(self).await {
-            // TODO: Only English dashboards are supported for now.
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 let views = dashboard::episodes::scrape(self)
                     .await?
@@ -264,7 +261,6 @@ impl Webtoon {
     ///   from the creator's dashboard are used for more precision. Otherwise, the subscriber count is retrieved from the webtoon's main page.
     pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
         match self.client.get_user_info_for_webtoon(self).await {
-            // TODO: Only english dashboards supported for now
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 let subscribers = dashboard::stats::scrape(self).await?.subscribers;
                 return Ok(subscribers);
@@ -502,7 +498,6 @@ impl Webtoon {
     /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of episode data.
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let episodes = match self.client.get_user_info_for_webtoon(self).await {
-            // TODO: Only English dashboards are supported for now.
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 self::dashboard::episodes::scrape(self).await?
             }

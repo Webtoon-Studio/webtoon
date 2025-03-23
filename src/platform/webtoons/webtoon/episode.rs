@@ -31,10 +31,6 @@ use crate::platform::webtoons::{
 
 use super::{Webtoon, dashboard::episodes::DashboardStatus};
 
-// TODO: `episode.post_with_sticker("POST", false, Sticker::from_str("")?)`
-// TODO: `episode.post_with_webtoons("POST", false, vec![Webtoon])`
-// TODO: `episode.post_with_giphy("POST", false, Giphy::new(String::from("")))`
-//
 // NOTE: Alternate comment and reply count API
 //GET https://www.webtoons.com/p/api/community/v1/pages/activity/count?pageIds=c_843910_1
 // {
@@ -836,10 +832,6 @@ impl Episode {
 
     /// Returns the thumbnail URL for episode.
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
-        // TODO: As `thumbnail` is not stored directly in `Episode`, and only in `page`, a request must be made to the
-        // episode page every time (if another function didn't already populate the page). Even if constructed via the
-        // episode dashboard, which has thumbnail information on first scrape.
-
         if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail.to_string())
         } else {

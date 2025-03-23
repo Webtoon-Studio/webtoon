@@ -13,8 +13,6 @@ async fn main() -> anyhow::Result<()> {
     for webtoon in webtoons {
         println!("Checking `{}`", webtoon.title().await?);
         // Need to use `episodes` as only this function can result in `published` yielding `Some`.
-        // TODO: Add a specialization for the first episode, `first_episode`, that will optimize getting
-        // first episode data so that this check can be done faster.
         let episodes = webtoon.episodes().await?;
 
         let first_episode = episodes.episode(1).with_context(|| {
