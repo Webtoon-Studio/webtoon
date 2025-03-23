@@ -12,8 +12,6 @@ use super::{
     episode::{Episode, PublishedStatus},
 };
 
-// TODO: implement rss for other languages: need to parse the dates
-
 /// Represents the RSS data from the webtoons.com rss feed for the webtoon
 ///
 /// This is not a spec-compliant representation, but rather one that would make sense from a webtoon.com perspective.

@@ -109,13 +109,6 @@ impl Page {
 }
 
 pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonError> {
-    // TODO: If it ever becomes possible to detect the last page via a redirect or some other mechanism, the initial
-    // scrape shouldn't be needed anymore, and can just be iterated over with `1..` until the last page
-
-    // IDEA: Might be able to make in iterator instead that would yield an `Episode` using the `Episode::exists` function.
-    // This would better support hidden episodes, like those behind ads, as well as for completed webtoons, who's episodes
-    // list can be truncated.
-
     let page = scrape(webtoon).await?;
 
     let pages = page.pages;
