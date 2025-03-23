@@ -251,17 +251,16 @@ impl Post {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
-    /// # if let Some(post) = posts.into_iter().next() {
-    /// let post_id = post.id();
-    /// println!("Post ID: {:?}", post_id);
-    /// # }
+    /// let posts = webtoon.posts().await?;
+    /// for post in  posts {
+    ///     println!("Post ID: {:?}", post.id());
+    /// }
     /// # }
     /// # Ok(())
     /// # }
@@ -280,7 +279,7 @@ impl Post {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -313,7 +312,7 @@ impl Post {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -587,7 +586,7 @@ impl Post {
     ///
     /// Depending on the type you specify, you can either retrieve the number of replies or the actual replies themselves:
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error, webtoon::episode::posts::Posts};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -620,16 +619,19 @@ impl Post {
     ///
     /// ### Example:
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::{Error, ReplyError, ClientError}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
     /// # let posts = webtoon.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
-    /// post.reply("I know right!", false).await?;
-    /// post.reply("In the novel *spoiler*", true).await?;
+    /// match post.reply("In the novel *spoiler*", true).await {
+    ///     Ok(_) => println!("left reply!"),
+    ///     Err(ReplyError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("session issue, failed to leave reply"),
+    ///     Err(err) => panic!("{err}"),
+    /// }
     /// # }
     /// # }
     /// # Ok(())

@@ -161,7 +161,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -319,7 +319,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, originals::Schedule, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -404,7 +404,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -468,7 +468,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -555,7 +555,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -613,7 +613,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -668,7 +668,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -726,7 +726,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -779,13 +779,13 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// if webtoon.is_subscribed().await? {
+    /// if webtoon.is_subscribed().await.is_ok() {
     ///     println!("User is subscribed to this webtoon.");
     /// } else {
     ///     println!("User is not subscribed.");
@@ -828,14 +828,17 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{errors::{Error, ClientError, WebtoonError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// webtoon.subscribe().await?;
-    /// println!("Subscription successful.");
+    /// match webtoon.subscribe().await {
+    ///     Ok(_) => println!("Subscription successful."),
+    ///     Err(WebtoonError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("no session provided"),
+    ///     Err(err) => panic!("{err}"),
+    /// }
     /// # }
     /// # Ok(())
     /// # }
@@ -888,14 +891,17 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// ```rust
+    /// # use webtoon::platform::webtoons::{errors::{Error, ClientError, WebtoonError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// webtoon.unsubscribe().await?;
-    /// println!("Unsubscription successful.");
+    /// match webtoon.unsubscribe().await {
+    ///     Ok(_) => println!("Unsubscription successful."),
+    ///     Err(WebtoonError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("no session provided"),
+    ///     Err(err) => panic!("{err}"),
+    /// }
     /// # }
     /// # Ok(())
     /// # }
@@ -938,7 +944,7 @@ impl Webtoon {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {

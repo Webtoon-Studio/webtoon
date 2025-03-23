@@ -208,7 +208,7 @@ impl Creator {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
