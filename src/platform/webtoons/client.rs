@@ -22,7 +22,7 @@ use super::{
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
 use posts::id::Id;
-use reqwest::Response;
+use reqwest::{RequestBuilder, Response};
 use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -407,16 +407,7 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}"
         );
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         let api = serde_json::from_str::<search::Api>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
@@ -451,16 +442,7 @@ impl Client {
                 "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={lang}&query={query}&cursor={cursor}"
             );
 
-            let response = loop {
-                let response = self.http.get(&url).send().await?;
-
-                if response.status() == 429 {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-
-                break response;
-            };
+            let response = self.http.get(&url).retry().send().await?;
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
@@ -495,16 +477,7 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}"
         );
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         let api = serde_json::from_str::<search::Api>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
@@ -539,16 +512,7 @@ impl Client {
                 "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={lang}&query={query}&cursor={cursor}"
             );
 
-            let response = loop {
-                let response = self.http.get(&url).send().await?;
-
-                if response.status() == 429 {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-
-                break response;
-            };
+            let response = self.http.get(&url).retry().send().await?;
 
             let api = serde_json::from_str::<search::Api>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
@@ -735,16 +699,7 @@ impl Client {
             }
         );
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         // Webtoon doesn't exist
         if response.status() == 404 {
@@ -895,23 +850,15 @@ impl Client {
     ///
     /// Will return an error if there was an issue with the network request or deserilization.
     pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, ClientError> {
-        let text = loop {
-            let response = self
-                .http
-                .get("https://www.webtoons.com/en/member/userInfo")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
+        let response = self
+            .http
+            .get("https://www.webtoons.com/en/member/userInfo")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response.text().await?;
-        };
-
-        let user_info: UserInfo = serde_json::from_str(&text).map_err(|err| {
+        let user_info: UserInfo = serde_json::from_str(&response.text().await?).map_err(|err| {
             ClientError::Unexpected(anyhow!("failed to deserialize `userInfo` endpoint: {err}"))
         })?;
 
@@ -957,17 +904,7 @@ impl Client {
 impl Client {
     pub(super) async fn get_originals_page(&self, lang: Language) -> Result<Response, ClientError> {
         let url = format!("https://www.webtoons.com/{lang}/originals");
-
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
     }
@@ -982,16 +919,7 @@ impl Client {
             "https://www.webtoons.com/{lang}/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
         );
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
     }
@@ -1003,16 +931,7 @@ impl Client {
     ) -> Result<Response, ClientError> {
         let url = format!("https://www.webtoons.com/p/community/{lang}/u/{profile}");
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
     }
@@ -1033,15 +952,7 @@ impl Client {
             format!("https://www.webtoons.com/{lang}/{scope}/{slug}/list?title_no={id}")
         };
 
-        // Sane fallback if other limits weren't enough to prevent a rate limit error.
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
     }
@@ -1065,24 +976,15 @@ impl Client {
             Scope::Canvas => "https://www.webtoons.com/challenge/setFavorite",
         };
 
-        loop {
-            let response = self
-                .http
-                .post(url)
-                .header("Referer", "https://www.webtoons.com/")
-                .header("Service-Ticket-Id", "epicom")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .form(&form)
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .post(url)
+            .header("Referer", "https://www.webtoons.com/")
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .form(&form)
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1106,24 +1008,15 @@ impl Client {
             Scope::Canvas => "https://www.webtoons.com/challenge/setFavorite",
         };
 
-        loop {
-            let response = self
-                .http
-                .post(url)
-                .header("Referer", "https://www.webtoons.com/")
-                .header("Service-Ticket-Id", "epicom")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .form(&form)
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .post(url)
+            .header("Referer", "https://www.webtoons.com/")
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .form(&form)
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1148,24 +1041,15 @@ impl Client {
 
         let session = self.session.as_ref().unwrap();
 
-        loop {
-            let response = self
-                .http
-                .post(url)
-                .header("Referer", "https://www.webtoons.com/")
-                // NOTE: `wtu` just has to have something as a value and it works
-                .header("Cookie", format!("NEO_SES={session}; wtu=WTU"))
-                .form(&form)
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .post(url)
+            .header("Referer", "https://www.webtoons.com/")
+            // NOTE: `wtu` just has to have something as a value and it works
+            .header("Cookie", format!("NEO_SES={session}; wtu=WTU"))
+            .form(&form)
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1185,22 +1069,13 @@ impl Client {
             "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}"
         );
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            // Sane fallback if other limits weren't enough to prevent a rate limit error.
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1222,21 +1097,13 @@ impl Client {
 
         let url = format!(r"https://www.webtoons.com/{lang}/{scope}/titleStat?titleNo={id}");
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1275,16 +1142,7 @@ impl Client {
             "https://www.webtoons.com/*/{scope}/*/*/viewer?title_no={id}&episode_no={episode}"
         );
 
-        let response = loop {
-            let response = self.http.get(&url).send().await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
     }
@@ -1310,21 +1168,13 @@ impl Client {
             "https://www.webtoons.com/api/v1/like/search/counts?serviceId=LINEWEBTOON&contentIds={scope}_{webtoon}_{episode}"
         );
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1361,21 +1211,12 @@ impl Client {
                 "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
             );
 
-            loop {
-                let response = self
-                    .http
-                    .post(&url)
-                    .header("Cookie", format!("NEO_SES={session}"))
-                    .send()
-                    .await?;
-
-                if response.status() == 429 {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-
-                break;
-            }
+            self.http
+                .post(&url)
+                .header("Cookie", format!("NEO_SES={session}"))
+                .retry()
+                .send()
+                .await?;
         }
 
         Ok(())
@@ -1414,21 +1255,12 @@ impl Client {
                 "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
             );
 
-            loop {
-                let response = self
-                    .http
-                    .delete(&url)
-                    .header("Cookie", format!("NEO_SES={session}"))
-                    .send()
-                    .await?;
-
-                if response.status() == 429 {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-
-                break;
-            }
+            self.http
+                .delete(&url)
+                .header("Cookie", format!("NEO_SES={session}"))
+                .retry()
+                .send()
+                .await?;
         }
 
         Ok(())
@@ -1461,23 +1293,14 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
         );
 
-        // Sane fallback if other limits weren't enough to prevent a rate limit error.
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Service-Ticket-Id", "epicom")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1507,22 +1330,14 @@ impl Client {
             post.id
         );
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Service-Ticket-Id", "epicom")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1547,22 +1362,14 @@ impl Client {
             "https://www.webtoons.com/p/api/community/v2/post/{post_id}/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=false"
         );
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Service-Ticket-Id", "epicom")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         Ok(response)
     }
@@ -1604,24 +1411,15 @@ impl Client {
             .map(|session| session.as_ref())
             .ok_or(ClientError::NoSessionProvided)?;
 
-        loop {
-            let response = self
-                .http
-                .post("https://www.webtoons.com/p/api/community/v2/post")
-                .json(&body)
-                .header("Api-Token", token.clone())
-                .header("Cookie", format!("NEO_SES={session}"))
-                .header("Service-Ticket-Id", "epicom")
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .post("https://www.webtoons.com/p/api/community/v2/post")
+            .json(&body)
+            .header("Api-Token", token.clone())
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Service-Ticket-Id", "epicom")
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1635,26 +1433,17 @@ impl Client {
             .map(|session| session.as_ref())
             .ok_or(ClientError::NoSessionProvided)?;
 
-        loop {
-            let response = self
-                .http
-                .delete(format!(
-                    "https://www.webtoons.com/p/api/community/v2/post/{}",
-                    post.id
-                ))
-                .header("Api-Token", token.clone())
-                .header("Cookie", format!("NEO_SES={session}"))
-                .header("Service-Ticket-Id", "epicom")
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .delete(format!(
+                "https://www.webtoons.com/p/api/community/v2/post/{}",
+                post.id
+            ))
+            .header("Api-Token", token.clone())
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Service-Ticket-Id", "epicom")
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1694,24 +1483,15 @@ impl Client {
             .map(|session| session.as_ref())
             .ok_or(ClientError::NoSessionProvided)?;
 
-        loop {
-            let response = self
-                .http
-                .put(&url)
-                .header("Service-Ticket-Id", "epicom")
-                .header("Referer", "https://www.webtoons.com/")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .header("Api-Token", token.clone())
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break;
-        }
+        self.http
+            .put(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Referer", "https://www.webtoons.com/")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Api-Token", token.clone())
+            .retry()
+            .send()
+            .await?;
 
         Ok(())
     }
@@ -1741,21 +1521,13 @@ impl Client {
             }
         };
 
-        let response = loop {
-            let response = self
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get(&url)
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         let text = response.text().await?;
 
@@ -1773,22 +1545,14 @@ impl Client {
             return Err(ClientError::NoSessionProvided);
         };
 
-        let response = loop {
-            let response = self
-                .http
-                .get("https://www.webtoons.com/api/v1/like/react-token")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .header("Referer", "https://www.webtoons.com")
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get("https://www.webtoons.com/api/v1/like/react-token")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Referer", "https://www.webtoons.com")
+            .retry()
+            .send()
+            .await?;
 
         let text = response.text().await?;
 
@@ -1806,21 +1570,13 @@ impl Client {
             return Err(ClientError::NoSessionProvided);
         };
 
-        let response = loop {
-            let response = self
-                .http
-                .get("https://www.webtoons.com/p/api/community/v1/api-token")
-                .header("Cookie", format!("NEO_SES={session}"))
-                .send()
-                .await?;
-
-            if response.status() == 429 {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-
-            break response;
-        };
+        let response = self
+            .http
+            .get("https://www.webtoons.com/p/api/community/v1/api-token")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?;
 
         let text = response.text().await?;
 
@@ -1932,4 +1688,48 @@ struct NewLikesResponse {
 #[serde(rename_all = "camelCase")]
 struct NewLikesResult {
     count: u32,
+}
+
+struct Retry(RequestBuilder);
+
+impl Retry {
+    pub async fn send(self) -> Result<Response, ClientError> {
+        let mut count = 10;
+        let mut wait = fastrand::u64(1..=10);
+
+        loop {
+            let request = self.0.try_clone().ok_or(ClientError::Unexpected(anyhow!(
+                "failed to clone `RequestBuilder` in retry loop"
+            )))?;
+            let response = request.send().await;
+
+            match response {
+                Ok(response) if response.status() == 429 && count != 0 => {
+                    tokio::time::sleep(Duration::from_secs(wait)).await;
+                    count -= 1;
+                    wait += 3;
+                    wait += fastrand::u64(1..=5);
+                }
+                Err(_) if count != 0 => {
+                    tokio::time::sleep(Duration::from_secs(wait)).await;
+                    count -= 1;
+                    wait += 3;
+                    wait += fastrand::u64(1..=5);
+                }
+
+                Ok(response) => return Ok(response),
+                Err(err) => return Err(err.into()),
+            }
+        }
+    }
+}
+
+trait IRetry {
+    fn retry(self) -> Retry;
+}
+
+impl IRetry for RequestBuilder {
+    fn retry(self) -> Retry {
+        Retry(self)
+    }
 }
