@@ -1,4 +1,13 @@
-## What's Changed
+## What's Changed in 0.6.1
+* feat: add specialized `first_episode` to `Webtoon` by @RoloEdits in [#81](https://github.com/Webtoon-Studio/webtoon/pull/81)
+* refactor(client): move retry logic to a trait mased solution by @RoloEdits in [#82](https://github.com/Webtoon-Studio/webtoon/pull/82)
+* chore: remove `TODO` comments and make gh issues of them by @RoloEdits in [#79](https://github.com/Webtoon-Studio/webtoon/pull/79)
+* test: remove `no_run` from doc tests by @RoloEdits in [#71](https://github.com/Webtoon-Studio/webtoon/pull/71)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.6.0...0.6.1
+
+## What's Changed in 0.6.0
+* chore: bump version from 0.5.0 to 0.6.0 by @RoloEdits in [#70](https://github.com/Webtoon-Studio/webtoon/pull/70)
 * refactor(test): switch all session checks to validate checks by @RoloEdits
 * refactor(examples): switch all session checks to validate checks by @RoloEdits in [#68](https://github.com/Webtoon-Studio/webtoon/pull/68)
 * fix(client)!: add retry logic to internal and public impls by @RoloEdits in [#67](https://github.com/Webtoon-Studio/webtoon/pull/67)
@@ -6,6 +15,8 @@
 * fix(dashboard): adjust timer to prevent page rate limit by @RoloEdits in [#65](https://github.com/Webtoon-Studio/webtoon/pull/65)
 * fix(doc): remove broken intra-doc link by @RoloEdits in [#64](https://github.com/Webtoon-Studio/webtoon/pull/64)
 * fix(webtoon): adjust timer to prevent page rate limit by @RoloEdits in [#63](https://github.com/Webtoon-Studio/webtoon/pull/63)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.5.0...0.6.0
 
 ## What's Changed in 0.5.0
 * chore: bump version from 0.4.0 to 0.5.0 by @RoloEdits in [#62](https://github.com/Webtoon-Studio/webtoon/pull/62)
