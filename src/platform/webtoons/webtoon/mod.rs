@@ -583,6 +583,27 @@ impl Webtoon {
         Ok(Some(episode))
     }
 
+    /// A specialization for quickly getting the first publicly published episode.
+    ///
+    /// - Differing from `episodes` in that it doesn't traverse other pages to get the episodes.
+    /// - Differing from `episode` this gets episode data like the published date.
+    ///
+    /// This is most useful for trying to see when a Webtoon started publishing, for example,
+    /// to get all Originals who are "new", which is any Webtoon with a first episode published
+    /// in the last 30 days.
+    ///
+    /// # Returns
+    ///
+    /// Will return an `Episode` upon success, including its published data.
+    ///
+    /// # Errors
+    ///
+    /// Will return an error if there was an issue in with the client request or parsing out the
+    /// episode from the list.
+    pub async fn first_episode(&self) -> Result<Episode, WebtoonError> {
+        page::first_episode(self).await
+    }
+
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
     ///
     /// This including those behind ads, fast-pass, or even deleted episodes. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.

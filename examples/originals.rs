@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::Duration;
 use webtoon::platform::webtoons::{Client, Language};
 
@@ -11,15 +10,11 @@ async fn main() -> anyhow::Result<()> {
     let thirty_days_ago = chrono::Utc::now() - Duration::days(30);
 
     for webtoon in webtoons {
-        println!("Checking `{}`", webtoon.title().await?);
-        // Need to use `episodes` as only this function can result in `published` yielding `Some`.
-        let episodes = webtoon.episodes().await?;
+        // Need to use `first_episode` is a specialized way to get this kind of data, with `published` yielding `Some`
+        // where `episode(1)` would yield `None`.
+        let first_episode = webtoon.first_episode().await?;
 
-        let first_episode = episodes.episode(1).with_context(|| {
-            format!("`{}` didnt have an episode 1: {episodes:#?}", webtoon.id())
-        })?;
-
-        // Check for all webtoons who's first episode was published within the last 30 days.
+        // Check for all Webtoons who's first episode was published within the last 30 days.
         if first_episode.published() >= Some(thirty_days_ago.timestamp_millis()) {
             println!("New Webtoon! `{}`", webtoon.title().await?);
         }

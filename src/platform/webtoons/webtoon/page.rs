@@ -6,6 +6,7 @@ mod id;
 mod th;
 mod zh;
 
+use anyhow::anyhow;
 use scraper::{Html, Selector};
 use std::time::Duration;
 use url::Url;
@@ -146,4 +147,36 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
     episodes.reverse();
 
     Ok(episodes)
+}
+
+pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonError> {
+    let page = scrape(webtoon).await?.pages;
+
+    // NOTE: currently all languages use this for the list element; this could change.
+    let selector = Selector::parse("li._episodeItem") //
+        .expect("`li._episodeItem` should be a valid selector");
+
+    let response = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
+
+    let html = Html::parse_document(&response.text().await?);
+
+    let mut first: Option<Episode> = None;
+
+    for element in html.select(&selector) {
+        let episode = match webtoon.language {
+            Language::En => en::episode(&element, webtoon)?,
+            Language::Zh => zh::episode(&element, webtoon)?,
+            Language::Th => th::episode(&element, webtoon)?,
+            Language::Id => id::episode(&element, webtoon)?,
+            Language::Es => es::episode(&element, webtoon)?,
+            Language::Fr => fr::episode(&element, webtoon)?,
+            Language::De => de::episode(&element, webtoon)?,
+        };
+
+        first = Some(episode);
+    }
+
+    first.ok_or_else(|| {
+        anyhow!("no episode was found on public webtoon, which shouldn't be possible").into()
+    })
 }
