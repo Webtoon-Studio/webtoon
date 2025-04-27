@@ -353,7 +353,7 @@ pub mod id {
             let id = s
                 .split(':')
                 // get `0-w_95_1-1d-z`
-                .last()
+                .next_back()
                 .ok_or_else(|| ParseIdError::InvalidFormat {
                     id: s.to_owned(),
                     context: "there was no right-hand part after splitting on `:`".to_string(),
