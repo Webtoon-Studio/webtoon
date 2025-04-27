@@ -1,4 +1,13 @@
+## What's Changed in 0.7.0
+* chore: bump version from `0.6.1` to `0.7.0` by @RoloEdits in [#88](https://github.com/Webtoon-Studio/webtoon/pull/88)
+* chore: remove trailing spaces from end of lines by @RoloEdits in [#87](https://github.com/Webtoon-Studio/webtoon/pull/87)
+* feat(genre): add supprot for new `graphic-novel` by @RoloEdits in [#85](https://github.com/Webtoon-Studio/webtoon/pull/85)
+* perf: use `next_back` instead of `last` for `DoubleEndedIterator` by @RoloEdits in [#86](https://github.com/Webtoon-Studio/webtoon/pull/86)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.6.1...0.7.0
+
 ## What's Changed in 0.6.1
+* chore: bump version from `0.6.0` to `0.6.1` by @RoloEdits in [#83](https://github.com/Webtoon-Studio/webtoon/pull/83)
 * feat: add specialized `first_episode` to `Webtoon` by @RoloEdits in [#81](https://github.com/Webtoon-Studio/webtoon/pull/81)
 * refactor(client): move retry logic to a trait mased solution by @RoloEdits in [#82](https://github.com/Webtoon-Studio/webtoon/pull/82)
 * chore: remove `TODO` comments and make gh issues of them by @RoloEdits in [#79](https://github.com/Webtoon-Studio/webtoon/pull/79)

@@ -37,7 +37,7 @@ To use this library, add `webtoon` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-webtoon = "0.6.1"
+webtoon = "0.7.0"
 ```
 
 ## Example Usage
@@ -51,13 +51,13 @@ use webtoon::platform::webtoons::{errors::Error, Client, Type};
 async fn main() -> Result<(), Error> {
     // Initialize the client
     let client = Client::new();
-    
+
     // Fetch a webtoon by ID and Type
     let webtoon = client
         .webtoon(95, Type::Original)
         .await?
         .expect("No webtoon with this id and type on webtoon.com");
-    
+
     // Fetch title and print to stdout
     println!("{}", webtoon.title().await?);
 
