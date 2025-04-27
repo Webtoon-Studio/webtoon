@@ -119,7 +119,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
         let profile = url
             .path_segments()
             .context("`href` should have path segments")?
-            .last()
+            .next_back()
             .unwrap();
 
         let mut username = String::new();
