@@ -285,49 +285,49 @@ pub mod id {
     ///
     /// ### Structure:
     ///
-    /// The format of the ID follows this pattern:  
+    /// The format of the ID follows this pattern:
     /// `GW-epicom:0-w_95_1-1d-z`
     ///
-    /// - **`GW-epicom`**:  
+    /// - **`GW-epicom`**:
     ///   This prefix can be ignored and seems to serve as a namespace. `epicom` stands for "episode comment."
     ///
-    /// - **`0`**:  
+    /// - **`0`**:
     ///   This is an unknown tag. Its purpose remains unclear, but it is preserved in the ID structure for compatibility.
     ///
-    /// - **`w` / `c`**:  
+    /// - **`w` / `c`**:
     ///   This denotes whether the Webtoon is an **Original** (`w`) or **Canvas** (`c`).
     ///
-    /// - **`95`**:  
+    /// - **`95`**:
     ///   Represents the Webtoon ID. This value is unique to the Webtoon series.
     ///
-    /// - **`1`**:  
+    /// - **`1`**:
     ///   Represents the episode number within the Webtoon series.
     ///
-    /// - **`1d`**:  
+    /// - **`1d`**:
     ///   A unique identifier for the specific post. It is encoded in **Base36** (using characters `0-9` and `a-z`).
     ///   This value indicates the chronological order of the post within the episode's comments section. Posts and replies cannot have a value of `0`.
     ///
-    /// - **`z`**:  
+    /// - **`z`**:
     ///   Represents a reply to a post. If this component is missing, the ID refers to a top-level post. If present, it indicates the reply to a specific post, also encoded in **Base36**.
     ///
     /// ### Fields:
     ///
-    /// - `tag`:  
+    /// - `tag`:
     ///   An unknown field that is part of the ID structure but its exact purpose is not fully understood. It is included for completeness.
     ///
-    /// - `scope`:  
+    /// - `scope`:
     ///   A string representing whether the Webtoon is an **Original** or **Canvas** series (`w` or `c`).
     ///
-    /// - `webtoon`:  
+    /// - `webtoon`:
     ///   The unique ID for the Webtoon series.
     ///
-    /// - `episode`:  
+    /// - `episode`:
     ///   The episode number within the Webtoon series.
     ///
-    /// - `post`:  
+    /// - `post`:
     ///   The **Base36**-encoded identifier for the specific post.
     ///
-    /// - `reply`:  
+    /// - `reply`:
     ///   An optional **Base36**-encoded identifier for a reply to the post. If `None`, the ID refers to a top-level comment.
     ///
     /// ### Notes:
