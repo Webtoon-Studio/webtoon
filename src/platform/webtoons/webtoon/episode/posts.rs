@@ -664,7 +664,7 @@ impl Post {
     /// # Errors
     ///
     /// Will return an error if:
-    /// - there is a problem with the request or .  
+    /// - there is a problem with the request or .
     /// - there is a serializtion/deserialization error.
     /// - session user has invalid permissions [`PostError::InvalidPermissions`].
     pub async fn delete(&self) -> Result<(), PostError> {
@@ -1273,7 +1273,6 @@ pub trait Replies: Sized + Sealed {
     async fn replies(post: &Post) -> Result<Self, PostError>;
 }
 
-impl Sealed for u32 {}
 impl Replies for u32 {
     async fn replies(post: &Post) -> Result<Self, PostError> {
         Ok(post.replies)

@@ -16,17 +16,19 @@
 
 Welcome to the `webtoon` library, a Rust-based SDK that allows you to interact with a Webtoon platform programmatically.
 This library provides a set of utilities and methods to handle various Webtoon-specific operations such as fetching episodes,
-posting comments, subscribing, liking, and managing episode metadata.
+posting comments, subscribing, liking, and managing episode metadata. Platform support varies.
 
-- Currently only [webtoons.com](https://www.webtoons.com/) is supported.
-- More is planned!
+Supported:
+- [webtoons.com](https://www.webtoons.com/).
+- [comic.naver.com](https://comic.naver.com/)
+- More to come!
 
 ### Features
 
 - Fetch information about webtoons and their episodes.
-- Subscribe/unsubscribe to webtoons.
-- Like/unlike episodes.
-- Post and manage comments.
+- Subscribe/unsubscribe to webtoons(`webtoons.com` only).
+- Like/unlike episodes (`webtoons.com` only).
+- Post and manage comments(`webtoons.com` only).
 - Retrieve detailed episode information such as views, published status, season number, etc.
 
 ### Installation
@@ -63,11 +65,33 @@ async fn main() -> Result<(), Error> {
 
     Ok(())
 }
+
+```
+### `comic.naver.com`
+
+```rust
+use webtoon::platform::naver::{errors::Error, Client};
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    // Initialize the client
+    let client = Client::new();
+
+    // Fetch a webtoon by ID and Type
+    let webtoon = client
+        .webtoon(838432)
+        .await?
+        .expect("No webtoon with this id on comic.naver.com");
+
+    // Print title to stdout
+    println!("{}", webtoon.title());
+
+    Ok(())
+}
 ```
 
 For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
 
 ## Features
 
-- `rss`: Enables the ability to get the RSS feed data for a webtoon.
-- `download`: Enables the ability to download an episodes panels.
+- `rss`: Enables the ability to get the RSS feed data for a `webtoons.com`.
