@@ -34,6 +34,8 @@ pub(super) struct WebtoonInner {
     pub schedule: Vec<Weekday>,
     pub genres: Vec<Genre>,
     pub episodes: RwLock<Option<Episodes>>,
+
+    pub creators: Vec<Creator>,
 }
 
 #[expect(clippy::missing_fields_in_debug)]
@@ -88,8 +90,8 @@ impl Webtoon {
     }
 
     /// Returns a list of [`Creator`] for this `Webtoon`.
-    pub async fn creators(&self) -> Result<Vec<Creator>, WebtoonError> {
-        todo!()
+    pub fn creators(&self) -> &[Creator] {
+        &self.inner.creators
     }
 
     /// Returns a list of [`Genre`] for this `Webtoon`.

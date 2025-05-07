@@ -23,7 +23,7 @@ async fn main() -> Result<(), Error> {
     println!("favorites: {}", webtoon.favorites());
     println!("rating: {}", webtoon.rating().await?);
     println!("summary: {}", webtoon.summary());
-    // println!("creators: {:?}", webtoon.creators().await?);
+    println!("creators: {:?}", webtoon.creators());
 
     return Ok(());
 }

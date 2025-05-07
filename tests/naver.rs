@@ -5,7 +5,6 @@ async fn creator() -> anyhow::Result<()> {
     let client = Client::new();
 
     let creator = client.creator("_n41b8i").await.unwrap().unwrap();
-
     let username = creator.username();
     assert_eq!("호리", username);
     let _profile = creator.profile();
@@ -40,7 +39,7 @@ async fn webtoon() -> Result<(), Error> {
     println!("favorites: {}", webtoon.favorites());
     println!("rating: {}", webtoon.rating().await?);
     println!("summary: {}", webtoon.summary());
-    println!("creators: {:?}", webtoon.creators().await?);
+    println!("creators: {:?}", webtoon.creators());
 
     return Ok(());
 }

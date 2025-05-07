@@ -22,6 +22,7 @@ use info::Info;
 use parking_lot::RwLock;
 use reqwest::{RequestBuilder, Response, redirect::Policy};
 use std::{env, str::FromStr, sync::Arc, time::Duration};
+use url::Url;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
@@ -298,6 +299,29 @@ impl Client {
             return Err(WebtoonError::NoGenre);
         }
 
+        let mut creators = Vec::new();
+
+        for creator in info.community_artists {
+            let profile = match creator.profile_page_url {
+                Some(url) => Url::parse(&url)
+                    .expect("naver api should only have valid urls")
+                    .path_segments()
+                    .expect("url should have segments for the profile page")
+                    .nth(2)
+                    .map(|profile| profile.to_string()),
+                None => None,
+            };
+
+            let c = Creator {
+                client: self.clone(),
+                username: creator.name,
+                profile,
+                page: Arc::new(RwLock::new(None)),
+            };
+
+            creators.push(c);
+        }
+
         let webtoon = Webtoon {
             inner: Arc::new(WebtoonInner {
                 id,
@@ -312,6 +336,7 @@ impl Client {
                 schedule: info.publish_day_of_week_list,
                 genres,
                 episodes: RwLock::new(None),
+                creators,
             }),
 
             client: self.clone(),
