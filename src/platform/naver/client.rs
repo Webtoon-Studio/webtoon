@@ -53,6 +53,7 @@ static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_P
 #[derive(Debug)]
 pub struct ClientBuilder {
     builder: reqwest::ClientBuilder,
+    user_agent: Option<Arc<str>>,
 }
 
 impl Default for ClientBuilder {
@@ -81,7 +82,10 @@ impl ClientBuilder {
             .https_only(true)
             .brotli(true);
 
-        Self { builder }
+        Self {
+            builder,
+            user_agent: None,
+        }
     }
 
     /// Sets a custom `User-Agent` header for the `Client`.
@@ -107,6 +111,7 @@ impl ClientBuilder {
     #[must_use]
     pub fn user_agent(self, user_agent: &str) -> Self {
         Self {
+            user_agent: Some(user_agent.into()),
             builder: self.builder.user_agent(user_agent),
         }
     }
@@ -134,6 +139,7 @@ impl ClientBuilder {
     /// A `Result` containing the configured `Client` on success, or a `ClientError` on failure.
     pub fn build(self) -> Result<Client, ClientError> {
         Ok(Client {
+            user_agent: self.user_agent.clone(),
             http: self
                 .builder
                 .build()
@@ -163,6 +169,7 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     pub(super) http: reqwest::Client,
+    user_agent: Option<Arc<str>>,
 }
 
 // Creation impls
@@ -380,13 +387,21 @@ impl Client {
     ) -> Result<Response, ClientError> {
         let id = webtoon.id();
         let url = format!("https://comic.naver.com/webtoon/detail?titleId={id}&no={episode}");
-        // TODO: Pass along any user provided settings
         // NOTE: Cannot follow redirects as it will always return `200 OK`.
         // Need to see what the status is for the first hit.
         let client = reqwest::ClientBuilder::new()
+            .use_rustls_tls()
+            .https_only(true)
+            .brotli(true)
+            .user_agent(
+                self.user_agent
+                    .as_ref()
+                    .map_or(APP_USER_AGENT, |user_agent| &**user_agent),
+            )
             .redirect(Policy::none())
             .build()
             .unwrap();
+
         let response = client.get(&url).retry().send().await?;
         Ok(response)
     }

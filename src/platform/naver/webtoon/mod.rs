@@ -76,7 +76,7 @@ impl Webtoon {
     pub fn is_best_challenge(&self) -> bool {
         self.r#type() == Type::BestChallenge
     }
-    ///
+
     /// Returns if Webtoon is a challenge type.
     pub fn is_challenge(&self) -> bool {
         self.r#type() == Type::Challenge
@@ -128,7 +128,7 @@ impl Webtoon {
         Ok(rating / count as f64)
     }
 
-    /// Returns the thumbnail url for this `Webtoon`.
+    /// Returns the thumbnail URL for this `Webtoon`.
     pub fn thumbnail(&self) -> &str {
         &self.inner.thumbnail
     }
