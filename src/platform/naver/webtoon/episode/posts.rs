@@ -84,6 +84,12 @@ impl Posts {
     pub fn as_slice(&self) -> &[Post] {
         &self.posts
     }
+
+    /// Returns the number of posts gotten.
+    #[must_use]
+    pub fn count(&self) -> usize {
+        self.posts.len()
+    }
 }
 
 /// Represents a post on `comic.naver.com`, either a reply or a top-level comment.
