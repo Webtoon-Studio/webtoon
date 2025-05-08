@@ -484,7 +484,6 @@ impl Client {
         Ok(self.http.get(&url).retry().send().await?)
     }
 
-    // TODO: Need to see if the `is_top/best` is preserved with `sort=NEW` and not `sort=BEST`
     pub(super) async fn get_posts_for_episode(
         &self,
         episode: &Episode,

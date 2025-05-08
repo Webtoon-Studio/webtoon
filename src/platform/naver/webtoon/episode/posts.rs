@@ -233,6 +233,8 @@ impl Post {
     }
 
     /// Returns whether this post is a `TOP` post, one of the posts on the first page of the episode.
+    ///
+    /// If posts are gotten with `Sort::New` this will always be false.
     #[must_use]
     pub fn is_top(&self) -> bool {
         self.is_top
