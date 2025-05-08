@@ -244,7 +244,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, client::posts::Sort::Best)
+            .get_posts_for_episode(self, 1, 15, client::posts::Sort::Best)
             .await?
             .text()
             .await?;
@@ -284,18 +284,17 @@ impl Episode {
     ///
     /// - **Fetching Comments**:
     ///   - The method ensures no duplicates are returned, even if paginated results overlap.
-    ///   - The comments are returned in order from the passed in `Sort` option.
     ///
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(183559).await? {
     /// # if let Some(episode) = webtoon.episode(425).await? {
-    /// let posts = episode.posts(Sort::Best).await?;
+    /// let posts = episode.posts().await?;
     /// for post in posts {
     ///     println!("Comment by {}: {}", post.poster().username(), post.body());
     /// }
@@ -308,17 +307,14 @@ impl Episode {
     /// ### Errors
     ///
     /// - Returns a [`PostError`] if there is an issue with the client or an unexpected error occurs during the post retrieval process.
-    pub async fn posts(
-        &self,
-        sort: crate::platform::naver::client::posts::Sort,
-    ) -> Result<Posts, PostError> {
+    pub async fn posts(&self) -> Result<Posts, PostError> {
         #[allow(clippy::mutable_key_type)]
         let mut posts = HashSet::new();
 
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, sort)
+            .get_posts_for_episode(self, 1, 100, client::posts::Sort::New)
             .await?
             .text()
             .await?;
@@ -345,7 +341,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, page, sort)
+                .get_posts_for_episode(self, page, 100, client::posts::Sort::New)
                 .await?
                 .text()
                 .await?;
@@ -364,6 +360,30 @@ impl Episode {
 
                 posts.insert(Post::try_from((self, post)).with_context(|| text.to_string())?);
             }
+        }
+
+        let response = self
+            .webtoon
+            .client
+            .get_posts_for_episode(self, 1, 15, client::posts::Sort::New)
+            .await?
+            .text()
+            .await?;
+
+        let text = response
+            .trim_start_matches("_callback(")
+            .trim_end_matches(");");
+
+        let api =
+            serde_json::from_str::<client::posts::Posts>(text).with_context(|| text.to_string())?;
+
+        // Add `is_top` info to posts
+        for post in api.result.comment_list {
+            if post.deleted {
+                continue;
+            }
+
+            posts.replace(Post::try_from((self, post)).with_context(|| text.to_string())?);
         }
 
         let posts = Posts {
@@ -394,20 +414,22 @@ impl Episode {
     /// - **Publish Order**:
     ///   - The order in which posts are published may not be respected, as the posts are fetched and processed in batches that may appear out of order.
     ///
+    /// - **Lacking Some Info**
+    ///   - This will always result in `Post::is_top` being false.
+    ///
     /// ### Parameters
-    /// - `sort`: Either `New` or `Best`.
     /// - `callback`: A function or closure that takes a `Post` and processes it asynchronously. It must return a `Future` that completes with `()` (unit type).
     ///
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{errors::Error, Client, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(183559).await? {
     /// # if let Some(episode) = webtoon.episode(425).await? {
-    /// episode.posts_for_each(Sort::New, async |post| {
+    /// episode.posts_for_each(async |post| {
     ///     println!("Processing comment: {}", post.body());
     /// }).await?;
     /// # }
@@ -423,15 +445,11 @@ impl Episode {
     /// ### Usage Consideration
     ///
     /// If your application has limited memory and the collection of all posts at once is not feasible, this method provides a better alternative. However, consider the trade-offs, such as possible duplicates and lack of guaranteed publish order.
-    pub async fn posts_for_each<C: AsyncFn(Post)>(
-        &self,
-        sort: crate::platform::naver::client::posts::Sort,
-        closure: C,
-    ) -> Result<(), PostError> {
+    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, sort)
+            .get_posts_for_episode(self, 1, 100, client::posts::Sort::New)
             .await?
             .text()
             .await?;
@@ -458,7 +476,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, page, sort)
+                .get_posts_for_episode(self, page, 100, client::posts::Sort::New)
                 .await?
                 .text()
                 .await?;

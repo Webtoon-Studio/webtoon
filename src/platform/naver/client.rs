@@ -488,13 +488,14 @@ impl Client {
         &self,
         episode: &Episode,
         page: u32,
+        size: u32,
         sort: posts::Sort,
     ) -> Result<Response, ClientError> {
         let id = episode.webtoon.id();
         let episode = episode.number;
 
         let url = format!(
-            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&page={page}&sort={sort}"
+            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize={size}&indexSize=10&page={page}&sort={sort}"
         );
 
         let response = self

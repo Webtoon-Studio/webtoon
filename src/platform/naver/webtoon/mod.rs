@@ -371,7 +371,7 @@ impl Webtoon {
                 EpisodeError::ClientError(client_error) => PostError::ClientError(client_error),
                 error => PostError::Unexpected(error.into()),
             })? {
-                posts.extend_from_slice(episode.posts(episode::posts::Sort::New).await?.as_slice());
+                posts.extend_from_slice(episode.posts().await?.as_slice());
             } else {
                 break;
             }

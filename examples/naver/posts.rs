@@ -1,8 +1,4 @@
-use webtoon::platform::naver::{
-    Client,
-    errors::Error,
-    webtoon::episode::posts::{Posts, Sort},
-};
+use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Posts};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
@@ -13,15 +9,15 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("webtoon is known to exist");
 
-    let episode = webtoon.episode(230).await?.unwrap();
+    let episode = webtoon.episode(1).await?.unwrap();
 
-    for post in episode.posts(Sort::Best).await? {
+    for post in episode.posts().await? {
         println!("post: {post:#?}");
         println!();
     }
 
     episode
-        .posts_for_each(Sort::New, async |post| {
+        .posts_for_each(async |post| {
             let replies = post.replies::<Posts>();
             if let Ok(replies) = replies.await {
                 for reply in replies {

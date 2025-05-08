@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 use core::fmt;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
-pub use crate::platform::naver::client::posts::Sort;
-
 use crate::{
     platform::{
         naver::client::posts::CommentList,
@@ -141,13 +139,13 @@ impl Post {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
     /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
-    /// for post in  episode.posts(Sort::New).await? {
+    /// for post in  episode.posts().await? {
     ///     println!("Post ID: {:?}", post.id());
     /// }
     /// # }
@@ -167,13 +165,13 @@ impl Post {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
     /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
-    /// # let posts = episode.posts(Sort::Best).await?;
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let parent_id = post.parent_id();
     /// if parent_id == post.id() {
@@ -195,13 +193,13 @@ impl Post {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
     /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
-    /// # let posts = episode.posts(Sort::Best).await?;
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// println!("Post content: {}", post.body());
     /// # }
@@ -240,7 +238,7 @@ impl Post {
 
     /// Returns whether this post is a `TOP` post, one of the posts on the first page of the episode.
     ///
-    /// If posts are gotten with `Sort::New` this will always be false.
+    /// If posts are gotten with `Episode::posts_for_each` this will always be false.
     #[must_use]
     pub fn is_top(&self) -> bool {
         self.is_top
@@ -272,13 +270,13 @@ impl Post {
     /// Depending on the type you specify, you can either retrieve the number of replies or the actual replies themselves:
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::{Posts, Sort}};
+    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Posts};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
     /// # let episode = webtoon.episode(1).await?.expect("episode 1 should exist");
-    /// # let posts = episode.posts(Sort::New).await?;
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let replies: u32 = post.replies().await?;
     /// let replies: Posts = post.replies().await?;
