@@ -528,21 +528,3 @@ fn episode_published_date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, Web
 
     Ok(date.into())
 }
-
-#[expect(unused, reason = "Getting likes from api instead")]
-fn episode_likes(_episode: &ElementRef<'_>) -> Result<u32, WebtoonError> {
-    unimplemented!()
-}
-
-#[cfg(test)]
-mod test {
-    use crate::stdx::math::MathExt;
-
-    use super::*;
-
-    #[test]
-    fn should_calculate_proper_page_number_temp() {
-        assert_eq!(pages_for_episode(23, 15), 23.in_bucket_of(15));
-        assert_eq!(pages_for_episode(143, 10), 143.in_bucket_of(10));
-    }
-}

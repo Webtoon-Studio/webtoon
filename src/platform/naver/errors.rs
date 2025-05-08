@@ -1,4 +1,4 @@
-//! Errors that can happen when interacting with webtoons.com.
+//! Errors that can happen when interacting with `comic.naver.com`.
 
 use thiserror::Error;
 
@@ -23,10 +23,6 @@ pub enum Error {
     #[error(transparent)]
     PostError(#[from] PostError),
     #[error(transparent)]
-    ReplyError(#[from] ReplyError),
-    #[error(transparent)]
-    PosterError(#[from] PosterError),
-    #[error(transparent)]
     DownloadError(#[from] DownloadError),
 }
 
@@ -34,10 +30,6 @@ pub enum Error {
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ClientError {
-    #[error("No session was provided")]
-    NoSessionProvided,
-    #[error("Provided session is invalid or expired")]
-    InvalidSession,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -76,10 +68,6 @@ impl From<reqwest::Error> for WebtoonError {
 pub enum CreatorError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
-    #[error(
-        "At this time `Language::Zh`, `Language::De`, and `Language::Fr` are not given profile pages by webtoons.com"
-    )]
-    UnsupportedLanguage,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
     #[error("Profile page exists, but was disabled by creator")]
@@ -120,51 +108,11 @@ impl From<reqwest::Error> for EpisodeError {
 pub enum PostError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
-    #[error("Not creator of webtoon or the poster")]
-    InvalidPermissions,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
 
 impl From<reqwest::Error> for PostError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
-    }
-}
-
-#[allow(missing_docs)]
-#[non_exhaustive]
-#[derive(Debug, Error)]
-pub enum ReplyError {
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error("Post is deleted, cannot post reply on deleted post")]
-    DeletedPost,
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for ReplyError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
-    }
-}
-
-#[allow(missing_docs)]
-#[non_exhaustive]
-#[derive(Debug, Error)]
-pub enum PosterError {
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error("Not creator of webtoon")]
-    InvalidPermissions,
-    #[error("Cannot block self on own webtoon")]
-    BlockSelf,
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for PosterError {
     fn from(error: reqwest::Error) -> Self {
         Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
     }

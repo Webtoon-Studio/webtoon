@@ -8,9 +8,13 @@ pub(crate) trait MathExt {
     /// If `size` is `0`, the method returns `1` by default (to avoid division by zero),
     /// but you may want to guard against this explicitly depending on your use case.
     ///
+    /// Using the largest available number for a bucket size will return the total number of buckets
+    /// there are e.g. if there are 652 episodes and 9 episodes per page, that would result in
+    /// 73 pages, the total amount of pages.
+    ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// assert_eq!(0u32.in_bucket_of(20), 1);      // value 0 belongs to bucket 1
     /// assert_eq!(7u32.in_bucket_of(20), 1);      // value 7 belongs to bucket 1
     /// assert_eq!(19u32.in_bucket_of(20), 1);     // value 19 belongs to bucket 1
@@ -23,14 +27,15 @@ pub(crate) trait MathExt {
 }
 
 macro_rules! impl_math_ext {
-    ($($t:ty),*) => {
+    ($($T:ty),*) => {
         $(
-            impl MathExt for $t {
+            #[allow(clippy::cast_lossless)]
+            impl MathExt for $T {
                 fn in_bucket_of(self, size: Self) -> Self {
                     if size == 0 {
                         return 1;
                     }
-                    self / size + (self % size != 0 || self == 0) as $t
+                    self / size + (self % size != 0 || self == 0) as $T
                 }
             }
         )*
@@ -45,19 +50,13 @@ mod tests {
 
     #[test]
     fn should_calculate_proper_bucket() {
-        let page = 0.in_bucket_of(20);
-        assert_eq!(1, page);
-        let page = 7.in_bucket_of(20);
-        assert_eq!(1, page);
-        let page = 19.in_bucket_of(20);
-        assert_eq!(1, page);
-        let page = 20.in_bucket_of(20);
-        assert_eq!(1, page);
-        let page = 21.in_bucket_of(20);
-        assert_eq!(2, page);
-        let page = 331.in_bucket_of(20);
-        assert_eq!(17, page);
-        let page = 653.in_bucket_of(20);
-        assert_eq!(33, page);
+        assert_eq!(1, 0.in_bucket_of(20));
+        assert_eq!(1, 7.in_bucket_of(20));
+        assert_eq!(1, 19.in_bucket_of(20));
+        assert_eq!(1, 20.in_bucket_of(20));
+        assert_eq!(2, 21.in_bucket_of(20));
+        assert_eq!(1, 15.in_bucket_of(15));
+        assert_eq!(73, 652.in_bucket_of(9));
+        assert_eq!(9, 89.in_bucket_of(10));
     }
 }

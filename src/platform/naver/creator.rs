@@ -1,4 +1,4 @@
-//! Module containing things related to a creator on webtoons.com.
+//! Module containing things related to a creator on `comic.naver.com`.
 
 use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
@@ -10,7 +10,7 @@ use super::{Client, Webtoon, errors::CreatorError};
 
 /// Represents a creator of a `Webtoon`.
 ///
-/// More generally this represents an account on webtoons.com.
+/// More generally this represents an account on `comic.naver.com`.
 #[derive(Clone)]
 pub struct Creator {
     pub(super) client: Client,
@@ -38,21 +38,21 @@ pub(super) struct Page {
 }
 
 impl Creator {
-    /// Returns a `Creators` username.
+    /// Returns a creators username.
     #[must_use]
     pub fn username(&self) -> &str {
         &self.username
     }
 
-    /// Returns a `Creators` profile segment in `https://comic.naver.com/community/u/{profile}`
+    /// Returns a creators profile segment in `https://comic.naver.com/community/u/{profile}`
     ///
-    /// Not all creators for a story have a webtoons profile.
+    /// Not all creators for a story have a profile.
     #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
 
-    /// Returns a `Creators` id.
+    /// Returns a creators id.
     ///
     /// Sometimes this is just the `profile` but with the `_` prefix stripped.
     /// If creator has no webtoon profile then this will always return `None`.
@@ -75,7 +75,7 @@ impl Creator {
         }
     }
 
-    /// Returns the number of followers for the `Creator`.
+    /// Returns the number of followers for the creator.
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.followers))
@@ -96,8 +96,6 @@ impl Creator {
     /// # Returns
     ///
     /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`.
-    /// This is for creators where there are no profile, either due to being a Korean based creator,
-    /// or the language version of webtoons.com does not support profile pages.
     ///
     /// If there are no viewable webtoons, it will return an empty `Vec`.
     ///
@@ -160,12 +158,12 @@ impl Creator {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(creator) = client.creator("JennyToons", Language::En).await? {
-    /// creator.evict_cache().await;
+    /// # if let Some(creator) = client.creator("_n41b8i").await? {
+    /// creator.evict_cache();
     /// println!("Cache cleared. Future requests will fetch fresh data.");
     /// # }
     /// # Ok(())
@@ -290,13 +288,13 @@ fn id(html: &Html) -> Result<String, CreatorError> {
     )))
 }
 
-#[allow(unused)]
 mod api {
     use serde::Deserialize;
 
     #[derive(Deserialize)]
     pub struct Root {
         pub result: Result1,
+        #[allow(unused)]
         pub status: String,
     }
     #[derive(Deserialize)]

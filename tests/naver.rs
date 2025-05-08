@@ -46,6 +46,7 @@ async fn webtoon() -> Result<(), Error> {
 
 #[tokio::test]
 async fn posts() -> Result<(), Error> {
+    use webtoon::platform::naver::webtoon::episode::posts::Sort;
     let client = Client::new();
 
     let webtoon = client
@@ -58,13 +59,13 @@ async fn posts() -> Result<(), Error> {
         .await?
         .expect("episode 1 should always exist");
 
-    for post in episode.posts().await? {
+    for post in episode.posts(Sort::Best).await? {
         println!("post: {post:#?}");
         println!();
     }
 
     episode
-        .posts_for_each(async |post| {
+        .posts_for_each(Sort::New, async |post| {
             let replies = post.replies::<Posts>();
             if let Ok(replies) = replies.await {
                 for reply in replies {

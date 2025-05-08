@@ -5,6 +5,8 @@ use chrono::{DateTime, Utc};
 use core::fmt;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
+pub use crate::platform::naver::client::posts::Sort;
+
 use crate::{
     platform::{
         naver::client::posts::CommentList,
@@ -71,7 +73,7 @@ impl Posts {
         self.posts.sort_unstable_by(|a, b| a.posted.cmp(&b.posted));
     }
 
-    /// Performs an inplace, unstable sort of the upvotes , from largest to smallest.
+    /// Performs an inplace, unstable sort of the upvotes, from largest to smallest.
     pub fn sort_by_upvotes(&mut self) {
         self.posts
             .sort_unstable_by(|a, b| b.upvotes.cmp(&a.upvotes));
@@ -124,21 +126,21 @@ impl Post {
         &self.poster
     }
 
-    /// Returns the unique [`Id`] for the post.
+    /// Returns the unique id for the post.
     ///
-    /// The returned [`Id`] contains all the necessary information to uniquely identify the post
+    /// The returned id contains all the necessary information to uniquely identify the post
     /// in the context of a specific Webtoon episode. This includes the Webtoon ID,
     /// episode number, post identifier, and optionally a reply identifier if the post is a reply.
     ///
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// let posts = webtoon.posts().await?;
+    /// # if let Some(webtoon) = client.webtoon(838432).await? {
+    /// let posts = webtoon.posts(Sort::New).await?;
     /// for post in  posts {
     ///     println!("Post ID: {:?}", post.id());
     /// }
@@ -153,7 +155,7 @@ impl Post {
         &self.id
     }
 
-    /// Returns the parent [`Id`] of the post.
+    /// Returns the parent id of the post.
     ///
     /// If the post is a top-level comment, the parent ID will be the same as the post's own [`Self::id`].
     /// If the post is a reply to another comment, the parent ID will reflect the ID of the post it is replying to.
@@ -161,12 +163,12 @@ impl Post {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # if let Some(webtoon) = client.webtoon(838432).await? {
+    /// # let posts = webtoon.posts(Sort::Best).await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let parent_id = post.parent_id();
     /// if parent_id == post.id() {
@@ -179,31 +181,23 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// This method is useful for determining whether a post is a top-level comment or a reply to another comment.
     #[must_use]
     pub fn parent_id(&self) -> &str {
         &self.parent_id
     }
 
-    /// Returns a reference to the [`Body`] of the post.
-    ///
-    /// This method provides access to the content of the post and whether it contains spoilers.
-    /// The body contains the actual text of the post along with a flag indicating if it is marked as a spoiler.
-    ///
+    /// Returns the actual content of the post.
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # if let Some(webtoon) = client.webtoon(838432).await? {
+    /// # let posts = webtoon.posts(Sort::Best).await?;
     /// # if let Some(post) = posts.into_iter().next() {
-    /// let body = post.body();
-    /// println!("Post content: {}", body.contents());
-    /// println!("Contains spoilers: {}", body.is_spoiler());
+    /// println!("Post content: {}", post.body());
     /// # }
     /// # }
     /// # Ok(())
@@ -238,7 +232,7 @@ impl Post {
         self.id != self.parent_id
     }
 
-    /// Returns whether this post is a `TOP` post, one of the pinned top three posts on the episode.
+    /// Returns whether this post is a `TOP` post, one of the posts on the first page of the episode.
     #[must_use]
     pub fn is_top(&self) -> bool {
         self.is_top
@@ -263,19 +257,19 @@ impl Post {
     /// # Return Types
     ///
     /// - For `u32`: Returns the count of replies.
-    /// - For `Posts`: Returns the replies as a [`Posts`] object, with replies sorted from oldest to newest.
+    /// - For `Posts`: Returns the replies as a [`Posts`] object, with replies sorted from to newest to oldest.
     ///
     /// # Usage
     ///
     /// Depending on the type you specify, you can either retrieve the number of replies or the actual replies themselves:
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error, webtoon::episode::posts::Posts};
+    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::posts::{Posts, Sort}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # if let Some(webtoon) = client.webtoon(838432).await? {
+    /// # let posts = webtoon.posts(Sort::New).await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let replies: u32 = post.replies().await?;
     /// let replies: Posts = post.replies().await?;
@@ -493,11 +487,9 @@ impl Replies for Posts {
             }
         }
 
-        let mut replies = Self {
+        let replies = Self {
             posts: replies.into_iter().collect(),
         };
-
-        replies.sort_by_newest();
 
         Ok(replies)
     }

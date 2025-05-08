@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -53,4 +55,24 @@ pub struct CommentList {
     pub anonymous: bool,
     pub visible: bool,
     pub mine: bool,
+}
+
+/// Controls the sort order for the posts query.
+#[derive(Debug, Clone, Copy)]
+pub enum Sort {
+    /// Sort by newest first.
+    New,
+    /// Sort by upvotes first.
+    Best,
+}
+
+impl Display for Sort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Sort::New => "NEW",
+            Sort::Best => "BEST",
+        };
+
+        write!(f, "{}", str)
+    }
 }

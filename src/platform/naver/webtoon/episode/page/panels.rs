@@ -40,7 +40,6 @@ impl Panel {
     }
 }
 
-#[allow(unused, reason = "not all features use `episode`")]
 pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
     let selector = Selector::parse(r"div.wt_viewer>img") //
         .expect("`div.wt_viewer>img` should be a valid selector");
@@ -153,7 +152,7 @@ impl Panels {
     ///
     /// # Errors
     ///
-    /// - Returns a [`DownloadError`] if there are any issues creating the directory, writing to the files, or processing the file system.
+    /// - Returns a [`DownloadError`] if there are any issues creating the directory, writing to the files, or processing the filesystem.
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,

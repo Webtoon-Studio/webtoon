@@ -158,7 +158,7 @@ impl ClientBuilder {
     }
 }
 
-/// A high-level asynchronous client to interact with the `webtoons.com` API.
+/// A high-level asynchronous client to interact with the `comic.naver.com` API.
 ///
 /// The `Client` is designed for efficient, reusable HTTP interactions, and internally
 /// manages connection pooling for optimal performance. This means that a single `Client`
@@ -497,12 +497,13 @@ impl Client {
         &self,
         episode: &Episode,
         page: u32,
+        sort: posts::Sort,
     ) -> Result<Response, ClientError> {
         let id = episode.webtoon.id();
         let episode = episode.number;
 
         let url = format!(
-            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&page={page}&sort=NEW"
+            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&page={page}&sort={sort}"
         );
 
         let response = self
@@ -526,7 +527,7 @@ impl Client {
         let episode = post.episode.number();
 
         let url = format!(
-            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&parentCommentNo={parent_comment_number}&page={page}&sort=BEST"
+            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&parentCommentNo={parent_comment_number}&page={page}&sort=NEW"
         );
 
         let response = self

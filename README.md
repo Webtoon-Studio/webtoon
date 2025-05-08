@@ -19,7 +19,7 @@ This library provides a set of utilities and methods to handle various Webtoon-s
 posting comments, subscribing, liking, and managing episode metadata. Platform support varies.
 
 Supported:
-- [webtoons.com](https://www.webtoons.com/).
+- [webtoons.com](https://www.webtoons.com/)
 - [comic.naver.com](https://comic.naver.com/)
 - More to come!
 

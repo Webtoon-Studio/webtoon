@@ -1,11 +1,11 @@
-//! Contains metadata implementations for webtoons.com.
+//! Contains metadata implementations for `comic.naver.com`.
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
-/// Represents the type a webtoon can be on `comic.aver.com`.
+/// Represents the type a webtoon can be on `comic.naver.com`.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     /// A Featured Webtoon.
@@ -33,7 +33,7 @@ impl FromStr for Type {
     }
 }
 
-/// Represents a genre on the webtoons.com platform.
+/// Represents a genre on the `comic.naver.com` platform.
 #[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
@@ -140,97 +140,47 @@ impl FromStr for Genre {
     // Doing only official ones here. Custom will be done at the source.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "COMEDY" | "Comedy" | "comedy" | "ตลก" | "komedi" | "Comedia" | "Comédie" => {
-                Ok(Self::Comedy)
-            }
-            "FANTASY"
-            | "Fantasy"
-            | "fantasy"
-            | "奇幻冒險"
-            | "แฟนตาซี"
-            | "fantasi"
-            | "Fantasía"
-            | "Fantastique" => Ok(Self::Fantasy),
-            "ROMANCE" | "Romance" | "romance" | "愛情" | "โรแมนซ์" | "romantis" | "Romantisch" => {
-                Ok(Self::Romance)
-            }
-            "SLICE OF LIFE"
-            | "Slice of life"
-            | "slice-of-life"
-            | "搞笑/生活"
-            | "ชีวิตประจำวัน"
-            | "Vida cotidiana"
-            | "Tranche de vie"
-            | "Alltagsstory" => Ok(Self::SliceOfLife),
-            "SCI-FI" | "Sci-fi" | "Sci-Fi" | "sf" | "SF" | "科幻" | "ไซไฟ" | "fiksi ilmiah"
-            | "Ciencia ficción" => Ok(Self::SciFi),
-            "DRAMA" | "Drama" | "drama" | "劇情" | "ดราม่า" => Ok(Self::Drama),
+            "COMEDY" | "Comedy" | "comedy" => Ok(Self::Comedy),
+            "FANTASY" | "Fantasy" | "fantasy" => Ok(Self::Fantasy),
+            "ROMANCE" | "Romance" | "romance" => Ok(Self::Romance),
+            "SLICE OF LIFE" | "Slice of life" | "slice-of-life" => Ok(Self::SliceOfLife),
+            "SCI-FI" | "Sci-fi" | "Sci-Fi" | "sf" | "SF" => Ok(Self::SciFi),
+            "DRAMA" | "Drama" | "drama" => Ok(Self::Drama),
             "SHORT STORY" | "Short story" => Ok(Self::ShortStory),
-            "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" => {
-                Ok(Self::Action)
-            }
+            "ACTION" | "Action" | "action" => Ok(Self::Action),
             "ALL AGES" | "All Ages" => Ok(Self::AllAges),
-            "SUPERHERO"
-            | "Superhero"
-            | "super-hero"
-            | "superhero"
-            | "超級英雄"
-            | "ซูเปอร์ฮีโร่"
-            | "Superhéroes"
-            | "Superhéros"
-            | "Superhelden" => Ok(Self::Superhero),
-            "HEARTWARMING"
-            | "Heartwarming"
-            | "heartwarming"
-            | "療癒/萌系"
-            | "อบอุ่นหัวใจ"
-            | "menyentuh"
-            | "Conmovedor" => Ok(Self::Heartwarming),
-            "THRILLER" | "Thriller" | "thriller" | "驚悚/恐怖" | "ระทึกขวัญ" | "Suspenso" => {
-                Ok(Self::Thriller)
-            }
-            "HORROR" | "Horror" | "horror" | "สยองขวัญ" | "horor" | "Terror" | "Horreur" => {
-                Ok(Self::Horror)
-            }
+            "SUPERHERO" | "Superhero" | "super-hero" | "superhero" => Ok(Self::Superhero),
+            "HEARTWARMING" | "Heartwarming" | "heartwarming" => Ok(Self::Heartwarming),
+            "THRILLER" | "Thriller" | "thriller" => Ok(Self::Thriller),
+            "HORROR" | "Horror" | "horror" => Ok(Self::Horror),
             "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" => {
                 Ok(Self::PostApocalyptic)
             }
             "ZOMBIES" | "Zombies" | "zombies" => Ok(Self::Zombies),
-            "SCHOOL" | "School" | "school" | "校園" => Ok(Self::School),
+            "SCHOOL" | "School" | "school" => Ok(Self::School),
             "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal" => {
                 Ok(Self::Supernatural)
             }
             "ANIMALS" | "Animals" | "animals" => Ok(Self::Animals),
-            "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" | "懸疑推理" => {
-                Ok(Self::Mystery)
+            "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" => Ok(Self::Mystery),
+            "HISTORICAL" | "Historical" | "historical" => Ok(Self::Historical),
+            "INFORMATIVE" | "Informative" | "informative" | "tiptoon" | "Info" => {
+                Ok(Self::Informative)
             }
-            "HISTORICAL"
-            | "Historical"
-            | "historical"
-            | "古裝"
-            | "ย้อนยุค"
-            | "sejarah"
-            | "Histórico" => Ok(Self::Historical),
-            "INFORMATIVE" | "Informative" | "informative" | "tiptoon" | "生活常識漫畫" | "ทิปตูน"
-            | "tips & trik" | "Informativo" | "Info" => Ok(Self::Informative),
-            "SPORTS" | "Sports" | "sports" | "運動" | "กีฬา" | "olahraga" | "Deportes" => {
-                Ok(Self::Sports)
-            }
+            "SPORTS" | "Sports" | "sports" => Ok(Self::Sports),
             "INSPIRATIONAL" | "Inspirational" | "inspirational" => Ok(Self::Inspirational),
             "LGBTQ+ / Y" | "LGBTQ+" | "bl-gl" => Ok(Self::LGBTQ),
-            "romantic-fantasy" | "โรแมนซ์แฟนตาซี" | "kerajaan" => {
-                Ok(Self::RomanticFantasy)
-            }
-            "martial-arts" | "武俠" => Ok(Self::MartialArts),
-            "western-palace" | "歐式宮廷" => Ok(Self::WesternPalace),
-            "eastern-palace" | "古代宮廷" => Ok(Self::EasternPalace),
-            "romance-m" | "大人系" => Ok(Self::MatureRomance),
-            "time-slip" | "穿越/轉生" => Ok(Self::TimeSlip),
-            "local" | "台灣原創作品" | "LOKAL" => Ok(Self::Local),
-            "city-office" | "現代/職場" => Ok(Self::CityOffice),
-            "adaptation" | "影視化" => Ok(Self::Adaptation),
-            "shonen" | "少年" => Ok(Self::Shonen),
-            "web-novel" | "WEBNOVEL" | "小說" | "นิยาย" => Ok(Self::WebNovel),
+            "romantic-fantasy" => Ok(Self::RomanticFantasy),
+            "martial-arts" => Ok(Self::MartialArts),
+            "western-palace" => Ok(Self::WesternPalace),
+            "eastern-palace" => Ok(Self::EasternPalace),
+            "romance-m" => Ok(Self::MatureRomance),
+            "time-slip" => Ok(Self::TimeSlip),
+            "local" => Ok(Self::Local),
+            "city-office" => Ok(Self::CityOffice),
+            "adaptation" => Ok(Self::Adaptation),
+            "shonen" => Ok(Self::Shonen),
+            "web-novel" | "WEBNOVEL" => Ok(Self::WebNovel),
             "graphic-novel" | "GRAPHIC_NOVEL" => Ok(Self::GraphicNovel),
             _ => Err(ParseGenreError(s.to_owned())),
         }

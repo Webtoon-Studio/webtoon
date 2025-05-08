@@ -54,6 +54,7 @@ impl fmt::Debug for Webtoon {
             .field("favorites", &self.inner.favorites)
             .field("schedule", &self.inner.schedule)
             .field("genres", &self.inner.genres)
+            .field("creators", &self.inner.creators)
             .finish()
     }
 }
@@ -64,12 +65,12 @@ impl Webtoon {
         self.inner.id
     }
 
-    /// Returns the type of this `Webtoon`: Original or Canvas.
+    /// Returns the type of this `Webtoon`: Featured, BestChallenge or Challenge.
     pub fn r#type(&self) -> Type {
         self.inner.r#type
     }
 
-    /// Returns if Webtoon is a Featured type.
+    /// Returns if Webtoon is a featured type.
     pub fn is_featured(&self) -> bool {
         self.r#type() == Type::Featured
     }
@@ -229,19 +230,10 @@ impl Webtoon {
     ///
     /// ### Caveats
     ///
-    /// - **No View or Publish Data**:
-    ///   - `Episode::views()` will always return `None`. This method does not provide view counts; you must use `episodes()` to retrieve views.
-    ///   - `Episode::published()` will always return `None`. To get publication dates, you must use `episodes()`. This is a limitation as currently there is no known way to get the published date with just the episode value alone.
-    ///
     /// - **Episode Existence vs. Public Display**:
     ///   - This method includes episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
-    ///   - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard or matching creator-webtoon session.
-    ///   - The numbering (`#NUMBER`) of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `episode_no=` query in the URL.
-    ///
-    /// ### Use Cases
-    ///
-    /// - Accessing hidden episodes, such as those unpublished, behind fast-pass, ad-walled, or deleted, without requiring a matching creator session.
-    /// - Useful for situations where the complete set of episodes is necessary, including drafts or episodes not currently visible to the public.
+    ///   - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard.
+    ///   - The numbering of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `no=` query in the URL.
     ///
     /// ### Returns
     ///
@@ -343,20 +335,6 @@ impl Webtoon {
 
     /// Retrieves all posts(top level comments) for every episode of the current `Webtoon`.
     ///
-    /// This method can return more posts than what is publicly available on the main webtoon page, as it includes certain deleted posts as well as those visible to all users.
-    ///
-    /// ### Behavior
-    ///
-    /// - The method retrieves all posts across every episode, including:
-    ///   - **Publicly visible posts**: Comments that any user can see on the webtoon page.
-    ///   - **Deleted posts with replies**: Posts that have been marked as deleted but still display the message "This comment has been deleted" because they have replies.
-    ///   - **Excluded posts**: Deleted posts without any replies are not included in the results.
-    ///
-    /// ### Clarification
-    ///
-    /// - The method may return more posts than expected since it counts comments that are deleted but still display a "This comment has been deleted" message (due to having replies).
-    /// - **Hidden posts**: Posts from episodes behind fast-pass, ads, or even deleted/unpublished episodes will also be included, provided that they have replies and match the pattern mentioned above.
-    ///
     /// ### Returns
     ///
     /// Will returns a `Result<Posts, PostError>` containing:
@@ -367,12 +345,12 @@ impl Webtoon {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{ Client, errors::Error};
+    /// # use webtoon::platform::naver::{ Client, errors::Error, webtoon::episode::posts::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let posts = webtoon.posts().await?;
+    /// let posts = webtoon.posts(Sort::Best).await?;
     /// for post in posts {
     ///     println!("Post: {}", post.body());
     /// }
@@ -385,7 +363,10 @@ impl Webtoon {
     ///
     /// - `PostError::ClientError`: If there is an issue with the client during episode or post retrieval.
     /// - `PostError::Unexpected`: If an unexpected error occurs during the process.
-    pub async fn posts(&self) -> Result<Posts, PostError> {
+    pub async fn posts(
+        &self,
+        sort: crate::platform::naver::webtoon::episode::posts::Sort,
+    ) -> Result<Posts, PostError> {
         let mut posts = Vec::new();
 
         for number in 1.. {
@@ -393,7 +374,7 @@ impl Webtoon {
                 EpisodeError::ClientError(client_error) => PostError::ClientError(client_error),
                 error => PostError::Unexpected(error.into()),
             })? {
-                posts.extend_from_slice(episode.posts().await?.as_slice());
+                posts.extend_from_slice(episode.posts(sort).await?.as_slice());
             } else {
                 break;
             }

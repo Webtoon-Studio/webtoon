@@ -27,7 +27,8 @@ pub struct Article {
     pub thumbnail_lock: bool,
     pub thumbnail_url: String,
     pub up: bool,
-    pub volume_no: i64,
+    // The episode number with only public episodes taken into account.
+    // pub volume_no: i64,
 }
 
 #[allow(unused)]
