@@ -284,11 +284,7 @@ impl Client {
     pub async fn webtoon(&self, id: u32) -> Result<Option<Webtoon>, WebtoonError> {
         let response = self.get_webtoon_json(id).await?;
 
-        // Unfortunately, Naver does not return an `404 Not Found`
-        // when page does not exist. Instead, it redirects to the main
-        // homepage with a `302 Moved Temporarily` code. Hopefully this
-        // is enough to check if it exists or not.
-        if response.status() == 302 {
+        if response.status() == 404 {
             return Ok(None);
         }
 
