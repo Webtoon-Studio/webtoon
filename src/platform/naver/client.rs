@@ -6,6 +6,8 @@ pub(super) mod likes;
 pub(super) mod posts;
 pub(super) mod rating;
 
+use crate::stdx::{http::IRetry, math::MathExt};
+
 use super::{
     Type, Webtoon,
     creator::{self, Creator},
@@ -16,15 +18,16 @@ use super::{
         episode::{Episode, posts::Post},
     },
 };
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use episodes::Sort;
 use info::Info;
 use parking_lot::RwLock;
-use reqwest::{RequestBuilder, Response, redirect::Policy};
-use std::{env, str::FromStr, sync::Arc, time::Duration};
+use reqwest::{Response, redirect::Policy};
+use std::{env, str::FromStr, sync::Arc};
 use url::Url;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+const EPISODES_PER_PAGE: u16 = 20;
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///
@@ -54,6 +57,10 @@ static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_P
 #[derive(Debug)]
 pub struct ClientBuilder {
     builder: reqwest::ClientBuilder,
+    // TODO: This is only needed because `reqwest::ClientBuilder` isn't `Clone`
+    // and thus we cannot just clone when needed to build when used and change the user agent when needed.
+    //
+    // The user agent is only changed for `get_episode_page_html`.
     user_agent: Option<Arc<str>>,
 }
 
@@ -218,7 +225,7 @@ impl Client {
 
 // Public facing impls
 impl Client {
-    /// Fetches the creator profile page for a given user in the specified language, returning a [`Creator`].
+    /// Fetches the creator profile page for a given user, returning a [`Creator`].
     ///
     /// ### Example
     ///
@@ -312,14 +319,12 @@ impl Client {
                 None => None,
             };
 
-            let c = Creator {
+            creators.push(Creator {
                 client: self.clone(),
                 username: creator.name,
                 profile,
                 page: Arc::new(RwLock::new(None)),
-            };
-
-            creators.push(c);
+            });
         }
 
         let webtoon = Webtoon {
@@ -371,7 +376,7 @@ impl Client {
     /// ### Notes
     ///
     /// - The URL must be a valid `comic.naver.com` URL, otherwise the function will return a `WebtoonError`.
-    /// - The method expects the `titleId` query parameter to be present in the URL, as this is how the Webtoon ID is identified.
+    /// - The method expects the `titleId` query parameter to be present first in the URL, as this is how the Webtoon ID is identified.
     pub async fn webtoon_from_url(&self, url: &str) -> Result<Option<Webtoon>, WebtoonError> {
         let url = url::Url::parse(url)?;
 
@@ -448,11 +453,10 @@ impl Client {
     pub(super) async fn get_episode_info_from_json(
         &self,
         webtoon: &Webtoon,
-        number: u16,
+        episode: u16,
     ) -> Result<Response, ClientError> {
         let id = webtoon.id();
-
-        let page = page_from_episode(number);
+        let page = episode.in_bucket_of(EPISODES_PER_PAGE);
 
         let url =
             format!("https://comic.naver.com/api/article/list?titleId={id}&page={page}&sort=ASC");
@@ -470,7 +474,7 @@ impl Client {
         let url =
             format!("https://route-like.naver.com/v1/search/contents?q=COMIC[{id}_{episode}]");
 
-        self.http.get(&url).retry().send().await
+        Ok(self.http.get(&url).retry().send().await?)
     }
 
     pub(super) async fn get_rating_for_episode(
@@ -483,7 +487,7 @@ impl Client {
         // TODO: This seems to only return data for public episodes?
         let url = format!("https://comic.naver.com/api/userAction/info?titleId={id}&no={episode}");
 
-        self.http.get(&url).retry().send().await
+        Ok(self.http.get(&url).retry().send().await?)
     }
 
     // TODO: Need to see if the `is_top/best` is preserved with `sort=NEW` and not `sort=BEST`
@@ -555,77 +559,5 @@ impl Client {
 impl Default for Client {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-struct Retry(RequestBuilder);
-
-impl Retry {
-    pub async fn send(self) -> Result<Response, ClientError> {
-        let mut count = 10;
-        let mut wait = fastrand::u64(1..=10);
-
-        loop {
-            let request = self.0.try_clone().ok_or(ClientError::Unexpected(anyhow!(
-                "failed to clone `RequestBuilder` in retry loop"
-            )))?;
-            let response = request.send().await;
-
-            match response {
-                Ok(response) if response.status() == 429 && count != 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    count -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-                Err(_) if count != 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    count -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-
-                Ok(response) => return Ok(response),
-                Err(err) => return Err(err.into()),
-            }
-        }
-    }
-}
-
-trait IRetry {
-    fn retry(self) -> Retry;
-}
-
-impl IRetry for RequestBuilder {
-    fn retry(self) -> Retry {
-        Retry(self)
-    }
-}
-
-#[inline(always)]
-fn page_from_episode(number: u16) -> u16 {
-    number / 20 + u16::from(f32::from(number) % 20. > 0.) + u16::from(number == 0)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn should_calculate_proper_page_number() {
-        let page = page_from_episode(0);
-        assert_eq!(1, page);
-        let page = page_from_episode(7);
-        assert_eq!(1, page);
-        let page = page_from_episode(19);
-        assert_eq!(1, page);
-        let page = page_from_episode(20);
-        assert_eq!(1, page);
-        let page = page_from_episode(21);
-        assert_eq!(2, page);
-        let page = page_from_episode(331);
-        assert_eq!(17, page);
-        let page = page_from_episode(653);
-        assert_eq!(33, page);
     }
 }
