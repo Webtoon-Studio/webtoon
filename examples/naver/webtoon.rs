@@ -4,11 +4,6 @@ use webtoon::platform::naver::{Client, errors::Error};
 async fn main() -> Result<(), Error> {
     let client = Client::new();
 
-    let webtoon = client.webtoon(1).await?;
-    if webtoon.is_some() {
-        unreachable!("no webtoon with id `1` should exists");
-    }
-
     let webtoon = client
         .webtoon_from_url("https://comic.naver.com/webtoon/list?titleId=838432")
         .await?

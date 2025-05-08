@@ -276,6 +276,7 @@ impl Client {
     /// # let client = Client::new();
     /// if client.webtoon(1).await?.is_none() {
     ///     println!("Webtoon does not exist.");
+    /// #   return Ok(());
     /// }
     ///
     /// unreachable!("no webtoon with id `1` should exist");

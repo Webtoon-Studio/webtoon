@@ -257,8 +257,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// let posts = webtoon.posts().await?;
-    /// for post in  posts {
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
+    /// for post in episode.posts().await? {
     ///     println!("Post ID: {:?}", post.id());
     /// }
     /// # }
@@ -285,13 +285,13 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
-    /// let parent_id = post.parent_id();
-    /// if parent_id == post.id() {
+    /// if post.parent_id() == post.id() {
     ///     println!("This is a top-level comment.");
     /// } else {
-    ///     println!("This is a reply to post with ID: {:?}", parent_id);
+    ///     println!("This is a reply to post with ID: {:?}", post.parent_id());
     /// }
     /// # }
     /// # }
@@ -318,7 +318,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let body = post.body();
     /// println!("Post content: {}", body.contents());
@@ -592,7 +593,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let replies: u32 = post.replies().await?;
     /// let replies: Posts = post.replies().await?;
@@ -625,7 +627,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let posts = webtoon.posts().await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
+    /// # let posts = episode.posts().await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// match post.reply("In the novel *spoiler*", true).await {
     ///     Ok(_) => println!("left reply!"),

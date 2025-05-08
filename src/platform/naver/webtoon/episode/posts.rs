@@ -140,16 +140,14 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let posts = webtoon.posts(Sort::New).await?;
-    /// for post in  posts {
+    /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
+    /// for post in  episode.posts(Sort::New).await? {
     ///     println!("Post ID: {:?}", post.id());
     /// }
     /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// The [`Id`] is a composite structure that reflects the internal format used by Webtoon's system.
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
@@ -168,7 +166,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// # let posts = webtoon.posts(Sort::Best).await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
+    /// # let posts = episode.posts(Sort::Best).await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let parent_id = post.parent_id();
     /// if parent_id == post.id() {
@@ -195,7 +194,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// # let posts = webtoon.posts(Sort::Best).await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode one shoudl exist");
+    /// # let posts = episode.posts(Sort::Best).await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// println!("Post content: {}", post.body());
     /// # }
@@ -269,7 +269,8 @@ impl Post {
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// # let posts = webtoon.posts(Sort::New).await?;
+    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should exist");
+    /// # let posts = episode.posts(Sort::New).await?;
     /// # if let Some(post) = posts.into_iter().next() {
     /// let replies: u32 = post.replies().await?;
     /// let replies: Posts = post.replies().await?;
