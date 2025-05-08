@@ -941,7 +941,7 @@ impl Client {
     pub(super) async fn get_webtoon_page(
         &self,
         webtoon: &Webtoon,
-        page: Option<u8>,
+        page: Option<u16>,
     ) -> Result<Response, ClientError> {
         let id = webtoon.id;
         let lang = webtoon.language;

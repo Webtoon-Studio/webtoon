@@ -6,12 +6,15 @@ use scraper::{ElementRef, Html, Selector};
 use std::{str::FromStr, sync::Arc};
 use url::Url;
 
-use crate::platform::webtoons::{
-    Client, Language, Webtoon,
-    creator::Creator,
-    meta::{Genre, Scope},
-    originals::Schedule,
-    webtoon::{WebtoonError, episode::Episode},
+use crate::{
+    platform::webtoons::{
+        Client, Language, Webtoon,
+        creator::Creator,
+        meta::{Genre, Scope},
+        originals::Schedule,
+        webtoon::{WebtoonError, episode::Episode},
+    },
+    stdx::math::MathExt,
 };
 
 use super::Page;
@@ -419,7 +422,7 @@ pub(super) fn banner(html: &Html) -> Result<Url, WebtoonError> {
     Ok(banner)
 }
 
-pub fn calculate_total_pages(html: &Html) -> Result<u8, WebtoonError> {
+pub fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     let selector = Selector::parse("li._episodeItem>a>span.tx") //
         .expect("`li._episodeItem>a>span.tx` should be a valid selector");
 
@@ -442,24 +445,12 @@ pub fn calculate_total_pages(html: &Html) -> Result<u8, WebtoonError> {
         )));
     }
 
-    let latest = text
+    let episode = text
         .trim_start_matches('#')
         .parse::<u16>()
         .map_err(|err| WebtoonError::Unexpected(err.into()))?;
 
-    // Gets within -1 of the actual page count if there is overflow.
-    // The latest episode will be at the top of the first page
-    // and given that the first page will always be maximally full,
-    // this can be used to determine the amount of episodes listed per page.
-    let min = u8::try_from(latest / episodes_per_page) //
-        .context("total number of pages should fit within 255 pages")?;
-
-    // Checks for overflow episodes that would make an extra page
-    // If there is any excess, it will at most be one extra page, and so if true, the value becomes `1`
-    // later added to the page count from before
-    let overflow = u8::from((latest % episodes_per_page) != 0);
-
-    Ok(min + overflow)
+    Ok(episode.in_bucket_of(episodes_per_page))
 }
 
 pub(super) fn episode(
@@ -541,4 +532,17 @@ fn episode_published_date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, Web
 #[expect(unused, reason = "Getting likes from api instead")]
 fn episode_likes(_episode: &ElementRef<'_>) -> Result<u32, WebtoonError> {
     unimplemented!()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::stdx::math::MathExt;
+
+    use super::*;
+
+    #[test]
+    fn should_calculate_proper_page_number_temp() {
+        assert_eq!(pages_for_episode(23, 15), 23.in_bucket_of(15));
+        assert_eq!(pages_for_episode(143, 10), 143.in_bucket_of(10));
+    }
 }
