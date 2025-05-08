@@ -13,10 +13,7 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("webtoon is known to exist");
 
-    let episode = webtoon
-        .episode(5)
-        .await?
-        .expect("episode 1 should always exist");
+    let episode = webtoon.episode(230).await?.unwrap();
 
     for post in episode.posts(Sort::Best).await? {
         println!("post: {post:#?}");
