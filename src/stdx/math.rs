@@ -31,6 +31,7 @@ macro_rules! impl_math_ext {
         $(
             #[allow(clippy::cast_lossless)]
             impl MathExt for $T {
+                #[inline(always)]
                 fn in_bucket_of(self, size: Self) -> Self {
                     if size == 0 {
                         return 1;
