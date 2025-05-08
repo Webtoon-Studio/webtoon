@@ -1,4 +1,4 @@
-//! Represents an abstraction for the `https://www.webtoons.com/*/canvas/list?genreTab=ALL&sortOrder=` endpoint.
+//! Represents a client abstraction for `comic.naver.com`, both public and private methods.
 
 pub(super) mod episodes;
 mod info;
@@ -6,7 +6,10 @@ pub(super) mod likes;
 pub(super) mod posts;
 pub(super) mod rating;
 
-use crate::stdx::{http::IRetry, math::MathExt};
+use crate::stdx::{
+    http::{DEFAULT_USER_AGENT, IRetry},
+    math::MathExt,
+};
 
 use super::{
     Type, Webtoon,
@@ -23,10 +26,9 @@ use episodes::Sort;
 use info::Info;
 use parking_lot::RwLock;
 use reqwest::{Response, redirect::Policy};
-use std::{env, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 use url::Url;
 
-static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 const EPISODES_PER_PAGE: u16 = 20;
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
@@ -85,7 +87,7 @@ impl ClientBuilder {
     #[must_use]
     pub fn new() -> Self {
         let builder = reqwest::Client::builder()
-            .user_agent(APP_USER_AGENT)
+            .user_agent(DEFAULT_USER_AGENT)
             .use_rustls_tls()
             .https_only(true)
             .brotli(true);
@@ -426,7 +428,7 @@ impl Client {
             .user_agent(
                 self.user_agent
                     .as_ref()
-                    .map_or(APP_USER_AGENT, |user_agent| &**user_agent),
+                    .map_or(DEFAULT_USER_AGENT, |user_agent| &**user_agent),
             )
             .redirect(Policy::none())
             .build()

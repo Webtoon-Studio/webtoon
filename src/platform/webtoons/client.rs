@@ -4,7 +4,7 @@ pub(super) mod likes;
 pub(super) mod posts;
 pub mod search;
 
-use crate::stdx::http::IRetry;
+use crate::stdx::http::{DEFAULT_USER_AGENT, IRetry};
 
 use super::{
     Language, Type, Webtoon,
@@ -28,9 +28,7 @@ use reqwest::Response;
 use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc};
-
-static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///
@@ -85,7 +83,7 @@ impl ClientBuilder {
     #[must_use]
     pub fn new() -> Self {
         let builder = reqwest::Client::builder()
-            .user_agent(APP_USER_AGENT)
+            .user_agent(DEFAULT_USER_AGENT)
             .use_rustls_tls()
             .https_only(true)
             .brotli(true);

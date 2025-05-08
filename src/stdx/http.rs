@@ -1,7 +1,9 @@
 use anyhow::anyhow;
+use reqwest::{RequestBuilder, Response};
 use std::time::Duration;
 
-use reqwest::{RequestBuilder, Response};
+pub static DEFAULT_USER_AGENT: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
 pub struct Retry(RequestBuilder);
 
