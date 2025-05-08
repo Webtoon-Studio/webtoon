@@ -9,12 +9,6 @@ pub enum Error {
     #[error(transparent)]
     ClientError(#[from] ClientError),
     #[error(transparent)]
-    OriginalsError(#[from] OriginalsError),
-    #[error(transparent)]
-    CanvasError(#[from] CanvasError),
-    #[error(transparent)]
-    SearchError(#[from] SearchError),
-    #[error(transparent)]
     WebtoonError(#[from] WebtoonError),
     #[error(transparent)]
     CreatorError(#[from] CreatorError),
@@ -90,8 +84,6 @@ pub enum EpisodeError {
     NotViewable,
     #[error("Failed to find any panels for episode")]
     NoPanelsFound,
-    #[error("Failed to find a thumbnail for episode")]
-    NoThumbnailFound,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -115,56 +107,6 @@ pub enum PostError {
 impl From<reqwest::Error> for PostError {
     fn from(error: reqwest::Error) -> Self {
         Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
-    }
-}
-
-#[allow(missing_docs)]
-#[non_exhaustive]
-#[derive(Debug, Error)]
-pub enum OriginalsError {
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for OriginalsError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
-    }
-}
-
-#[allow(missing_docs)]
-#[non_exhaustive]
-#[derive(Debug, Error)]
-pub enum CanvasError {
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for CanvasError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
-    }
-}
-
-#[allow(missing_docs)]
-#[non_exhaustive]
-#[derive(Debug, Error)]
-pub enum SearchError {
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error(transparent)]
-    WebtoonError(#[from] WebtoonError),
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for SearchError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::from(error))
     }
 }
 

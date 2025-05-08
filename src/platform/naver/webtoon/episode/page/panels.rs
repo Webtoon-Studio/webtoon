@@ -67,9 +67,7 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
     }
 
     if panels.is_empty() {
-        return Err(EpisodeError::Unexpected(anyhow!(
-            "Failed to find a single panel on episode page"
-        )));
+        return Err(EpisodeError::NoPanelsFound);
     }
 
     Ok(panels)
