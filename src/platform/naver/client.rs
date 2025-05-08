@@ -231,12 +231,12 @@ impl Client {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// match client.creator("_profile").await {
+    /// match client.creator("_21cqqm").await {
     ///     Ok(Some(creator)) => println!("Creator found: {:?}", creator),
     ///     Ok(None) => println!("No creator found for this profile."),
     ///     Err(err) => println!("An error occurred: {:?}", err),
@@ -269,16 +269,16 @@ impl Client {
     ///
     /// ### Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// # use webtoon::platform::naver::{errors::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// if let Some(webtoon) = client.webtoon(123456).await? {
-    ///     println!("Webtoon Title: {}", webtoon.title());
-    /// } else {
+    /// if client.webtoon(1).await?.is_none() {
     ///     println!("Webtoon does not exist.");
     /// }
+    ///
+    /// unreachable!("no webtoon with id `1` should exist");
     /// # Ok(())}
     /// ```
     pub async fn webtoon(&self, id: u32) -> Result<Option<Webtoon>, WebtoonError> {
@@ -382,15 +382,13 @@ impl Client {
     pub async fn webtoon_from_url(&self, url: &str) -> Result<Option<Webtoon>, WebtoonError> {
         let url = url::Url::parse(url)?;
 
-        // TODO: Check for `titleId` explicitly, as in theory the URL can have it be in any order.
         let id = url
-            .query()
+            .query_pairs()
+            .find(|query| query.0 == "titleId")
             .ok_or(WebtoonError::InvalidUrl(
                 "Naver URL should have a `titleId` query: failed to find one in provided URL.",
             ))?
-            .split('=')
-            .nth(1)
-            .context("`titleId` should always have a `=` separator")?
+            .1
             .parse::<u32>()
             .context("`titleId` query parameter wasn't able to parse into a u32")?;
 
@@ -485,10 +483,7 @@ impl Client {
     ) -> Result<Response, ClientError> {
         let id = episode.webtoon.id();
         let episode = episode.number;
-
-        // TODO: This seems to only return data for public episodes?
         let url = format!("https://comic.naver.com/api/userAction/info?titleId={id}&no={episode}");
-
         Ok(self.http.get(&url).retry().send().await?)
     }
 

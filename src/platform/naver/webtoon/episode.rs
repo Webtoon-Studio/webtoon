@@ -3,19 +3,10 @@
 mod page;
 pub mod posts;
 
-use chrono::FixedOffset;
-use chrono::NaiveDate;
-use chrono::NaiveDateTime;
-use chrono::NaiveTime;
-use chrono::TimeZone;
-pub use page::panels::Panel;
-pub use page::panels::Panels;
-
 use anyhow::{Context, anyhow};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use core::fmt;
 use parking_lot::RwLock;
-use posts::Post;
 use regex::Regex;
 use scraper::Html;
 use std::collections::HashSet;
@@ -24,11 +15,14 @@ use std::sync::Arc;
 
 use self::page::Page;
 use self::posts::Posts;
-use crate::platform::naver::client;
-use crate::platform::naver::client::episodes::Article;
-use crate::platform::naver::client::episodes::Root;
 pub use crate::platform::naver::client::episodes::Sort;
+use crate::platform::naver::client::{
+    self,
+    episodes::{Article, Root},
+};
 use crate::platform::naver::errors::{EpisodeError, PostError};
+pub use page::panels::{Panel, Panels};
+use posts::Post;
 
 use super::Webtoon;
 
@@ -273,6 +267,11 @@ impl Episode {
     }
 
     /// Returns the number of people who left a rating on the `Episode`.
+    ///
+    /// # Returns
+    ///
+    /// This will return `None` if the episode is non-free. For any public free
+    /// episode, this should always return `Some`.
     pub async fn raters(&self) -> Result<Option<u32>, EpisodeError> {
         self.rating_impl().await.map(|info| info.1)
     }
@@ -367,11 +366,9 @@ impl Episode {
             }
         }
 
-        let mut posts = Posts {
+        let posts = Posts {
             posts: posts.into_iter().collect(),
         };
-
-        posts.sort_by_newest();
 
         Ok(posts)
     }
@@ -619,11 +616,6 @@ impl Episode {
             title: Arc::new(RwLock::new(None)),
             season: Arc::new(RwLock::new(None)),
             thumbnail: Arc::new(RwLock::new(None)),
-            // NOTE: Currently there is no way to get this info from an episodes page.
-            // The only sources are the dashboard episode list data, and the episode list from the webtoons page.
-            // This could be gotten, in theory, with the webtoons page episode data, but caching the episodes
-            // would lead to a large refactor and be slow for when only getting one episodes data.
-            // For now will just return None until a solution can be landed on.
             published: None,
             page: Arc::new(RwLock::new(None)),
         }
@@ -662,7 +654,7 @@ impl Episode {
                 )));
             };
 
-            // This way of getting the rating doesnt not inlclude the amount of people who left a rating.
+            // This way of getting the rating doesn't not include the amount of people who left a rating.
             (episode.star_score, None)
         } else {
             let info = serde_json::from_str::<Rating>(&response.text().await?)

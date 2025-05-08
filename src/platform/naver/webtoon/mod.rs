@@ -345,12 +345,12 @@ impl Webtoon {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{ Client, errors::Error, webtoon::episode::posts::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let posts = webtoon.posts(Sort::Best).await?;
+    /// let posts = webtoon.posts().await?;
     /// for post in posts {
     ///     println!("Post: {}", post.body());
     /// }
@@ -363,10 +363,7 @@ impl Webtoon {
     ///
     /// - `PostError::ClientError`: If there is an issue with the client during episode or post retrieval.
     /// - `PostError::Unexpected`: If an unexpected error occurs during the process.
-    pub async fn posts(
-        &self,
-        sort: crate::platform::naver::webtoon::episode::posts::Sort,
-    ) -> Result<Posts, PostError> {
+    pub async fn posts(&self) -> Result<Posts, PostError> {
         let mut posts = Vec::new();
 
         for number in 1.. {
@@ -374,7 +371,7 @@ impl Webtoon {
                 EpisodeError::ClientError(client_error) => PostError::ClientError(client_error),
                 error => PostError::Unexpected(error.into()),
             })? {
-                posts.extend_from_slice(episode.posts(sort).await?.as_slice());
+                posts.extend_from_slice(episode.posts(episode::posts::Sort::New).await?.as_slice());
             } else {
                 break;
             }

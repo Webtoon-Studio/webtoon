@@ -1,5 +1,5 @@
 use crate::platform::naver::{Client, errors::DownloadError, webtoon::episode::EpisodeError};
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use image::{GenericImageView, ImageFormat, RgbaImage};
 use scraper::{Html, Selector};
 use std::path::Path;
@@ -9,23 +9,20 @@ use url::Url;
 /// Represents a single panel for an episode.
 #[derive(Debug, Clone)]
 pub struct Panel {
-    pub(in crate::platform::naver::webtoon::episode) url: Url,
-    pub(in crate::platform::naver::webtoon::episode) bytes: Vec<u8>,
-    pub(in crate::platform::naver::webtoon::episode) episode: u16,
-    pub(in crate::platform::naver::webtoon::episode) number: u16,
+    pub(crate) url: Url,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) episode: u16,
+    pub(crate) number: u16,
 }
 
 impl Panel {
-    /// Returns the url for the panel.
+    /// Returns the URL for the panel.
     #[must_use]
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
 
-    pub(in crate::platform::naver::webtoon::episode) async fn download(
-        &mut self,
-        client: &Client,
-    ) -> Result<(), EpisodeError> {
+    pub(crate) async fn download(&mut self, client: &Client) -> Result<(), EpisodeError> {
         self.bytes = client
             .http
             .get(self.url.as_str())
@@ -76,9 +73,9 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
 /// Represents all the panels for an episode.
 #[derive(Debug, Clone)]
 pub struct Panels {
-    pub(in crate::platform::naver::webtoon::episode) images: Vec<Panel>,
-    pub(in crate::platform::naver::webtoon::episode) height: u32,
-    pub(in crate::platform::naver::webtoon::episode) width: u32,
+    pub(crate) images: Vec<Panel>,
+    pub(crate) height: u32,
+    pub(crate) width: u32,
 }
 
 impl Panels {

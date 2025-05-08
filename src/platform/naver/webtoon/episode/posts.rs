@@ -374,7 +374,6 @@ impl fmt::Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Poster")
             // omitting `webtoon`
-            .field("episode", &self.episode)
             .field("id", &self.id)
             .field("username", &self.username)
             .field("is_creator", &self.is_creator)
