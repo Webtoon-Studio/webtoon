@@ -16,6 +16,8 @@ async fn main() -> Result<(), Error> {
         println!("episode: {}", episode.number());
         println!("published: {:?}", episode.published().await?);
         println!("likes: {}", episode.likes().await?);
+        println!("rating: {}", episode.rating().await?);
+        println!("raters: {:?}", episode.raters().await?);
         let (comments, replies) = episode.comments_and_replies().await?;
         println!("comments: {comments}\nreplies: {replies}");
         println!("length: {:?}", episode.length().await?);
