@@ -33,7 +33,7 @@ pub struct Page {
     schedule: Option<Schedule>,
     thumbnail: Url,
     banner: Option<Url>,
-    pages: u8,
+    pages: u16,
 }
 
 #[inline]

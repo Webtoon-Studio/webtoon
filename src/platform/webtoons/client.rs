@@ -4,6 +4,8 @@ pub(super) mod likes;
 pub(super) mod posts;
 pub mod search;
 
+use crate::stdx::http::{DEFAULT_USER_AGENT, IRetry};
+
 use super::{
     Language, Type, Webtoon,
     canvas::{self, Sort},
@@ -22,13 +24,11 @@ use super::{
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
 use posts::id::Id;
-use reqwest::{RequestBuilder, Response};
+use reqwest::Response;
 use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, env, ops::RangeBounds, str::FromStr, sync::Arc, time::Duration};
-
-static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///
@@ -83,7 +83,7 @@ impl ClientBuilder {
     #[must_use]
     pub fn new() -> Self {
         let builder = reqwest::Client::builder()
-            .user_agent(APP_USER_AGENT)
+            .user_agent(DEFAULT_USER_AGENT)
             .use_rustls_tls()
             .https_only(true)
             .brotli(true);
@@ -939,7 +939,7 @@ impl Client {
     pub(super) async fn get_webtoon_page(
         &self,
         webtoon: &Webtoon,
-        page: Option<u8>,
+        page: Option<u16>,
     ) -> Result<Response, ClientError> {
         let id = webtoon.id;
         let lang = webtoon.language;
@@ -1688,48 +1688,4 @@ struct NewLikesResponse {
 #[serde(rename_all = "camelCase")]
 struct NewLikesResult {
     count: u32,
-}
-
-struct Retry(RequestBuilder);
-
-impl Retry {
-    pub async fn send(self) -> Result<Response, ClientError> {
-        let mut count = 10;
-        let mut wait = fastrand::u64(1..=10);
-
-        loop {
-            let request = self.0.try_clone().ok_or(ClientError::Unexpected(anyhow!(
-                "failed to clone `RequestBuilder` in retry loop"
-            )))?;
-            let response = request.send().await;
-
-            match response {
-                Ok(response) if response.status() == 429 && count != 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    count -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-                Err(_) if count != 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    count -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-
-                Ok(response) => return Ok(response),
-                Err(err) => return Err(err.into()),
-            }
-        }
-    }
-}
-
-trait IRetry {
-    fn retry(self) -> Retry;
-}
-
-impl IRetry for RequestBuilder {
-    fn retry(self) -> Retry {
-        Retry(self)
-    }
 }

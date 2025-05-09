@@ -4,7 +4,6 @@ mod page;
 pub mod posts;
 
 pub use page::panels::Panel;
-#[cfg(feature = "download")]
 pub use page::panels::Panels;
 
 use anyhow::Context;
@@ -466,7 +465,7 @@ impl Episode {
     ///
     /// - **Duplicate Posts**:
     ///   - Due to potential API inconsistencies during pagination, this method cannot guarantee that duplicate posts will be filtered out.
-    ///   
+    ///
     /// - **Publish Order**:
     ///   - The order in which posts are published may not be respected, as the posts are fetched and processed in batches that may appear out of order.
     ///
@@ -1085,7 +1084,6 @@ impl Episode {
     /// Will download the panels of episode.
     ///
     /// This returns a [`Panels`] which offers ways to save to disk.
-    #[cfg(feature = "download")]
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
@@ -1332,14 +1330,14 @@ pub enum AdStatus {
 ///
 /// ### Variants:
 ///
-/// - `Published`:  
+/// - `Published`:
 ///   The episode is available to the public. This includes episodes behind ad or fast-pass paywalls.
-///   
-/// - `Draft`:  
+///
+/// - `Draft`:
 ///   The episode is not yet published in any capacity. This means it hasn't been made available to the public or
 ///   put behind ad/fast-pass options.
-///   
-/// - `Removed`:  
+///
+/// - `Removed`:
 ///   The episode was previously published but has since been removed. This might happen due to takedowns, content issues, or other reasons.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PublishedStatus {
