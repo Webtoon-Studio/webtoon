@@ -835,6 +835,11 @@ impl Episodes {
         self.episodes.sort_unstable_by(compare);
     }
 
+    /// Creates an iterator that does not consume `self`.
+    pub fn iter(&self) -> std::slice::Iter<'_, Episode> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
+
     /// Gets the episode from passed in value if it exists.
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
         // PERF: If in the process of making the Vec we can insert into the index that the number is, then we can use
@@ -848,17 +853,17 @@ impl Episodes {
 }
 
 impl From<Vec<Episode>> for Episodes {
-    fn from(value: Vec<Episode>) -> Self {
+    fn from(episodes: Vec<Episode>) -> Self {
         Self {
-            count: u16::try_from(value.len()).expect("max episode number should fit within `u16`"),
-            episodes: value.into(),
+            count: u16::try_from(episodes.len())
+                .expect("max episode number should fit within `u16`"),
+            episodes,
         }
     }
 }
 
 impl<'a> IntoIterator for &'a Episodes {
     type Item = &'a Episode;
-
     type IntoIter = std::slice::Iter<'a, Episode>;
 
     fn into_iter(self) -> Self::IntoIter {

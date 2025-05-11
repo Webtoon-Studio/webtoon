@@ -237,7 +237,7 @@ impl Webtoon {
 
         let episodes = Episodes {
             count: episodes.len() as u16,
-            episodes: episodes.into(),
+            episodes,
         };
 
         Ok(episodes)
