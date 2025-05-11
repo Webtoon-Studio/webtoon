@@ -9,9 +9,9 @@ use core::fmt;
 use parking_lot::RwLock;
 use regex::Regex;
 use scraper::Html;
-use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
+use std::{cmp::Ordering, collections::HashSet};
 
 use self::page::Page;
 use self::posts::Posts;
@@ -791,13 +791,23 @@ impl PartialEq for Episode {
 
 impl Eq for Episode {}
 
+impl PartialOrd for Episode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Episode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.number.cmp(&other.number)
+    }
+}
+
 /// Represents a collection of episodes.
-///
-/// This is a wrapper around a `Vec<Episode>` meant to provide methods for common interactions.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Episodes {
     pub(crate) count: u16,
-    pub(crate) episodes: Arc<[Episode]>,
+    pub(crate) episodes: Vec<Episode>,
 }
 
 impl Episodes {
@@ -805,6 +815,24 @@ impl Episodes {
     #[must_use]
     pub fn count(&self) -> u16 {
         self.count
+    }
+
+    /// Wrapper for `Vec::sort`.
+    pub fn sort(&mut self) {
+        self.episodes.sort();
+    }
+
+    /// Wrapper for `Vec::unstable_sort`.
+    pub fn sort_unstable(&mut self) {
+        self.episodes.sort_unstable();
+    }
+
+    /// Wrapper for `Vec::unstable_sort_by`.
+    pub fn sort_unstable_by<F>(&mut self, compare: F)
+    where
+        F: FnMut(&Episode, &Episode) -> Ordering,
+    {
+        self.episodes.sort_unstable_by(compare);
     }
 
     /// Gets the episode from passed in value if it exists.

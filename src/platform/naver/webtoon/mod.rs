@@ -9,7 +9,6 @@ use super::{Client, creator::Creator};
 use super::{Type, meta::Weekday};
 use core::fmt;
 use episode::{Episode, Episodes, posts::Posts};
-use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Represents a Webtoon from `comic.naver.com`.
@@ -33,7 +32,6 @@ pub(super) struct WebtoonInner {
     pub favorites: u32,
     pub schedule: Vec<Weekday>,
     pub genres: Vec<Genre>,
-    pub episodes: RwLock<Option<Episodes>>,
 
     pub creators: Vec<Creator>,
 }
@@ -197,10 +195,6 @@ impl Webtoon {
     /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
     /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of episode data.
     pub async fn episodes(&self, sort: Sort) -> Result<Episodes, EpisodeError> {
-        if let Some(episodes) = &*self.inner.episodes.read() {
-            return Ok(episodes.clone());
-        }
-
         let mut episodes = Vec::new();
 
         let response = self.client.get_episodes_json(self, 1, sort).await?;
@@ -210,16 +204,41 @@ impl Webtoon {
         let json: Root = serde_json::from_str(&txt) //
             .map_err(|err| EpisodeError::Unexpected(err.into()))?;
 
+        let pages = json.page_info.total_pages;
+
+        // Add first episodes
         for article in json.article_list {
             episodes.push(Episode::from((self.clone(), article)));
+        }
+
+        // TODO: Unsure what happens if there is more than 20 charged episodes.
+        // Add paid episodes
+        for article in json.charge_folder_article_list {
+            episodes.push(Episode::from((self.clone(), article)));
+        }
+
+        for page in 2..=pages {
+            let response = self.client.get_episodes_json(self, page, sort).await?;
+
+            let txt = response.text().await?;
+
+            let json: Root = serde_json::from_str(&txt) //
+                .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+
+            for article in json.article_list {
+                episodes.push(Episode::from((self.clone(), article)));
+            }
+        }
+
+        match sort {
+            Sort::Asc => episodes.sort_unstable(),
+            Sort::Desc => episodes.sort_unstable_by(|a, b| b.cmp(a)),
         }
 
         let episodes = Episodes {
             count: episodes.len() as u16,
             episodes: episodes.into(),
         };
-
-        *self.inner.episodes.write() = Some(episodes.clone());
 
         Ok(episodes)
     }

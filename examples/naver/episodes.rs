@@ -9,8 +9,9 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("webtoon is known to exist");
 
-    for episode in &webtoon.episodes(Sort::Asc).await? {
+    for episode in &webtoon.episodes(Sort::Desc).await? {
         println!("title: {}", episode.title().await?);
+        println!("number: {}", episode.number());
         println!("thumbnail: {}", episode.thumbnail().await?);
         println!("season: {:?}", episode.season().await?);
         println!("episode: {}", episode.number());

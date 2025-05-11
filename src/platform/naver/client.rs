@@ -339,7 +339,6 @@ impl Client {
                 favorites: info.favorite_count,
                 schedule: info.publish_day_of_week_list,
                 genres,
-                episodes: RwLock::new(None),
                 creators,
             }),
 
@@ -436,7 +435,7 @@ impl Client {
     pub(super) async fn get_episodes_json(
         &self,
         webtoon: &Webtoon,
-        page: u8,
+        page: u16,
         sort: Sort,
     ) -> Result<Response, ClientError> {
         let id = webtoon.id();

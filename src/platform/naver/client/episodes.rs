@@ -35,10 +35,11 @@ pub struct Article {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PageInfo {
-    pub total_pages: u32,
+    pub total_pages: u16,
 }
 
 /// Represents sorting options for episodes.
+#[derive(Debug, Clone, Copy)]
 pub enum Sort {
     /// Sort by ascending order.
     Asc,
