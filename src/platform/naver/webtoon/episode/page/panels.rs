@@ -7,6 +7,8 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
 /// Represents a single panel for an episode.
+///
+/// This type is not constructed directly, but gotten via [`Episode::panels()`](crate::platform::naver::webtoon::episode::Episode::panels()).
 #[derive(Debug, Clone)]
 pub struct Panel {
     pub(crate) url: Url,
@@ -16,7 +18,29 @@ pub struct Panel {
 }
 
 impl Panel {
-    /// Returns the URL for the panel.
+    /// Returns the `url` for the panel.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(813443).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     if let Some(panels) = webtoon.panels().await? {
+    ///         for panel in panels {
+    ///             println!("url: {}", panel.url());
+    ///         }
+    ///     }
+    /// }
+    /// # Ok(())}
+    /// ```
     #[must_use]
     pub fn url(&self) -> &str {
         self.url.as_str()
@@ -71,6 +95,8 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
 }
 
 /// Represents all the downloaded panels for an episode.
+///
+/// This type is not constructed directly, but gotten via [`Episode::download()`](crate::platform::naver::webtoon::episode::Episode::download()).
 #[derive(Debug, Clone)]
 pub struct Panels {
     pub(crate) images: Vec<Panel>,
@@ -79,13 +105,32 @@ pub struct Panels {
 }
 
 impl Panels {
-    /// Saves all the panels of an episode as a single long image file in `png` format.
+    /// Saves all the panels of an episode as a single, long image file in `png` format.
     ///
     /// # Behavior
     ///
     /// - Combines all panels of the episode vertically into one long image.
-    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
+    /// - The output image is always saved as a `.png` file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
     /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     let panels = episode.download().await?;
+    ///     panels.save_single("path/to/save/").await?;
+    /// }
+    /// # Ok(())}
+    /// ```
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,
@@ -125,21 +170,32 @@ impl Panels {
         Ok(())
     }
 
-    /// Saves each panel of the episode to disk, naming the resulting files using the format `EPISODE_NUMBER-PANEL_NUMBER`.
-    ///
-    /// For example, the first panel of the 34th episode would be saved as `34-1`. The file extension will match the panel's original format.
+    /// Saves each panel of the episode separately to disk.
     ///
     /// # Behavior
     ///
+    /// - Naming the resulting files using the format `EPISODE_NUMBER-PANEL_NUMBER`.
+    ///     - For example, the first panel of the 34th episode would be saved as `34-1`.
     /// - If the specified directory does not exist, it will be created, along with any necessary parent directories.
     ///
-    /// # Parameters
+    /// # Example
     ///
-    /// - `path`: The destination directory where the panels will be saved. If the path does not exist, it will be created automatically.
+    /// ```no_run
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
     ///
-    /// # Errors
+    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
     ///
-    /// - Returns a [`DownloadError`] if there are any issues creating the directory, writing to the files, or processing the filesystem.
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     let panels = episode.download().await?;
+    ///     panels.save_multiple("path/to/save/").await?;
+    /// }
+    /// # Ok(())}
+    /// ```
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,

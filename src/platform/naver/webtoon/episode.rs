@@ -30,6 +30,8 @@ use super::Webtoon;
 ///
 /// This type is not constructed directly, but gotten via [`Webtoon::episodes()`] or [`Webtoon::episode()`]
 ///
+/// # Validity
+///
 /// An instance of an `Episode` should always be considered to exist and be a valid episode on the platform.
 ///
 /// # Example
@@ -192,6 +194,8 @@ impl Episode {
 
     /// Returns the creator note for episode, if it exits, and the episode is publicly viewable.
     ///
+    /// Will return `None` if the episode is not publicly viewable. If there is no note, this will also return `None`.
+    ///
     /// # Example
     ///
     /// ```
@@ -226,6 +230,8 @@ impl Episode {
     }
 
     /// Returns the sum of the vertical length in pixels, if publicly and freely viewable.
+    ///
+    /// If episode is publicly and freely viewable, this will always return `Some` and the value will be greater than `0`.
     ///
     /// # Example
     ///
@@ -264,7 +270,8 @@ impl Episode {
 
     /// Returns the published timestamp of the episode.
     ///
-    /// It returns `Some` if the episode is publicly and freely available, otherwise it returns `None`.
+    /// It returns `Some` if the episode is publicly and freely available, otherwise it returns `None`. This date is from
+    /// when it becomes freely available, **NOT** when its published behind a paywall or when it was drafted.
     ///
     /// # Example
     ///
@@ -1034,17 +1041,17 @@ impl Episodes {
         self.count
     }
 
-    /// Wrapper for [`Vec::sort()`].
+    /// Wrapper for `Vec::sort()`.
     pub fn sort(&mut self) {
         self.episodes.sort();
     }
 
-    /// Wrapper for [`Vec::unstable_sort()`].
+    /// Wrapper for `Vec::unstable_sort()`.
     pub fn sort_unstable(&mut self) {
         self.episodes.sort_unstable();
     }
 
-    /// Wrapper for [`Vec::unstable_sort_by()`].
+    /// Wrapper for `Vec::unstable_sort_by()`.
     pub fn sort_unstable_by<F>(&mut self, compare: F)
     where
         F: FnMut(&Episode, &Episode) -> Ordering,
@@ -1059,7 +1066,7 @@ impl Episodes {
 
     /// Gets the episode from the collection.
     ///
-    /// If episode is not found in [`Episodes`] then it will return `None`.
+    /// If episode is not found in [`Episodes`], then it will return `None`.
     ///
     /// # Example
     ///
