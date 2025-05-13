@@ -231,8 +231,7 @@ impl Client {
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
-    /// # Ok(())
-    /// # }
+    /// # Ok(())}
     /// ```
     ///
     /// [`https://comic.naver.com/community/u/_21cqqm`]: https://comic.naver.com/community/u/_21cqqm

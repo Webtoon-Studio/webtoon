@@ -87,6 +87,28 @@ impl Webtoon {
         self.inner.id
     }
 
+    /// Returns the title of this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert_eq!("우렉 마지노", webtoon.title());
+    /// # Ok(())}
+    /// ```
+    #[inline]
+    pub fn title(&self) -> &str {
+        &self.inner.title
+    }
+
     /// Returns the type of this [`Webtoon`]: [`Featured`](variant@Type::Featured), [`BestChallenge`](variant@Type::BestChallenge) or [`Challenge`](variant@Type::Challenge).
     ///
     /// # Variants
@@ -192,28 +214,6 @@ impl Webtoon {
     #[must_use]
     pub fn is_challenge(&self) -> bool {
         self.r#type() == Type::Challenge
-    }
-
-    /// Returns the title of this `Webtoon`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::naver::{errors::Error, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
-    ///     unreachable!("webtoon is known to exist");
-    /// }
-    ///
-    /// assert_eq!("우렉 마지노", webtoon.title());
-    /// # Ok(())}
-    /// ```
-    #[inline]
-    pub fn title(&self) -> &str {
-        &self.inner.title
     }
 
     /// Returns a slice of [`Creator`] for this `Webtoon`.
@@ -489,7 +489,8 @@ impl Webtoon {
 
     /// Retrieves all [`Episodes`] for the current `Webtoon`.
     ///
-    /// `Episodes` is returned sorted in ascending order: 1, 2, 3, 4, etc.
+    /// `Episodes` is returned sorted in ascending order: 1, 2, 3, 4, etc. Only episodes that are displayed publicly are
+    /// retrieved. For hidden or deleted episodes, use [`episode()`](Webtoon::episode()).
     ///
     /// # Example
     ///
@@ -513,6 +514,31 @@ impl Webtoon {
     ///     if let Some(published) = episode.published().await? {
     ///         println!("Published at: {}", published);
     ///     }
+    /// }
+    /// # Ok(())}
+    /// ```
+    ///
+    /// # All Episodes with [`episode()`](Webtoon::episode())
+    ///
+    /// If wanting to get all episodes, up to the latest released episode, including deleted or hidden episodes, you can
+    /// should use `episode()` instead:
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(730656).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// // Episode numbering starts at `1`.
+    /// let mut number = 1;
+    ///
+    /// while let Some(episode) = webtoon.episode(number).await? {
+    ///     println!("Episode title: {}", episode.title());
+    ///     number += 1;
     /// }
     /// # Ok(())}
     /// ```
@@ -589,7 +615,6 @@ impl Webtoon {
     /// } else {
     ///     println!("`{}` does not have an episode `42`", webtoon.title());
     /// }
-    ///
     /// # Ok(())}
     /// ```
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {

@@ -70,7 +70,7 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
     Ok(panels)
 }
 
-/// Represents all the panels for an episode.
+/// Represents all the downloaded panels for an episode.
 #[derive(Debug, Clone)]
 pub struct Panels {
     pub(crate) images: Vec<Panel>,
@@ -79,21 +79,13 @@ pub struct Panels {
 }
 
 impl Panels {
-    /// Saves all the panels of an episode as a single long image file in PNG format.
+    /// Saves all the panels of an episode as a single long image file in `png` format.
     ///
     /// # Behavior
     ///
     /// - Combines all panels of the episode vertically into one long image.
     /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
     /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
-    ///
-    /// # Parameters
-    ///
-    /// - `path`: The target directory where the combined image will be saved. If it doesn't exist, it will be created.
-    ///
-    /// # Errors
-    ///
-    /// - Returns a [`DownloadError`] if any issues arise during directory creation, image creation, or writing the combined image to disk.
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,
