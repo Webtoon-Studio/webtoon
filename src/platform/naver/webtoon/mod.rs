@@ -111,7 +111,7 @@ impl Webtoon {
     /// Returns the rating for this `Webtoon`.
     pub async fn rating(&self) -> Result<f64, WebtoonError> {
         let episodes = self
-            .episodes(Sort::Asc)
+            .episodes()
             .await
             .map_err(|err| WebtoonError::Unexpected(err.into()))?;
 
@@ -169,12 +169,12 @@ impl Webtoon {
     /// ### Example
     ///
     /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error, webtoon::episode::Sort};
+    /// # use webtoon::platform::naver::{Client, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
     /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let episodes = webtoon.episodes(Sort::Asc).await?;
+    /// let episodes = webtoon.episodes().await?;
     /// println!("Total episodes: {}", episodes.count());
     ///
     /// for episode in &episodes {
@@ -194,10 +194,10 @@ impl Webtoon {
     ///
     /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
     /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of episode data.
-    pub async fn episodes(&self, sort: Sort) -> Result<Episodes, EpisodeError> {
+    pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let mut episodes = Vec::new();
 
-        let response = self.client.get_episodes_json(self, 1, sort).await?;
+        let response = self.client.get_episodes_json(self, 1, Sort::Asc).await?;
 
         let txt = response.text().await?;
 
@@ -218,7 +218,7 @@ impl Webtoon {
         }
 
         for page in 2..=pages {
-            let response = self.client.get_episodes_json(self, page, sort).await?;
+            let response = self.client.get_episodes_json(self, page, Sort::Asc).await?;
 
             let txt = response.text().await?;
 
@@ -230,10 +230,8 @@ impl Webtoon {
             }
         }
 
-        match sort {
-            Sort::Asc => episodes.sort_unstable(),
-            Sort::Desc => episodes.sort_unstable_by(|a, b| b.cmp(a)),
-        }
+        // 1, 2, 3, 4, ...
+        episodes.sort_unstable();
 
         let episodes = Episodes {
             count: episodes.len() as u16,

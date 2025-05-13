@@ -15,7 +15,7 @@ use std::{cmp::Ordering, collections::HashSet};
 
 use self::page::Page;
 use self::posts::Posts;
-pub use crate::platform::naver::client::episodes::Sort;
+use crate::platform::naver::client::episodes::Sort;
 use crate::platform::naver::client::{
     self,
     episodes::{Article, Root},
@@ -652,6 +652,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
+                // `Desc` as this is known to be a cookie episode.
                 .get_episodes_json(&self.webtoon, 1, Sort::Desc)
                 .await?
                 .text()
