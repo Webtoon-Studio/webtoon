@@ -10,7 +10,25 @@ use super::{Client, Webtoon, errors::CreatorError};
 
 /// Represents a creator of a `Webtoon`.
 ///
-/// More generally this represents an account on `comic.naver.com`.
+/// More generally, this represents an account on `comic.naver.com`.
+///
+/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::creator()`].
+///
+/// # Example
+///
+/// ```
+/// # use webtoon::platform::naver::{errors::Error, Client};
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Error> {
+/// let client = Client::new();
+///
+/// let Some(creator) = client.creator("_n41b8i").await?) else {
+///     unreachable!("profile is known to exist");
+/// }
+///
+/// assert_eq!("호리", creator.username());
+/// # Ok(())}
+/// ```
 #[derive(Clone)]
 pub struct Creator {
     pub(super) client: Client,
@@ -38,28 +56,79 @@ pub(super) struct Page {
 }
 
 impl Creator {
-    /// Returns a creators username.
+    /// Returns a Creators username.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("_wig53").await?) else {
+    ///     unreachable!("profile is known to exist");
+    /// }
+    ///
+    /// assert_eq!("홍대의", creator.username());
+    /// # Ok(())}
+    /// ```
     #[inline]
     pub fn username(&self) -> &str {
         &self.username
     }
 
-    /// Returns a creators profile segment in `https://comic.naver.com/community/u/{profile}`
+    /// Returns a Creators profile.
     ///
-    /// Not all creators for a story have a profile.
+    /// This corresponds to the segment in: `https://comic.naver.com/community/u/{profile}`
+    ///
+    /// Most often this is just the profile that was passed to [`Client::creator()`].
+    ///
+    /// # Caveats
+    ///
+    /// Not all creators for a story have a profile. In such case, `None` is returned.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("_0jhat").await?) else {
+    ///     unreachable!("profile is known to exist");
+    /// }
+    ///
+    /// assert_eq!("_0jhat", creator.profile());
+    /// # Ok(())}
+    /// ```
     #[inline]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
 
-    /// Returns a creators id.
+    /// Returns a Creators id.
     ///
-    /// Sometimes this is just the `profile` but with the `_` prefix stripped.
-    /// If creator has no webtoon profile then this will always return `None`.
+    /// Sometimes this is just the [`profile()`](Creator::profile()), but with the `_` prefix stripped.
     ///
-    /// # Errors
+    /// If creator has no Webtoon profile, then this will always return `None`.
     ///
-    /// Will error if failed to scrape the creators profile page.
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("_7box2").await?) else {
+    ///     unreachable!("profile is known to exist");
+    /// }
+    ///
+    /// assert_eq!("7box2", creator.id().await?);
+    /// # Ok(())}
+    /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.id.clone()))
@@ -75,7 +144,25 @@ impl Creator {
         }
     }
 
-    /// Returns the number of followers for the creator.
+    /// Returns the number of followers for the Creator.
+    ///
+    /// More specifically this corresponds to the number of `관심`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("2jiho").await?) else {
+    ///     unreachable!("profile is known to exist");
+    /// }
+    ///
+    /// println!("`{}` has `{}` followers", creator.username(), creator.followers().await?);
+    /// # Ok(())}
+    /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.followers))
@@ -91,17 +178,33 @@ impl Creator {
         }
     }
 
-    /// Scrapes the profile page for the public facing webtoons.
+    /// Returns a list of any public facing webtoons the creator is involved with.
     ///
     /// # Returns
     ///
-    /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`.
+    /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`. If there are no viewable
+    /// Webtoon's, it will return an empty `Vec`.
     ///
-    /// If there are no viewable webtoons, it will return an empty `Vec`.
+    /// # Example
     ///
-    /// # Errors
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
     ///
-    /// Will error if scrape encountered an unexpected html shape, or if network request encounter issues.
+    /// let Some(creator) = client.creator("2jiho").await?) else {
+    ///     unreachable!("profile is known to exist");
+    /// }
+    ///
+    /// if let Some(webtoons) = creator.webtoons().await? {
+    ///     for webtoon in webtoons  {
+    ///         println!("`{}`", webtoon.title());
+    ///
+    ///     }
+    /// }
+    /// # Ok(())}
+    /// ```
     pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
         let Some(profile) = self
             .profile
@@ -141,41 +244,6 @@ impl Creator {
         }
 
         Ok(Some(webtoons))
-    }
-
-    /// Clears the cached metadata for the current `Creator`, forcing future requests to retrieve fresh data from the network.
-    ///
-    /// ### Behavior
-    ///
-    /// - **Cache Eviction**:
-    ///   - This method clears the cached creator metadata (such as username, followers, and other page information) that has been stored for performance reasons.
-    ///   - After calling this method, subsequent calls that rely on this metadata will trigger a network request to re-fetch the data.
-    ///
-    /// ### Use Case
-    ///
-    /// - Use this method if you suspect the cached data is outdated or if you want to ensure that future data retrieval reflects the latest updates from the creator's page.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(creator) = client.creator("_n41b8i").await? {
-    /// creator.evict_cache();
-    /// println!("Cache cleared. Future requests will fetch fresh data.");
-    /// # }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// ### Notes
-    ///
-    /// - There are no errors returned from this function, as it only resets the cache.
-    /// - Cache eviction is useful if the creators metadata has changed or if up-to-date information is needed for further operations.
-    pub fn evict_cache(&self) {
-        *self.page.write() = None;
     }
 }
 
