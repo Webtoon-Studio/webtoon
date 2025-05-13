@@ -23,7 +23,7 @@ Supported:
 - [comic.naver.com](https://comic.naver.com/)
 - More to come!
 
-### Features
+### Capabilities
 
 - Fetch information about webtoons and their episodes and their posts.
 - Subscribe/unsubscribe to webtoons(`webtoons.com` only).

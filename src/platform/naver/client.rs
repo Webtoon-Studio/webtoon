@@ -37,12 +37,12 @@ const EPISODES_PER_PAGE: u16 = 20;
 /// configuration and custom user agents. It enables a more controlled construction
 /// of the `Client` when the default configuration isn't sufficient.
 ///
-/// ### Usage
+/// # Usage
 ///
 /// The builder allows for method chaining to incrementally configure the client, with the final
-/// step being a call to `.build()`, which consumes the builder and returns a `Client`.
+/// step being a call to [`build()`](ClientBuilder::build()), which consumes the builder and returns a [`Client`].
 ///
-/// ### Example
+/// # Example
 ///
 /// ```
 /// # use webtoon::platform::naver::ClientBuilder;
@@ -52,7 +52,7 @@ const EPISODES_PER_PAGE: u16 = 20;
 /// # Ok::<(), webtoon::platform::naver::errors::ClientError>(())
 /// ```
 ///
-/// ### Notes
+/// # Notes
 ///
 /// This builder is the preferred way to create clients when needing custom configurations, and
 /// should be used instead of `Client::new()` for more advanced setups.
@@ -78,7 +78,7 @@ impl ClientBuilder {
     ///
     /// This includes a default user agent (`webtoon/VERSION`), and is the starting point for configuring a `Client`.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
     /// # use webtoon::platform::naver::ClientBuilder;
@@ -102,7 +102,7 @@ impl ClientBuilder {
     ///
     /// By default, the user agent is set to `webtoon/VERSION`, but this can be overridden using this method.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
     /// # use webtoon::platform::naver::ClientBuilder;
@@ -122,12 +122,12 @@ impl ClientBuilder {
     /// a `Client` based on the current settings. If there are issues with the underlying
     /// configuration (e.g., TLS backend failure or resolver issues), an error is returned.
     ///
-    /// ### Errors
+    /// # Errors
     ///
     /// This method returns a [`ClientError`] if the underlying HTTP client could not be built,
     /// such as when TLS initialization fails or the DNS resolver cannot load the system configuration.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```rust
     /// # use webtoon::platform::naver::{ClientBuilder, Client};
@@ -150,13 +150,13 @@ impl ClientBuilder {
 /// The `Client` is designed for efficient, reusable interactions, and internally
 /// manages connection pooling for optimal performance.
 ///
-/// ### Configuration
+/// # Configuration
 ///
 /// Default settings for the `Client` are tuned for general usage scenarios, but you can
 /// customize the behavior by utilizing the `Client::builder()` method, which provides
 /// advanced configuration options.
 ///
-/// ### Example
+/// # Example
 ///
 /// ```
 /// # use webtoon::platform::naver::Client;
@@ -175,13 +175,13 @@ impl Client {
     /// This method configures a basic `Client` with standard settings. If default
     /// configurations are sufficient, this is the simplest way to create a `Client`.
     ///
-    /// ### Panics
+    /// # Panics
     ///
     /// This function will panic if the TLS backend cannot be initialized or if the DNS resolver
     /// fails to load the system's configuration. For a safer alternative that returns a `Result`
     /// instead of panicking, consider using the [`ClientBuilder`] for more controlled error handling.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
     /// # use webtoon::platform::naver::Client;
@@ -195,9 +195,9 @@ impl Client {
     /// Returns a [`ClientBuilder`] for creating a custom-configured `Client`.
     ///
     /// The builder pattern allows for greater flexibility in configuring a `Client`.
-    /// You can specify other options by chaining methods on the builder before finalizing it with `.build()`.
+    /// You can specify other options by chaining methods on the builder before finalizing it with [`ClientBuilder::build()`].
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
     /// # use webtoon::platform::naver::{Client, ClientBuilder};
@@ -211,14 +211,14 @@ impl Client {
 
 // Public facing impls
 impl Client {
-    /// Fetches the creator profile page info for a given user, returning a [`Creator`].
+    /// Fetches info for the Creator of a given `profile`.
     ///
-    /// The `profile` given here can be found from the community page URL: [`https://comic.naver.com/community/u/_21cqqm`]
+    /// The `profile` can be found from the community page URL: [`https://comic.naver.com/community/u/_21cqqm`]
     ///
     /// **NOTE**: Not all Webtoon creators have a community page. This is usually denoted by green check mark next to
     /// their name on the Webtoon's page.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```rust
     /// # use webtoon::platform::naver::{Client, errors::Error};
@@ -255,19 +255,19 @@ impl Client {
     ///
     /// The id can be found from the URL query `titleId`: [`https://comic.naver.com/webtoon/list?titleId=832703`]
     ///
-    /// ### Platform Notes
+    /// # Platform Notes
     ///
     /// `comic.naver.com` id's are unique across the entire platform.
     ///
-    /// ### Panics
+    /// # Panics
     ///
     /// There is an innate assumption that `comics.naver.com` only ever has valid URLs on its website. If this is broken,
     /// then this function can panic upon URL parsing.
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::naver::{errors::Error, Type, Client};
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -351,13 +351,13 @@ impl Client {
     ///
     /// If no Webtoon is found for the given `url`, then `None` is returned.
     ///
-    /// ### URL Structure
+    /// # URL Structure
     ///
     /// The provided URL must follow the typical structure used by `comic.naver.com` Webtoon's:
     ///
     /// - `https://comic.naver.com/webtoon/list?titleId={ID}`
     ///
-    /// ### Example
+    /// # Example
     ///
     /// ```
     /// # use webtoon::platform::naver::{errors::Error, Client};
@@ -365,8 +365,9 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon_from_url("https://comic.naver.com/webtoon/list?titleId=838432").await? else {
-    ///     unreachable!("webtoon is known to exist");
+    /// let Some(webtoon) = client
+    ///     .webtoon_from_url("https://comic.naver.com/webtoon/list?titleId=838432").await? else {
+    ///         unreachable!("webtoon is known to exist");
     /// }
     ///
     /// assert_eq!("우렉 마지노", webtoon.title());

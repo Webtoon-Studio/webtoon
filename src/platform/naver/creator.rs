@@ -39,7 +39,7 @@ pub(super) struct Page {
 
 impl Creator {
     /// Returns a creators username.
-    #[must_use]
+    #[inline]
     pub fn username(&self) -> &str {
         &self.username
     }
@@ -47,7 +47,7 @@ impl Creator {
     /// Returns a creators profile segment in `https://comic.naver.com/community/u/{profile}`
     ///
     /// Not all creators for a story have a profile.
-    #[must_use]
+    #[inline]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }

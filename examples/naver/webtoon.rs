@@ -7,7 +7,7 @@ async fn main() -> Result<(), Error> {
     let webtoon = client
         .webtoon_from_url("https://comic.naver.com/webtoon/list?titleId=838432")
         .await?
-        .expect("no webtoon with the given url exists");
+        .expect("webtoon with the given url exists");
 
     println!("title: {}", webtoon.title());
     println!("thumbnail: {}", webtoon.thumbnail());

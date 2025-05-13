@@ -1,4 +1,4 @@
-//! Represents an abstraction for a Webtoon.
+//! Represents an abstraction for a Webtoon on `comic.naver.com`.
 
 pub mod episode;
 
@@ -13,7 +13,12 @@ use std::sync::Arc;
 
 /// Represents a Webtoon from `comic.naver.com`.
 ///
-/// This can be thought of as a handle that the methods use to access various parts of the Naver's API for information about the Webtoon.
+/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`].
+///
+/// This abstracts over all the sections a Webtoon may be in, such the featured or challenge sections. Relevant capabilities
+/// are exposed, with methods taking missing features that may not exists across all sections.
+///
+/// Read the method documentation for any notes on section interactions to take into account.
 #[derive(Clone)]
 pub struct Webtoon {
     pub(super) client: Client,
@@ -59,56 +64,282 @@ impl fmt::Debug for Webtoon {
 
 impl Webtoon {
     /// Returns the id of this `Webtoon`.
+    ///
+    /// Most often, this is just the given id passed when constructing a [`Webtoon`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(832703).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert_eq!(832703, webtoon.id());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn id(&self) -> u32 {
         self.inner.id
     }
 
-    /// Returns the type of this `Webtoon`: Featured, BestChallenge or Challenge.
+    /// Returns the type of this [`Webtoon`]: [`Featured`](variant@Type::Featured), [`BestChallenge`](variant@Type::BestChallenge) or [`Challenge`](variant@Type::Challenge).
+    ///
+    /// # Variants
+    ///
+    /// - `Type::Featured`: Webtoon's in the `comic.naver.com/webtoon` section.
+    /// - `Type::BestChallenge`: Webtoon's in the `comic.naver.com/bestChallenge` section.
+    /// - `Type::Challenge`: Webtoon's in the `comic.naver.com/challenge` section.
+    ///
+    /// # Alternatives
+    ///
+    /// For simple `bool` checks, check out [`is_featured()`](Webtoon::is_featured()), [`is_best_challenge()`](Webtoon::is_best_challenge()), or [`is_challenge()`](Webtoon::is_challenge()).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert_eq!(Type::Featured, webtoon.r#type());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn r#type(&self) -> Type {
         self.inner.r#type
     }
 
-    /// Returns if Webtoon is a featured type.
+    /// Returns if Webtoon is a [`Featured`](variant@Type::Featured) type.
+    ///
+    /// Is `true` if the Webtoon is in the `comic.naver.com/webtoon` section, otherwise `false`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert!(webtoon.is_featured());
+    /// # Ok(())}
+    /// ```
+    #[inline]
+    #[must_use]
     pub fn is_featured(&self) -> bool {
         self.r#type() == Type::Featured
     }
 
-    /// Returns if Webtoon is a best challenge type.
+    /// Returns if Webtoon is a [`BestChallenge`](variant@Type::BestChallenge) type.
+    ///
+    /// Is `true` if the Webtoon is in the `comic.naver.com/bestChallenge` section, otherwise `false`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(816103).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert!(webtoon.is_best_challenge());
+    /// # Ok(())}
+    /// ```
+    #[inline]
+    #[must_use]
     pub fn is_best_challenge(&self) -> bool {
         self.r#type() == Type::BestChallenge
     }
 
-    /// Returns if Webtoon is a challenge type.
+    /// Returns if Webtoon is a [`Challenge`](variant@Type::Challenge) type.
+    ///
+    /// Is `true` if the Webtoon is in the `comic.naver.com/challenge` section, otherwise `false`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(758207).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert!(webtoon.is_challenge());
+    /// # Ok(())}
+    /// ```
+    #[inline]
+    #[must_use]
     pub fn is_challenge(&self) -> bool {
         self.r#type() == Type::Challenge
     }
 
     /// Returns the title of this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert_eq!("우렉 마지노", webtoon.title());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn title(&self) -> &str {
         &self.inner.title
     }
 
-    /// Returns a list of [`Creator`] for this `Webtoon`.
+    /// Returns a slice of [`Creator`] for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(828715).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// let creators = webtoon.creators();
+    ///
+    /// assert!(creators.len() == 3);
+    /// assert_eq!("JP", creators[0].username());
+    /// assert_eq!("박진환", creators[1].username());
+    /// assert_eq!("장영훈", creators[2].username());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn creators(&self) -> &[Creator] {
         &self.inner.creators
     }
 
-    /// Returns a list of [`Genre`] for this `Webtoon`.
+    /// Returns a slice of [`Genre`] for this `Webtoon`.
+    ///
+    /// Specifically, these are only the traditional genres, and not other tags.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Genre, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(822657).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// let genres = webtoon.genres();
+    ///
+    /// assert!(genres.len() == 1);
+    /// assert_eq!(Genre::Historical, genres[0]);
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn genres(&self) -> &[Genre] {
         &self.inner.genres
     }
 
     /// Returns the summary for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(747269).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// let expected = "'이건 내가 아는 그 전개다'\n한순간에 세계가 멸망하고, 새로운 세상이 펼쳐졌다.\n오직 나만이 완주했던 소설 세계에서 평범했던 독자의 새로운 삶이 시작된다.";
+    ///
+    /// assert_eq!(expected, webtoon.summary());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn summary(&self) -> &str {
         &self.inner.summary
     }
 
     /// Retrieves the total number of favorites for this `Webtoon`.
+    ///
+    /// Specifically, this is the number for `관심`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(820097).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// println!("favorites: {}", webtoon.favortes());
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn favorites(&self) -> u32 {
         self.inner.favorites
     }
 
     /// Returns the rating for this `Webtoon`.
+    ///
+    /// # Discrepancies
+    ///
+    /// This is the mean of all free and paid episodes. Elsewhere a rating might be shown on the platform, but that is
+    /// the mean for only the free episodes. If there is a discrepancy, it is most likely due to this.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(822862).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// println!("rating: {}", webtoon.rating()));
+    /// # Ok(())}
+    /// ```
     pub async fn rating(&self) -> Result<f64, WebtoonError> {
         let episodes = self
             .episodes()
@@ -130,15 +361,49 @@ impl Webtoon {
     }
 
     /// Returns the thumbnail URL for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(829875).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// println!("thumbnail url: {}", webtoon.thumbnail()));
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn thumbnail(&self) -> &str {
         &self.inner.thumbnail
     }
 
     /// Retrieves the release schedule for this `Webtoon`.
     ///
-    /// ### Behavior
+    /// # Caveats
     ///
-    /// - **Challenge Webtoon**: There is no official release schedule, and this method will return `None`.
+    /// For [`Challenge`](variant@Type::Challenge) Webtoon's there is no official release schedule, and this method will always return `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, meta::Weekday, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(694721).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert_eq!(Some(&[Weekday::Monday]), webtoon.schedule()));
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn schedule(&self) -> Option<&[Weekday]> {
         if self.is_challenge() {
             return None;
@@ -149,31 +414,95 @@ impl Webtoon {
 
     /// Returns if `Webtoon` is completed.
     ///
-    /// **NOTE**: This has been known to be incorrect, trust with extreme caution!
+    /// <div class="warning">
+    ///
+    /// **This has been known to be incorrect, trust with extreme caution!**
+    ///
+    /// </div>
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(795658).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert!(webtoon.is_completed()));
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn is_completed(&self) -> bool {
         self.inner.is_completed
     }
 
-    /// Returns if `Webtoon` is new.
+    /// Returns if the `Webtoon` is considered new.
+    ///
+    /// This corresponds to the `신작` badge. Generally, the platform seems to consider any Webtoon who's first episode
+    /// was published within the last 30-days as new.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(747271).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// assert!(!webtoon.is_new()));
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn is_new(&self) -> bool {
         self.inner.is_new
     }
 
-    /// Returns if `Webtoon` is on a hiatus.
+    /// Returns if the `Webtoon` is on a hiatus.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(829195).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// println!("{} is {}on hiatus",webtoon.title(), if webtoon.is_on_hiatus() { "" } else {"not "});
+    /// # Ok(())}
+    /// ```
+    #[inline]
     pub fn is_on_hiatus(&self) -> bool {
         self.inner.on_hiatus
     }
 
-    /// Retrieves all episodes for the current `Webtoon`.
+    /// Retrieves all [`Episodes`] for the current `Webtoon`.
     ///
-    /// ### Example
+    /// `Episodes` is returned sorted in ascending order: 1, 2, 3, 4, etc.
     ///
-    /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error};
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(838432).await? {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(813564).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
     /// let episodes = webtoon.episodes().await?;
     /// println!("Total episodes: {}", episodes.count());
     ///
@@ -185,15 +514,8 @@ impl Webtoon {
     ///         println!("Published at: {}", published);
     ///     }
     /// }
-    /// # }
-    /// # Ok(())
-    /// # }
+    /// # Ok(())}
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of episode data.
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let mut episodes = Vec::new();
 
@@ -241,47 +563,35 @@ impl Webtoon {
         Ok(episodes)
     }
 
-    /// Constructs an `Episode` if it exists.
+    /// Constructs an [`Episode`], if it exists.
     ///
-    /// However, there are important caveats to be aware of when using this method instead of `episodes`.
-    ///
-    /// ### Caveats
+    /// # Caveats
     ///
     /// - **Episode Existence vs. Public Display**:
-    ///   - This method includes episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
-    ///   - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard.
+    ///   - This method can include episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
+    ///   - It does not rely solely on public episodes, meaning it will retrieve episodes that a regular user would not normally see without having access to a creator's dashboard.
     ///   - The numbering of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `no=` query in the URL.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Will return a `Result<Option<Episode>, EpisodeError>` containing:
-    ///
-    /// - `Ok(Some(Episode))`: If the episode exists (including hidden or deleted ones).
-    /// - `Ok(None)`: If the episode does not exist.
-    /// - `Err(EpisodeError)`: If there is an error during the episode retrieval process.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::naver::{ Client, errors::Error};
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     println!("Episode title: {}", episode.title().await?);
-    /// } else {
-    ///     println!("Episode 42 does not exist.");
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(730656).await?) else {
+    ///     unreachable!("webtoon is known to exist");
     /// }
-    /// # }
-    /// # Ok(())
-    /// # }
+    ///
+    /// if let Some(episode) = webtoon.episode(42).await? {
+    ///     println!("Episode title: {}", episode.title());
+    /// } else {
+    ///     println!("`{}` does not have an episode `42`", webtoon.title());
+    /// }
+    ///
+    /// # Ok(())}
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping or episode validation process.
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
         let episode = Episode::new(self, number);
 
@@ -297,46 +607,34 @@ impl Webtoon {
 
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
     ///
-    /// This including those behind ads, fast-pass, or even deleted episodes. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.
     ///
-    /// ### Behavior
+    /// # Behavior
     ///
     /// - This method sums the likes across all episodes, regardless of whether the episodes are:
-    ///   - **Publicly available**: It includes public episodes that any user can see.
-    ///   - **Hidden**: Episodes behind fast-pass or ad walls.
-    ///   - **Deleted**: Episodes that no longer appear on the public main page but still exist in the system.
-    ///   - **Unpublished**: Drafts or episodes not yet publicly released.
+    ///   - **Free**: It includes public episodes that any user can see.
+    ///   - **Paid**: Episodes behind fast-pass or ad walls.
+    ///   - **Deleted or Hidden**: Episodes that no longer appear on the public main page but still exist in the system.
     ///
-    /// ### Clarification
+    /// # Discrepancy
     ///
-    /// - **Like Discrepancy**: The total likes calculated here may not match the likes visible to a regular user on the public webtoon page due to the inclusion of hidden, unpublished, and deleted episodes.
+    /// This including those behind ads, fast-pass, or even deleted episodes. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Will return a `Result<u32, EpisodeError>` containing:
-    ///
-    /// - `Ok(u32)`: The total number of likes across all episodes.
-    /// - `Err(EpisodeError)`: If there is an issue during the retrieval process for any episode.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::naver::{ Client, errors::Error};
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let total_likes = webtoon.likes().await?;
-    /// println!("Total likes for the webtoon: {}", total_likes);
-    /// # }
-    /// # Ok(())
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
+    /// }
+    ///
+    /// println!("`{}` has `{} total likes!`", webtoon.title(), webtoon.likes().await?);
+    ///
+    /// # Ok(())}
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during episode retrieval.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the process.
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
         let mut likes = 0;
         for number in 1.. {
@@ -352,34 +650,25 @@ impl Webtoon {
 
     /// Retrieves all posts(top level comments) for every episode of the current `Webtoon`.
     ///
-    /// ### Returns
+    /// This can include posts from not yet free and hidden or deleted episodes.
     ///
-    /// Will returns a `Result<Posts, PostError>` containing:
+    /// # Example
     ///
-    /// - `Ok(Posts)`: A `Posts` struct containing all posts retrieved.
-    /// - `Err(PostError)`: An error if the process fails while retrieving posts.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::naver::{Client, errors::Error};
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(838432).await? {
-    /// let posts = webtoon.posts().await?;
-    /// for post in posts {
-    ///     println!("Post: {}", post.body());
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    ///     unreachable!("webtoon is known to exist");
     /// }
-    /// # }
-    /// # Ok(())
-    /// # }
+    ///
+    /// for comments in webtoon.posts().await? {
+    ///    println!("{}: \"{}\"", comment.poster().username(), comment.body());
+    /// }
+    /// # Ok(())}
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `PostError::ClientError`: If there is an issue with the client during episode or post retrieval.
-    /// - `PostError::Unexpected`: If an unexpected error occurs during the process.
     pub async fn posts(&self) -> Result<Posts, PostError> {
         let mut posts = Vec::new();
 

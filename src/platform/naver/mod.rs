@@ -13,5 +13,5 @@ pub mod webtoon;
 
 pub use client::{Client, ClientBuilder};
 pub use creator::Creator;
-pub use meta::Type;
+pub use meta::{Genre, Type};
 pub use webtoon::Webtoon;

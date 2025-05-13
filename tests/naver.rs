@@ -20,6 +20,8 @@ async fn creator() -> anyhow::Result<()> {
 async fn webtoon() -> Result<(), Error> {
     let client = Client::new();
 
+    // TODO: Make sure that challenge webtoons return None for schedule
+
     let webtoon = client.webtoon(1).await?;
     if webtoon.is_some() {
         unreachable!("no webtoon with id `1` should exists");
