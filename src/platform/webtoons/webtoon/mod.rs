@@ -1,4 +1,4 @@
-//! Represents an absraction for a webtoon.
+//! Represents an abstraction for a Webtoon on `webtoons.com`.
 
 mod dashboard;
 pub mod episode;
@@ -26,9 +26,14 @@ use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 
-/// Represents a Webtoon from `webtoons.com`.
+/// Represents a Webtoon from `comic.naver.com`.
 ///
-/// This can be thought of as a handle that the methods use to access various parts of the webtoons api for information about the webtoon.
+/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`].
+///
+/// This abstracts over all the sections a Webtoon may be in, such as the `originals` or `canvas` sections. Relevant capabilities
+/// are exposed, with methods taking missing features that may not exists across all sections into account.
+///
+/// Read the method documentation for more info.
 #[derive(Clone)]
 pub struct Webtoon {
     pub(super) client: Client,
@@ -57,17 +62,77 @@ impl fmt::Debug for Webtoon {
 }
 
 impl Webtoon {
-    /// Returns the language of this `Webtoon`.
+    /// Returns the [`Language`] of this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(1817, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(Language::En, webtoon.language());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn language(&self) -> Language {
         self.language
     }
 
     /// Returns the id of this `Webtoon`.
+    ///
+    /// This corresponds to the `title_no` query: `https://www.webtoons.com/en/fantasy/osora/list?title_no=6202`
+    ///
+    /// Most often this will be what was just passed in directly.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6202, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(6202, webtoon.id());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn id(&self) -> u32 {
         self.id
     }
 
-    /// Returns the type of this `Webtoon`: Original or Canvas.
+    /// Returns the type of this `Webtoon`: [`Original`](variant@Type::Original) or [`Canvas`](variant@Type::Canvas).
+    ///
+    /// For doing simple boolean checks, prefer [`is_canvas()`](Webtoon::is_canvas()) or [`is_original()`](Webtoon::is_original()).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6880, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(Type::Original, webtoon.r#type());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn r#type(&self) -> Type {
         match self.scope {
             Scope::Original(_) => Type::Original,
@@ -75,17 +140,72 @@ impl Webtoon {
         }
     }
 
-    /// Returns if webtoon is an original type.
+    /// Returns if `Webtoon` is an [`Original`](variant@Type::Original) type.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6880, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert!(webtoon.is_original());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
     pub fn is_original(&self) -> bool {
         self.r#type() == Type::Original
     }
 
-    /// Returns if webtoon is a canvas type.
+    /// Returns if `Webtoon` is a [`Canvas`](variant@Type::Canvas) type.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(991073, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert!(webtoon.is_canvas());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
     pub fn is_canvas(&self) -> bool {
         self.r#type() == Type::Canvas
     }
 
     /// Returns the title of this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6880, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!("Became a Level 999 Demon Queen", webtoon.title().await?.as_deref());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn title(&self) -> Result<String, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.title().to_string())
@@ -98,6 +218,26 @@ impl Webtoon {
     }
 
     /// Returns a list of [`Creator`] for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(794611, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let creators = webtoon.creators().await?;
+    ///
+    /// assert!(creators.len() == 1);
+    /// assert_eq!("AlmightyConurbano", creators[0].username());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn creators(&self) -> Result<Vec<Creator>, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.creators().to_vec())
@@ -111,7 +251,26 @@ impl Webtoon {
 
     /// Returns a list of [`Genre`] for this `Webtoon`.
     ///
-    /// For Originals, the genres are supplemented from the `/genres` page, so you may see more genres than you initially expect.
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Genre, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(1039653, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let genres = webtoon.genres().await?;
+    ///
+    /// assert!(genres.len() == 2);
+    /// assert_eq!(Genre::Action, genres[0]);
+    /// assert_eq!(Genre::Fantasy, genres[1]);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn genres(&self) -> Result<Vec<Genre>, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.genres().to_vec())
@@ -124,6 +283,23 @@ impl Webtoon {
     }
 
     /// Returns the summary for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!("What do you desire? Money and wealth? Honor and pride? Authority and power? Revenge? Or something that transcends them all? Whatever you desire—it's here", webtoon.summary().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn summary(&self) -> Result<String, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.summary().to_owned())
@@ -219,7 +395,7 @@ impl Webtoon {
     ///
     /// **ONLY ENGLISH DASHBOARDS SUPPORTED**
     /// - If you use with a non-english webtoon, even with a valid session provided that is of the owner of the webtoon
-    ///   it will get the public facing page data.  
+    ///   it will get the public facing page data.
     ///
     /// ### Behavior
     ///
