@@ -1,4 +1,4 @@
-//! Represents an abstraction for the `https://www.webtoons.com/*/originals` endpoint.
+//! Represents an abstraction for `https://www.webtoons.com/*/originals`.
 
 use std::str::FromStr;
 
@@ -35,7 +35,7 @@ pub(super) async fn scrape(
     Ok(webtoons)
 }
 
-/// Represents a kind of release schedule for Originals.  
+/// Represents a kind of release schedule for Originals.
 ///
 /// For the days of the week, a Webtoon can have multiple.
 ///
