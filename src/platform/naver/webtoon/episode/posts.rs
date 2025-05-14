@@ -50,7 +50,7 @@ impl Posts {
     ///     let posts = episode.posts().await?;
     ///
     ///     for post in posts.filter(|post| post.is_top()) {
-    ///         println!("only the best: {:#post}");
+    ///         println!("only the best: {post:#?}");
     ///     }
     /// }
     /// # Ok(())
@@ -189,7 +189,7 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
-    ///     for posts in episode.posts().await? {
+    ///     for post in episode.posts().await? {
     ///        println!("poster: {}", post.poster().username());
     ///     }
     /// }
@@ -218,7 +218,7 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
-    ///     for posts in episode.posts().await? {
+    ///     for post in episode.posts().await? {
     ///        println!("post id: {}", post.id());
     ///     }
     /// }
@@ -499,7 +499,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # use webtoon::platform::naver::{errors::Error, Client, webtoon::episode::posts::Posts};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -610,7 +610,7 @@ impl From<Vec<Post>> for Posts {
 ///     unreachable!("webtoon is known to exist");
 /// };
 ///
-/// if let Some(episode) = webtoon.episode(1) {
+/// if let Some(episode) = webtoon.episode(1).await? {
 ///     for post in episode.posts().await? {
 ///         let poster = post.poster();
 ///
@@ -658,7 +658,7 @@ impl Poster {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts().await? {
     ///         let poster = post.poster();
     ///
@@ -687,7 +687,7 @@ impl Poster {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts().await? {
     ///         let poster = post.poster();
     ///
@@ -718,10 +718,10 @@ impl Poster {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts().await? {
     ///         if post.poster().is_creator() {
-    ///             println!("{} is a creator in the platform!", poster.username());
+    ///             println!("{} is a creator on the platform!", post.poster().username());
     ///         }
     ///     }
     /// }

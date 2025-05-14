@@ -231,7 +231,8 @@ impl Client {
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`https://comic.naver.com/community/u/_21cqqm`]: https://comic.naver.com/community/u/_21cqqm
@@ -273,10 +274,11 @@ impl Client {
     ///
     /// let Some(webtoon) = client.webtoon(832703).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("시한부 천재가 살아남는 법", webtoon.title());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`https://comic.naver.com/webtoon/list?titleId=832703`]: https://comic.naver.com/webtoon/list?titleId=832703
@@ -367,7 +369,7 @@ impl Client {
     /// let Some(webtoon) = client
     ///     .webtoon_from_url("https://comic.naver.com/webtoon/list?titleId=838432").await? else {
     ///         unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("우렉 마지노", webtoon.title());
     ///

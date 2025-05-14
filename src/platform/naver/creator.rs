@@ -102,7 +102,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!("_0jhat", creator.profile());
+    /// assert_eq!(Some("_0jhat"), creator.profile());
     /// # Ok(())
     /// # }
     /// ```
@@ -129,7 +129,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!("7box2", creator.id().await?);
+    /// assert_eq!(Some("7box2"), creator.id().await?.as_deref());
     /// # Ok(())
     /// # }
     /// ```
@@ -164,7 +164,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// println!("`{}` has `{}` followers", creator.username(), creator.followers().await?);
+    /// println!("`{}` has `{:?}` followers", creator.username(), creator.followers().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -205,7 +205,6 @@ impl Creator {
     /// if let Some(webtoons) = creator.webtoons().await? {
     ///     for webtoon in webtoons  {
     ///         println!("`{}`", webtoon.title());
-    ///
     ///     }
     /// }
     /// # Ok(())
@@ -222,8 +221,8 @@ impl Creator {
         };
 
         let response = match self.client.get_webtoons_from_creator_page(profile).await {
-            Ok(response) => response,
-            Err(_) => {
+            Ok(response) if response.status() == 200 => response,
+            Ok(_) => {
                 let page = page(profile, &self.client).await?;
                 let profile = page
                     .as_ref()
@@ -233,6 +232,7 @@ impl Creator {
 
                 self.client.get_webtoons_from_creator_page(&profile).await?
             }
+            Err(err) => return Err(CreatorError::ClientError(err)),
         };
 
         let json: api::Root = serde_json::from_str(&response.text().await?)

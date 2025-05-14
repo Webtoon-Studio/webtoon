@@ -20,7 +20,7 @@ pub(super) struct Info {
     pub first_article: FirstArticle,
     pub gfp_ad_custom_param: GfpAdCustomParam,
     pub new: bool,
-    pub poster_thumbnail_url: String,
+    // pub poster_thumbnail_url: String,
     pub publish_day_of_week_list: Vec<Weekday>,
     // pub publish_description: String,
     pub rest: bool,

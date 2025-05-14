@@ -213,7 +213,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
-    ///     assert_eq!("일단 자야겠어요.", episode.note().await?);
+    ///     assert_eq!(Some("일단 자야겠어요."), episode.note().await?.as_deref());
     /// }
     /// # Ok(())
     /// # }
@@ -251,10 +251,10 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     assert_eq!(Some(100000), episode.length().await?);
+    ///     assert_eq!(Some(226969), episode.length().await?);
     /// }
     /// # Ok(())
-    /// #}
+    /// # }
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
         if let Some(mut panels) = self.panels().await? {
@@ -292,7 +292,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     assert_eq!(Some(100000000), episode.published().await?);
+    ///     assert_eq!(Some(1717513200000), episode.published().await?);
     /// }
     /// # Ok(())
     /// # }
@@ -380,7 +380,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     let (comments, replies) = episode.likes().await?;
+    ///     let (comments, replies) = episode.comments_and_replies().await?;
     ///
     ///     println!("episode `{}` for `{}` has `{comments}` comments and `{replies}` replies", episode.number(), webtoon.title());
     /// }
@@ -604,7 +604,7 @@ impl Episode {
     ///
     /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
@@ -688,7 +688,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     if let Some(panels) = webtoon.panels().await? {
+    ///     if let Some(panels) = episode.panels().await? {
     ///         for panel in panels {
     ///             println!("url: {}", panel.url());
     ///         }
@@ -728,7 +728,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     println!("thumbnail url: {}". episode.thumbnail().await?);
+    ///     println!("thumbnail url: {}", episode.thumbnail().await?);
     /// }
     /// # Ok(())
     /// # }
@@ -1022,7 +1022,7 @@ impl Ord for Episode {
 ///     unreachable!("webtoon is known to exist");
 /// };
 ///
-/// for episode in webtoon.episodes().await? {
+/// for episode in &webtoon.episodes().await? {
 ///     println!("episode `{}` for `{}`", episode.number(), webtoon.title());
 /// }
 /// # Ok(())

@@ -319,7 +319,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// println!("favorites: {}", webtoon.favortes());
+    /// println!("favorites: {}", webtoon.favorites());
     /// # Ok(())
     /// # }
     /// ```
@@ -347,7 +347,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// println!("rating: {}", webtoon.rating());
+    /// println!("rating: {}", webtoon.rating().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -412,7 +412,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// assert_eq!(Some(&[Weekday::Monday]), webtoon.schedule());
+    /// assert_eq!(Some(&[Weekday::Monday][..]), webtoon.schedule());
     /// # Ok(())
     /// # }
     /// ```
@@ -546,7 +546,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(730656).await? else {
+    /// let Some(webtoon) = client.webtoon(838956).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
@@ -554,7 +554,7 @@ impl Webtoon {
     /// let mut number = 1;
     ///
     /// while let Some(episode) = webtoon.episode(number).await? {
-    ///     println!("Episode title: {}", episode.title());
+    ///     println!("Episode title: {}", episode.title().await?);
     ///     number += 1;
     /// }
     /// # Ok(())
@@ -629,7 +629,7 @@ impl Webtoon {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(42).await? {
-    ///     println!("Episode title: {}", episode.title());
+    ///     println!("Episode title: {}", episode.title().await?);
     /// } else {
     ///     println!("`{}` does not have an episode `42`", webtoon.title());
     /// }
@@ -709,7 +709,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// for comments in webtoon.posts().await? {
+    /// for comment in webtoon.posts().await? {
     ///    println!("{}: \"{}\"", comment.poster().username(), comment.body());
     /// }
     /// # Ok(())

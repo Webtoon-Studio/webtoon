@@ -33,7 +33,7 @@ impl Panel {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     if let Some(panels) = webtoon.panels().await? {
+    ///     if let Some(panels) = episode.panels().await? {
     ///         for panel in panels {
     ///             println!("url: {}", panel.url());
     ///         }

@@ -77,6 +77,8 @@ pub enum Genre {
     Shonen,
     WebNovel,
     GraphicNovel,
+    Pure,
+    Daily,
 }
 
 impl Genre {
@@ -125,6 +127,8 @@ impl Genre {
             Self::Shonen => "shonen",
             Self::WebNovel => "web-novel",
             Self::GraphicNovel => "graphic-novel",
+            Self::Pure => "pure",
+            Self::Daily => "daily",
         }
     }
 }
@@ -182,6 +186,8 @@ impl FromStr for Genre {
             "shonen" => Ok(Self::Shonen),
             "web-novel" | "WEBNOVEL" => Ok(Self::WebNovel),
             "graphic-novel" | "GRAPHIC_NOVEL" => Ok(Self::GraphicNovel),
+            "PURE" => Ok(Self::Pure),
+            "DAILY" => Ok(Self::Daily),
             _ => Err(ParseGenreError(s.to_owned())),
         }
     }
