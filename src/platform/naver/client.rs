@@ -271,7 +271,7 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(832703).await?) else {
+    /// let Some(webtoon) = client.webtoon(832703).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// }
     ///

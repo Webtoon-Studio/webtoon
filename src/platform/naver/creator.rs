@@ -22,12 +22,13 @@ use super::{Client, Webtoon, errors::CreatorError};
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(creator) = client.creator("_n41b8i").await?) else {
+/// let Some(creator) = client.creator("_n41b8i").await? else {
 ///     unreachable!("profile is known to exist");
-/// }
+/// };
 ///
 /// assert_eq!("호리", creator.username());
-/// # Ok(())}
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct Creator {
@@ -66,12 +67,13 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("_wig53").await?) else {
+    /// let Some(creator) = client.creator("_wig53").await? else {
     ///     unreachable!("profile is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("홍대의", creator.username());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn username(&self) -> &str {
@@ -96,12 +98,13 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("_0jhat").await?) else {
+    /// let Some(creator) = client.creator("_0jhat").await? else {
     ///     unreachable!("profile is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("_0jhat", creator.profile());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn profile(&self) -> Option<&str> {
@@ -122,12 +125,13 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("_7box2").await?) else {
+    /// let Some(creator) = client.creator("_7box2").await? else {
     ///     unreachable!("profile is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("7box2", creator.id().await?);
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
         if let Some(page) = &*self.page.read() {
@@ -156,12 +160,13 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("2jiho").await?) else {
+    /// let Some(creator) = client.creator("2jiho").await? else {
     ///     unreachable!("profile is known to exist");
-    /// }
+    /// };
     ///
     /// println!("`{}` has `{}` followers", creator.username(), creator.followers().await?);
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
         if let Some(page) = &*self.page.read() {
@@ -193,9 +198,9 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("2jiho").await?) else {
+    /// let Some(creator) = client.creator("2jiho").await? else {
     ///     unreachable!("profile is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(webtoons) = creator.webtoons().await? {
     ///     for webtoon in webtoons  {
@@ -203,7 +208,8 @@ impl Creator {
     ///
     ///     }
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
         let Some(profile) = self

@@ -28,9 +28,9 @@ impl Panel {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(813443).await?) else {
+    /// let Some(webtoon) = client.webtoon(813443).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     if let Some(panels) = webtoon.panels().await? {
@@ -39,7 +39,8 @@ impl Panel {
     ///         }
     ///     }
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[must_use]
     pub fn url(&self) -> &str {
@@ -121,15 +122,16 @@ impl Panels {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
     ///     panels.save_single("path/to/save/").await?;
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
@@ -186,15 +188,16 @@ impl Panels {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
     ///     panels.save_multiple("path/to/save/").await?;
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where

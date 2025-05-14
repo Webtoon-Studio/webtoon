@@ -42,14 +42,15 @@ use super::Webtoon;
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(webtoon) = client.webtoon(813443).await?) else {
+/// let Some(webtoon) = client.webtoon(813443).await? else {
 ///     unreachable!("webtoon is known to exist");
-/// }
+/// };
 ///
 /// if let Some(episode) = webtoon.episode(50).await? {
 ///     assert_eq!("50화", episode.title().await?);
 /// }
-/// # Ok(())}
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct Episode {
@@ -93,15 +94,16 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(813443).await?) else {
+    /// let Some(webtoon) = client.webtoon(813443).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
     ///     assert_eq!(50, episode.number());
     /// }
     ///
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`https://comic.naver.com/webtoon/detail?titleId=813443&no=50`]: https://comic.naver.com/webtoon/detail?titleId=813443&no=50
@@ -122,15 +124,16 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(819946).await?) else {
+    /// let Some(webtoon) = client.webtoon(819946).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
     ///     assert_eq!("50화", episode.title().await?);
     /// }
     ///
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn title(&self) -> Result<String, EpisodeError> {
         if let Some(title) = &*self.title.read() {
@@ -176,14 +179,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(183559).await?) else {
+    /// let Some(webtoon) = client.webtoon(183559).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(650).await? {
     ///     assert_eq!(Some(3), episode.season().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
@@ -204,14 +208,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(183559).await?) else {
+    /// let Some(webtoon) = client.webtoon(183559).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     assert_eq!("일단 자야겠어요.", episode.note().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
         if let Some(page) = &*self.page.read() {
@@ -241,14 +246,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(808482).await?) else {
+    /// let Some(webtoon) = client.webtoon(808482).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     assert_eq!(Some(100000), episode.length().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// #}
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
         if let Some(mut panels) = self.panels().await? {
@@ -281,14 +287,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     assert_eq!(Some(100000000), episode.published().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn published(&self) -> Result<Option<i64>, EpisodeError> {
         if let Some(datetime) = self.published {
@@ -330,14 +337,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("episode `{}` for `{}` has `{}` likes", episode.number(), webtoon.title(), episode.likes().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
         use crate::platform::naver::client::likes::Likes;
@@ -367,16 +375,17 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let (comments, replies) = episode.likes().await?;
     ///
     ///     println!("episode `{}` for `{}` has `{comments}` comments and `{replies}` replies", episode.number(), webtoon.title());
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostError> {
         use crate::platform::naver::client::posts::Posts;
@@ -411,14 +420,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("episode `{}` for `{}` has a rating of `{}`", episode.number(), webtoon.title(), episode.rating().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn rating(&self) -> Result<f64, EpisodeError> {
         self.rating_impl().await.map(|info| info.0)
@@ -438,14 +448,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("episode `{}` for `{}` had `{:?}` people leave a rating", episode.number(), webtoon.title(), episode.raters().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn raters(&self) -> Result<Option<u32>, EpisodeError> {
         self.rating_impl().await.map(|info| info.1)
@@ -463,16 +474,17 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts().await? {
     ///        println!("{}: {}", post.poster().username(), post.body());
     ///     }
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn posts(&self) -> Result<Posts, PostError> {
         #[allow(clippy::mutable_key_type)]
@@ -590,16 +602,18 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// }
+    ///
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     episode.posts_for_each(async |post| {
     ///         println!("{}: {}", post.poster().username(), post.body());
     ///     }).await?;
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
         let response = self
@@ -669,9 +683,9 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(836382).await?) else {
+    /// let Some(webtoon) = client.webtoon(836382).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     if let Some(panels) = webtoon.panels().await? {
@@ -680,7 +694,8 @@ impl Episode {
     ///         }
     ///     }
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn panels(&self) -> Result<Option<Vec<Panel>>, EpisodeError> {
         if let Some(page) = &*self.page.read() {
@@ -708,14 +723,15 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("thumbnail url: {}". episode.thumbnail().await?);
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
         if let Some(thumbnail) = &*self.thumbnail.read() {
@@ -756,16 +772,17 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(826341).await?) else {
+    /// let Some(webtoon) = client.webtoon(826341).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
     ///     // For more info, see `Panels` documentation
     ///     panels.save_single("path/to/save/").await?;
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
@@ -1001,14 +1018,15 @@ impl Ord for Episode {
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(webtoon) = client.webtoon(836382).await?) else {
+/// let Some(webtoon) = client.webtoon(836382).await? else {
 ///     unreachable!("webtoon is known to exist");
-/// }
+/// };
 ///
 /// for episode in webtoon.episodes().await? {
 ///     println!("episode `{}` for `{}`", episode.number(), webtoon.title());
 /// }
-/// # Ok(())}
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug)]
 pub struct Episodes {
@@ -1027,14 +1045,15 @@ impl Episodes {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(837999).await?) else {
+    /// let Some(webtoon) = client.webtoon(837999).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let episodes = webtoon.episodes().await?;
     ///
     /// println!("there are `{}` episodes for `{}`", episodes.count(), webtoon.title());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[must_use]
     pub fn count(&self) -> u16 {
@@ -1076,9 +1095,9 @@ impl Episodes {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(837999).await?) else {
+    /// let Some(webtoon) = client.webtoon(837999).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let episodes = webtoon.episodes().await?;
     ///
@@ -1086,7 +1105,8 @@ impl Episodes {
     ///     println!("episode `{}` for `{}`", episode.number(), webtoon.title());
     /// }
     ///
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
         // PERF: If in the process of making the Vec we can insert into the index that the number is, then we can use

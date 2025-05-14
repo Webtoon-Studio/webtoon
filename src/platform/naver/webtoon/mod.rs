@@ -75,12 +75,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(832703).await?) else {
+    /// let Some(webtoon) = client.webtoon(832703).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!(832703, webtoon.id());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn id(&self) -> u32 {
@@ -97,12 +98,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    /// let Some(webtoon) = client.webtoon(838432).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!("우렉 마지노", webtoon.title());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn title(&self) -> &str {
@@ -129,12 +131,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    /// let Some(webtoon) = client.webtoon(838432).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert_eq!(Type::Featured, webtoon.r#type());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn r#type(&self) -> Type {
@@ -153,12 +156,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    /// let Some(webtoon) = client.webtoon(838432).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert!(webtoon.is_featured());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     #[must_use]
@@ -178,12 +182,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(816103).await?) else {
+    /// let Some(webtoon) = client.webtoon(816103).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert!(webtoon.is_best_challenge());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     #[must_use]
@@ -203,12 +208,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(758207).await?) else {
+    /// let Some(webtoon) = client.webtoon(758207).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// assert!(webtoon.is_challenge());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     #[must_use]
@@ -226,9 +232,9 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(828715).await?) else {
+    /// let Some(webtoon) = client.webtoon(828715).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let creators = webtoon.creators();
     ///
@@ -236,7 +242,8 @@ impl Webtoon {
     /// assert_eq!("JP", creators[0].username());
     /// assert_eq!("박진환", creators[1].username());
     /// assert_eq!("장영훈", creators[2].username());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn creators(&self) -> &[Creator] {
@@ -255,15 +262,16 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(822657).await?) else {
+    /// let Some(webtoon) = client.webtoon(822657).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let genres = webtoon.genres();
     ///
     /// assert!(genres.len() == 1);
     /// assert_eq!(Genre::Historical, genres[0]);
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn genres(&self) -> &[Genre] {
@@ -280,14 +288,15 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(747269).await?) else {
+    /// let Some(webtoon) = client.webtoon(747269).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let expected = "'이건 내가 아는 그 전개다'\n한순간에 세계가 멸망하고, 새로운 세상이 펼쳐졌다.\n오직 나만이 완주했던 소설 세계에서 평범했던 독자의 새로운 삶이 시작된다.";
     ///
     /// assert_eq!(expected, webtoon.summary());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn summary(&self) -> &str {
@@ -306,12 +315,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(820097).await?) else {
+    /// let Some(webtoon) = client.webtoon(820097).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// println!("favorites: {}", webtoon.favortes());
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn favorites(&self) -> u32 {
@@ -333,12 +343,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(822862).await?) else {
+    /// let Some(webtoon) = client.webtoon(822862).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
-    /// println!("rating: {}", webtoon.rating()));
-    /// # Ok(())}
+    /// println!("rating: {}", webtoon.rating());
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn rating(&self) -> Result<f64, WebtoonError> {
         let episodes = self
@@ -370,12 +381,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(829875).await?) else {
+    /// let Some(webtoon) = client.webtoon(829875).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
-    /// println!("thumbnail url: {}", webtoon.thumbnail()));
-    /// # Ok(())}
+    /// println!("thumbnail url: {}", webtoon.thumbnail());
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn thumbnail(&self) -> &str {
@@ -396,12 +408,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(694721).await?) else {
+    /// let Some(webtoon) = client.webtoon(694721).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
-    /// assert_eq!(Some(&[Weekday::Monday]), webtoon.schedule()));
-    /// # Ok(())}
+    /// assert_eq!(Some(&[Weekday::Monday]), webtoon.schedule());
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn schedule(&self) -> Option<&[Weekday]> {
@@ -428,12 +441,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(795658).await?) else {
+    /// let Some(webtoon) = client.webtoon(795658).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
-    /// assert!(webtoon.is_completed()));
-    /// # Ok(())}
+    /// assert!(webtoon.is_completed());
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn is_completed(&self) -> bool {
@@ -453,12 +467,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(747271).await?) else {
+    /// let Some(webtoon) = client.webtoon(747271).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
-    /// assert!(!webtoon.is_new()));
-    /// # Ok(())}
+    /// assert!(!webtoon.is_new());
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn is_new(&self) -> bool {
@@ -475,12 +490,13 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(829195).await?) else {
+    /// let Some(webtoon) = client.webtoon(829195).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// println!("{} is {}on hiatus",webtoon.title(), if webtoon.is_on_hiatus() { "" } else {"not "});
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     #[inline]
     pub fn is_on_hiatus(&self) -> bool {
@@ -500,9 +516,9 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(813564).await?) else {
+    /// let Some(webtoon) = client.webtoon(813564).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// let episodes = webtoon.episodes().await?;
     /// println!("Total episodes: {}", episodes.count());
@@ -515,7 +531,8 @@ impl Webtoon {
     ///         println!("Published at: {}", published);
     ///     }
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # All Episodes with [`episode()`](Webtoon::episode())
@@ -529,9 +546,9 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(730656).await?) else {
+    /// let Some(webtoon) = client.webtoon(730656).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// // Episode numbering starts at `1`.
     /// let mut number = 1;
@@ -540,7 +557,8 @@ impl Webtoon {
     ///     println!("Episode title: {}", episode.title());
     ///     number += 1;
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let mut episodes = Vec::new();
@@ -606,16 +624,17 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(730656).await?) else {
+    /// let Some(webtoon) = client.webtoon(730656).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// if let Some(episode) = webtoon.episode(42).await? {
     ///     println!("Episode title: {}", episode.title());
     /// } else {
     ///     println!("`{}` does not have an episode `42`", webtoon.title());
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
         let episode = Episode::new(self, number);
@@ -652,13 +671,14 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    /// let Some(webtoon) = client.webtoon(838432).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// println!("`{}` has `{} total likes!`", webtoon.title(), webtoon.likes().await?);
     ///
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
         let mut likes = 0;
@@ -685,14 +705,15 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(838432).await?) else {
+    /// let Some(webtoon) = client.webtoon(838432).await? else {
     ///     unreachable!("webtoon is known to exist");
-    /// }
+    /// };
     ///
     /// for comments in webtoon.posts().await? {
     ///    println!("{}: \"{}\"", comment.poster().username(), comment.body());
     /// }
-    /// # Ok(())}
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn posts(&self) -> Result<Posts, PostError> {
         let mut posts = Vec::new();

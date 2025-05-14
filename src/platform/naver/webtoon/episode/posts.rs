@@ -17,7 +17,10 @@ use super::Episode;
 
 /// Represents a collection of posts.
 ///
-/// A wrapper for a `Vec<Post>` to provide methods on to further interact.
+/// Can be though of as a wrapper for a `Vec<Post>` to provide methods on to further interact.
+///
+/// This type is not constructed directly, but gotten via [`Webtoon::posts()`](Webtoon::posts()),
+/// [`Episode::posts()`](Episode::posts()) or [`Post::replies()`](Post::replies()).
 #[derive(Debug, Clone)]
 pub struct Posts {
     pub(super) posts: Vec<Post>,
@@ -30,6 +33,29 @@ impl Posts {
     /// Given an element the closure must return `true` or `false`. The returned
     /// iterator will yield only the elements for which the closure returns
     /// true.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(813443).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(50).await? {
+    ///     let posts = episode.posts().await?;
+    ///
+    ///     for post in posts.filter(|post| post.is_top()) {
+    ///         println!("only the best: {:#post}");
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn filter<P>(self, predicate: P) -> impl Iterator<Item = Post>
     where
         P: FnMut(&Post) -> bool,
