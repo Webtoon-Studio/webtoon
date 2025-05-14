@@ -3,31 +3,20 @@ use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 use url::Url;
 
-#[cfg(feature = "download")]
 use crate::platform::webtoons::{Client, errors::DownloadError};
-#[cfg(feature = "download")]
 use image::{GenericImageView, ImageFormat, RgbaImage};
-#[cfg(feature = "download")]
 use std::path::Path;
-#[cfg(feature = "download")]
 use tokio::{fs::File, io::AsyncWriteExt};
 
 /// Represents a single panel for an episode.
 #[derive(Debug, Clone)]
 pub struct Panel {
     pub(in crate::platform::webtoons::webtoon::episode) url: Url,
-
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) episode: u16,
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) number: u16,
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) ext: String,
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) bytes: Vec<u8>,
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) height: u32,
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) width: u32,
 }
 
@@ -36,8 +25,6 @@ impl Panel {
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
-
-    #[cfg(feature = "download")]
     pub(in crate::platform::webtoons::webtoon::episode) async fn download(
         &mut self,
         client: &Client,
@@ -63,9 +50,7 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
 
     let mut panels = Vec::new();
 
-    #[allow(unused, reason = "not all features use `number`")]
     for (number, img) in html.select(&selector).enumerate() {
-        #[cfg(feature = "download")]
         let height = img
             .value()
             .attr("height")
@@ -76,7 +61,6 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
             .parse::<u32>()
             .map_err(|err| EpisodeError::Unexpected(err.into()))?;
 
-        #[cfg(feature = "download")]
         let width = img
             .value()
             .attr("width")
@@ -97,7 +81,6 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
 
-        #[cfg(feature = "download")]
         let ext = url
             .path()
             .split('.')
@@ -108,19 +91,13 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
         panels.push(Panel {
             url,
 
-            #[cfg(feature = "download")]
             episode,
             // Enumerate starts at 0. +1 so that it starts at one.
-            #[cfg(feature = "download")]
             number: u16::try_from(number + 1)
                 .context("there shouldn't be more than 65,536 panels for an episode")?,
-            #[cfg(feature = "download")]
             height,
-            #[cfg(feature = "download")]
             width,
-            #[cfg(feature = "download")]
             ext,
-            #[cfg(feature = "download")]
             bytes: Vec::new(),
         });
     }
@@ -134,7 +111,6 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
     Ok(panels)
 }
 
-#[cfg(feature = "download")]
 /// Represents all the panels for an episode.
 #[derive(Debug, Clone)]
 pub struct Panels {
@@ -143,7 +119,6 @@ pub struct Panels {
     pub(in crate::platform::webtoons::webtoon::episode) width: u32,
 }
 
-#[cfg(feature = "download")]
 impl Panels {
     /// Saves all the panels of an episode as a single long image file in PNG format.
     ///

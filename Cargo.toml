@@ -15,14 +15,14 @@ keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 features = ["rss"]
 
 [package.metadata.docs.rs]
-features = ["rss", "download"]
+features = ["rss"]
 all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # currently using `Mutex`, `sleep`, and `Semaphore`.
-tokio = { version = "1", features = ["sync", "time"] }
+tokio = { version = "1", features = ["sync", "time", "fs"] }
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
 anyhow = "1"
 thiserror = "2"
@@ -39,12 +39,10 @@ url = "2"
 urlencoding = "2"
 parking_lot = "0.12"
 fastrand = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"]}
 
 # feature = `rss`
 rss = { version = "2", optional = true }
-
-# feature = `download`
-image = { version = "0.25", optional = true, default-features = false, features = ["png", "jpeg"]}
 
 [dev-dependencies]
 pretty_assertions = "1"
@@ -53,42 +51,66 @@ tokio = { version = "1", features = ["full"] }
 [features]
 default = []
 rss = ["dep:rss"]
-download = ["dep:image", "tokio/fs"]
+
+# `webtoons.com`
+[[example]]
+name = "webtoons-search"
+path = "examples/webtoons/search.rs"
 
 [[example]]
-name = "search"
-path = "examples/search.rs"
+name = "webtoons-originals"
+path = "examples/webtoons/originals.rs"
 
 [[example]]
-name = "originals"
-path = "examples/originals.rs"
+name = "webtoons-canvas"
+path = "examples/webtoons/canvas.rs"
 
 [[example]]
-name = "canvas"
-path = "examples/canvas.rs"
+name = "webtoons-creator"
+path = "examples/webtoons/creator.rs"
 
 [[example]]
-name = "creator"
-path = "examples/creator.rs"
+name = "webtoons-webtoon"
+path = "examples/webtoons/webtoon.rs"
 
 [[example]]
-name = "webtoon"
-path = "examples/webtoon.rs"
-
-[[example]]
-name = "rss"
-path = "examples/rss.rs"
+name = "webtoons-rss"
+path = "examples/webtoons/rss.rs"
 required-features = ["rss"]
 
 [[example]]
-name = "episodes"
-path = "examples/episodes.rs"
+name = "webtoons-episodes"
+path = "examples/webtoons/episodes.rs"
 
 [[example]]
-name = "posts"
-path = "examples/posts.rs"
+name = "webtoons-posts"
+path = "examples/webtoons/posts.rs"
 
 [[example]]
-name = "download"
-path = "examples/download.rs"
-required-features = ["download"]
+name = "webtoons-download"
+path = "examples/webtoons/download.rs"
+
+# `comic.naver.com`
+[[example]]
+name = "naver-webtoon"
+path = "examples/naver/webtoon.rs"
+
+[[example]]
+name = "naver-episodes"
+path = "examples/naver/episodes.rs"
+
+[[example]]
+name = "naver-episode"
+path = "examples/naver/episode.rs"
+
+[[example]]
+name = "naver-posts"
+path = "examples/naver/posts.rs"
+
+[[example]]
+name = "naver-download"
+path = "examples/naver/download.rs"
+
+[[example]]
+name = "naver-creator"
+path = "examples/naver/creator.rs"
