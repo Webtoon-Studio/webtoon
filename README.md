@@ -15,6 +15,7 @@
 # Webtoon
 
 Welcome to the `webtoon` library, a Rust-based SDK that allows you to interact with a Webtoon platform programmatically.
+
 This library provides a set of utilities and methods to handle various Webtoon-specific operations such as fetching episodes,
 posting comments, subscribing, liking, and managing episode metadata. Platform support varies.
 
