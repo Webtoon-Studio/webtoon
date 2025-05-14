@@ -1525,7 +1525,7 @@ impl Default for Client {
     }
 }
 
-/// Represents data from the `webtoons.com/en/member/userInfo` endpoint.
+/// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///
 /// This can be used to get the username and profile, as well as check if user is logged in. This type is not constructed
 /// directly, but gotten through [`Client::user_info_for_session()`].
@@ -1582,7 +1582,7 @@ impl UserInfo {
         self.is_logged_in
     }
 
-    /// Returns webtoons username.
+    /// Returns the users' username.
     ///
     /// # Example
     ///
@@ -1604,6 +1604,7 @@ impl UserInfo {
     }
 
     /// Returns the profile segment for `webtoons.com/*/creator/{profile}`.
+    ///
     /// # Example
     ///
     /// ```
