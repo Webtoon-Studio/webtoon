@@ -110,6 +110,30 @@ impl Posts {
     }
 
     /// Returns the number of posts gotten.
+    ///
+    /// For just the total count, you should instead use [`Episode::comments_and_replies()`](Episode::comments_and_replies())
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(813443).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(50).await? {
+    ///     let posts = episode.posts().await?;
+    ///
+    ///     // For this `count` use case, you could instead use `Episode::comments_and_replies()`
+    ///     println!("`{}` has `{}` total comments", webtoon.title(), posts.count());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn count(&self) -> usize {
         self.posts.len()
