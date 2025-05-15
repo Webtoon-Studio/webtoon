@@ -313,50 +313,31 @@ impl Webtoon {
 
     /// Retrieves the total number of views for this `Webtoon`.
     ///
-    /// The method determines the total views based on whether the current session belongs to the creator
-    /// of the webtoon. If no session is provided or the session doesn't belong to the webtoon creator,
-    /// it fetches the views directly from the main webtoon page. If the session corresponds to the creator,
-    /// it uses episode data to sum up views for each episode, providing a more precise count.
-    ///
-    /// **ONLY ENGLISH DASHBOARD SUPPORTED**
-    /// - Even if valid session is provided for the webtoon creator, only the public data on webtoon page will be gotten.
-    ///
-    /// ### Behavior
+    /// # Behavior
+    /// The method determines the total views based on whether the current session belongs to the creator of the webtoon:
     ///
     /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the view count from the webtoon's main page. This value may be rounded (e.g., `3,800,000`).
     /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method fetches more detailed episode-by-episode view counts and sums them to return a more accurate total view count (e.g., `3,804,237` instead of `3,800,000`).
     ///
-    /// ### Returns
+    /// **ONLY ENGLISH DASHBOARD SUPPORTED**
+    /// - Even if valid session is provided for the webtoon creator, only the public data on the Webtoon's page will be gotten.
     ///
-    /// Returns a `Result<u64, EpisodeError>` containing:
+    /// # Example
     ///
-    /// - `Ok(u64)`: The total number of views for the webtoon. If using the creator's session, this value is more precise.
-    /// - `Err(EpisodeError)`: An error if the webtoon view retrieval fails, such as due to a client error or a network issue.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(95, Type::Original).await? {
-    /// let total_views = webtoon.views().await?;
-    /// println!("Total Views: {}", total_views);
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(1320, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(1_400_000_000, webtoon.views().await?);
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an error with the client, such as a network request failure.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of the episode views.
-    ///
-    /// ### Notes
-    ///
-    /// - The accuracy of the view count depends on whether the session matches a webtoon creator. If it does, detailed episode
-    ///   data is used for more precision. Otherwise, the views from the main page are returned.
     pub async fn views(&self) -> Result<u64, EpisodeError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
@@ -388,53 +369,32 @@ impl Webtoon {
 
     /// Retrieves the total number of subscribers for this `Webtoon`.
     ///
-    /// The method determines the subscriber count based on whether the current session belongs to the
-    /// creator of the webtoon. If no session is provided or the session doesn't belong to the webtoon creator,
-    /// it fetches the subscriber count from the main webtoon page. If the session corresponds to the creator,
-    /// it uses the stats dashboard to retrieve a more accurate subscriber count.
+    ///
+    /// # Behavior
+    /// The method determines the subscriber count based on whether the current session belongs to the creator of the webtoon:
+    ///
+    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the subscriber count from the webtoon's main page. This count may be less precise, as it can be a rounded number.
+    /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method retrieves subscriber statistics directly from the creator's stats dashboard, providing a more accurate and up-to-date count of subscribers.
     ///
     /// **ONLY ENGLISH DASHBOARDS SUPPORTED**
-    /// - If you use with a non-english webtoon, even with a valid session provided that is of the owner of the webtoon
-    ///   it will get the public facing page data.
+    /// - If you use with a non-english webtoon, even with a valid session provided that is of the owner of the webtoon it will get the public facing page data.
     ///
-    /// ### Behavior
+    /// # Example
     ///
-    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available,
-    ///   this method returns the subscriber count from the webtoon's main page. This count may be less precise, as it can be a rounded number.
-    /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method retrieves subscriber statistics
-    ///   directly from the creator's stats dashboard, providing a more accurate and up-to-date count of subscribers.
-    ///
-    /// ### Returns
-    ///
-    /// Returns a `Result<u32, WebtoonError>` containing:
-    ///
-    /// - `Ok(u32)`: The total number of subscribers for the webtoon. If using the creator's session, this value is more precise.
-    /// - `Err(WebtoonError)`: An error if the retrieval of subscribers fails, such as due to a client error or a network issue.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// let total_subscribers = webtoon.subscribers().await?;
-    /// println!("Total Subscribers: {}", total_subscribers);
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(1436, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(7_500_000, webtoon.subscribers().await?);
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError`: If there is an error with the client, such as a network request failure.
-    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the subscribers from either the main page or the stats dashboard.
-    ///
-    /// ### Notes
-    ///
-    /// - The accuracy of the subscriber count depends on whether the session matches a webtoon creator. If it does, detailed statistics
-    ///   from the creator's dashboard are used for more precision. Otherwise, the subscriber count is retrieved from the webtoon's main page.
     pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
@@ -457,6 +417,23 @@ impl Webtoon {
     }
 
     /// Returns the rating for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(7182, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert_eq!(7.33, webtoon.rating().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn rating(&self) -> Result<f64, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.rating())
@@ -469,6 +446,23 @@ impl Webtoon {
     }
 
     /// Returns the thumbnail url for this `Webtoon`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(7182, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// println!("thumbnail for {} can be found here {}", webtoon.title().await?, webtoon.thumbnail().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn thumbnail(&self) -> Result<String, WebtoonError> {
         if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail().to_owned())
@@ -482,21 +476,23 @@ impl Webtoon {
 
     /// Retrieves the release schedule for this `Webtoon`.
     ///
-    /// ### Behavior
+    /// # Behavior
     ///
-    /// - **Original Webtoons**: If the webtoon is an Original series, this method fetches the release schedule and
-    ///   returns it as a `Some(Schedule)`. The release schedule contains information about upcoming or regular episode drops.
-    /// - **Canvas Webtoons**: If the webtoon is part of the Canvas section, there is no official release schedule, and this
-    ///   method will return `None`.
+    /// - **Original Webtoons**: If the webtoon is an Original series, this method fetches the release schedule and returns it as a `Some(Schedule)`. The release schedule contains information about upcoming or regular episode drops.
+    /// - **Canvas Webtoons**: If the webtoon is part of the Canvas section, there is no official release schedule, and this method will return `None` and cannot fail.
     ///
-    /// ### Example
+    /// # Example
     ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, originals::Schedule, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
     /// match webtoon.schedule().await? {
     ///     Some(Schedule::Weekday(weekday)) => println!("Webtoon releases on `{weekday:?}`"),
     ///     Some(Schedule::Daily) => println!("Webtoon releases daily"),
@@ -510,16 +506,9 @@ impl Webtoon {
     ///     }
     ///     None => println!("This webtoon does not have a release schedule (Canvas)."),
     /// }
-    ///
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the release schedule.
     pub async fn schedule(&self) -> Result<Option<Schedule>, WebtoonError> {
         if self.r#type() == Type::Canvas {
             return Ok(None);
@@ -535,14 +524,26 @@ impl Webtoon {
         }
     }
 
-    /// Returns if Webtoon is completed.
+    /// Returns if `Webtoon` is completed.
     ///
-    /// Canvas stories always return false and cannot fail.
+    /// Canvas stories always return `false` and cannot fail.
     ///
-    /// ### Errors
+    /// # Example
     ///
-    /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the release schedule.
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(93, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// assert!(webtoon.is_completed().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn is_completed(&self) -> Result<bool, WebtoonError> {
         if self.r#type() == Type::Canvas {
             return Ok(false);
@@ -560,42 +561,27 @@ impl Webtoon {
 
     /// Retrieves the banner image URL for this `Webtoon`.
     ///
-    /// ### Behavior
+    /// # Behavior
     ///
-    /// - **Original Webtoons**: If the webtoon is an Original series, this method returns the URL of the banner image, which is typically
-    ///   displayed at the top of the webtoon's main page.
-    /// - **Canvas Webtoons**: Canvas webtoons do not have banner images, so the method will return `None` if the webtoon is in the Canvas section.
+    /// - **Original Webtoons**: If the webtoon is an Original series, this method returns the URL of the banner image, which is typically displayed at the top of the webtoon's main page.
+    /// - **Canvas Webtoons**: Canvas webtoons do not have banner images, so the method will return `None` if the webtoon is in the Canvas section and cannot fail.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Returns a `Result<Option<String>, WebtoonError>` containing:
-    ///
-    /// - `Ok(Some(String))`: A `String` representing the URL of the webtoon's banner image if it is an Original webtoon.
-    /// - `Ok(None)`: If the webtoon is a Canvas series, as no banner image is available.
-    /// - `Err(WebtoonError)`: An error if the banner image could not be retrieved due to a client or network issue.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// if let Some(banner_url) = webtoon.banner().await? {
-    ///     println!("Banner URL: {}", banner_url);
-    /// } else {
-    ///     println!("This webtoon does not have a banner (Canvas).");
-    /// }
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(3349, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// println!("banner for {} can be found here {:?}", webtoon.title().await?, webtoon.banner().await?);
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the scraping of the banner image.
     pub async fn banner(&self) -> Result<Option<String>, WebtoonError> {
         if self.scope == Scope::Canvas {
             return Ok(None);
@@ -611,67 +597,54 @@ impl Webtoon {
         }
     }
 
-    /// Retrieves all episodes for the current `Webtoon`. The method's behavior depends on whether the user is the creator of the webtoon
-    /// or a regular viewer (i.e., a session is provided or not, and if the session user is a creator for the webtoon).
+    /// Retrieves all episodes for the current `Webtoon`.
+    ///
+    /// The method's behavior depends on whether the user (of the session) is the creator of the webtoon or a regular
+    /// viewer (i.e., a session is provided or not, and if the session user is a creator for the webtoon).
     ///
     /// **ONLY ENGLISH DASHBOARD SUPPORTED**
     /// - Even if valid session is provided for the webtoon creator, only the public data will be gotten.
     ///
-    /// ### Behavior
+    /// The episodes are returned in descending order.
     ///
-    /// - **For Creators**: If the session belongs to the creator of the webtoon, the method will scrape the episode dashboard. This includes:
-    ///   - All episodes, including drafts.
-    ///   - Episodes behind fast-pass or ad walls.
-    ///   - Access to additional episode metadata, such as view counts (`Episode::views()` will return `Some(u32)` for episodes retrieved via the dashboard).
-    ///   - Fully accurate publication times (`Episode::published()` will return the exact timestamp of the episode's release).
+    /// # Behavior
     ///
-    /// - **For Regular Users**: If the session is not provided or the user is not the creator of the webtoon, the method will scrape the publicly available episodes:
-    ///   - Only episodes that are publicly visible on the webtoon's main page will be retrieved.
-    ///   - Episodes behind fast-pass or ad walls will not be included.
-    ///   - View counts (`Episode::views()`) will return `None` for episodes retrieved from the main page as the information is unavailable.
-    ///   - The publication time (`Episode::published()`) will return `Some(i64)` but the time will always be set to `2:00 AM` on the episode's published date.
+    /// - **For Creators**:
+    ///     - If the session belongs to the creator of the webtoon, the method will scrape the episode dashboard. This includes:
+    ///         - All episodes, including drafts.
+    ///         - Episodes behind fast-pass or ad walls.
+    ///         - Access to additional episode metadata, such as view counts (`Episode::views()` will return `Some(u32)` for episodes retrieved via the dashboard).
+    ///         - Fully accurate publication times (`Episode::published()` will return the exact timestamp of the episode's release).
     ///
-    /// ### Returns
+    /// - **For Regular Users**:
+    ///     - If the session is not provided or the user is not the creator of the webtoon, the method will scrape the publicly available episodes:
+    ///         - Only episodes that are publicly visible on the webtoon's main page will be retrieved.
+    ///         - Episodes behind fast-pass or ad walls will not be included.
+    ///         - View counts (`Episode::views()`) will return `None` for episodes retrieved from the main page as the information is unavailable.
+    ///         - The publication time (`Episode::published()`) will return `Some(i64)` but the time will always be set to `2:00 AM UTC` on the episode's published date.
     ///
-    /// Returns a `Result<Episodes, EpisodeError>` containing:
+    /// # Example
     ///
-    /// - `Ok(Episodes)`: An `Episodes` struct.
-    /// - `Err(EpisodeError)`: An error if the episode scraping process fails due to a client error or unexpected issue.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
+    ///
+    /// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
     /// let episodes = webtoon.episodes().await?;
-    /// println!("Total episodes: {}", episodes.count());
     ///
-    /// for episode in episodes {
-    ///     println!("Episode title: {}", episode.title().await?);
-    ///     if let Some(views) = episode.views() {
-    ///         println!("Views: {}", views);
-    ///     } else {
-    ///         println!("Views are unavailable for this episode.");
-    ///     }
+    /// assert_eq!(25, episodes.count());
     ///
-    ///     if let Some(published) = episode.published() {
-    ///         println!("Published at: {}", published);
-    ///     } else {
-    ///         panic!("Publish date should always be available with `episodes`.");
-    ///     }
+    /// for episode in &episodes {
+    ///     println!("title: {}", episode.title().await?);
     /// }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping of episode data.
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let episodes = match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
@@ -700,52 +673,41 @@ impl Webtoon {
     ///
     /// However, there are important caveats to be aware of when using this method instead of `episodes`.
     ///
-    /// ### Caveats
+    /// # Caveats
     ///
     /// - **No View or Publish Data**:
-    ///   - `Episode::views()` will always return `None`. This method does not provide view counts; you must use `episodes()` to retrieve views.
-    ///   - `Episode::published()` will always return `None`. To get publication dates, you must use `episodes()`. This is a limitation as currently there is no known way to get the published date with just the episode value alone.
+    ///     - `Episode::views()` will always return `None`. This method does not provide view counts; you must use `episodes()` to retrieve views.
+    ///     - `Episode::published()` will always return `None`. To get publication dates, you must use `episodes()`. This is a limitation as currently there is no known way to get the published date with just the episode value alone.
     ///
     /// - **Episode Existence vs. Public Display**:
-    ///   - This method includes episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
-    ///   - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard or matching creator-webtoon session.
-    ///   - The numbering (`#NUMBER`) of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `episode_no=` query in the URL.
+    ///     - This method includes episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
+    ///     - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard or matching creator-webtoon session.
+    ///     - The numbering (`#NUMBER`) of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `episode_no=` query in the URL.
     ///
-    /// ### Use Cases
+    /// # Use Cases
     ///
     /// - Accessing hidden episodes, such as those unpublished, behind fast-pass, ad-walled, or deleted, without requiring a matching creator session.
     /// - Useful for situations where the complete set of episodes is necessary, including drafts or episodes not currently visible to the public.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Returns a `Result<Option<Episode>, EpisodeError>` containing:
-    ///
-    /// - `Ok(Some(Episode))`: If the episode exists (including hidden or deleted ones).
-    /// - `Ok(None)`: If the episode does not exist.
-    /// - `Err(EpisodeError)`: If there is an error during the episode retrieval process.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// if let Some(episode) = webtoon.episode(42).await? {
-    ///     println!("Episode title: {}", episode.title().await?);
-    /// } else {
-    ///     println!("Episode 42 does not exist.");
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// // Known hidden episode.
+    /// if let Some(episode) = webtoon.episode(121).await? {
+    ///     assert_eq!("[Season 2] Ep. 141", episode.title().await?);
     /// }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during the retrieval process.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the scraping or episode validation process.
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
         let episode = Episode::new(self, number);
 
@@ -768,23 +730,33 @@ impl Webtoon {
     /// to get all Originals who are "new", which is any Webtoon with a first episode published
     /// in the last 30 days.
     ///
-    /// # Returns
+    /// # Example
     ///
-    /// Will return an `Episode` upon success, including its published data.
+    /// ```
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
     ///
-    /// # Errors
+    /// let Some(webtoon) = client.webtoon(4176, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
     ///
-    /// Will return an error if there was an issue in with the client request or parsing out the
-    /// episode from the list.
+    /// let episode = webtoon.first_episode().await?;
+    ///
+    /// assert_eq!("Ep. 1 - The Return (1)", episode.title().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn first_episode(&self) -> Result<Episode, WebtoonError> {
         page::first_episode(self).await
     }
 
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
     ///
-    /// This including those behind ads, fast-pass, or even deleted episodes. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.
+    /// # Behavior
     ///
-    /// ### Behavior
+    /// This includes episodes behind ads, fast-pass, or are even deleted. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.
     ///
     /// - This method sums the likes across all episodes, regardless of whether the episodes are:
     ///   - **Publicly available**: It includes public episodes that any user can see.
@@ -792,36 +764,22 @@ impl Webtoon {
     ///   - **Deleted**: Episodes that no longer appear on the public main page but still exist in the system.
     ///   - **Unpublished**: Drafts or episodes not yet publicly released.
     ///
-    /// ### Clarification
+    /// # Example
     ///
-    /// - **Like Discrepancy**: The total likes calculated here may not match the likes visible to a regular user on the public webtoon page due to the inclusion of hidden, unpublished, and deleted episodes.
-    ///
-    /// ### Returns
-    ///
-    /// Returns a `Result<u32, EpisodeError>` containing:
-    ///
-    /// - `Ok(u32)`: The total number of likes across all episodes.
-    /// - `Err(EpisodeError)`: If there is an issue during the retrieval process for any episode.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// let total_likes = webtoon.likes().await?;
-    /// println!("Total likes for the webtoon: {}", total_likes);
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(7666, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// println!("{} has {} total likes!", webtoon.title().await?, webtoon.likes().await?);
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `EpisodeError::ClientError`: If there is an issue with the client during episode retrieval.
-    /// - `EpisodeError::Unexpected`: If an unexpected error occurs during the process.
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
         let mut likes = 0;
         for number in 1.. {
@@ -835,50 +793,35 @@ impl Webtoon {
         Ok(likes)
     }
 
-    /// Retrieves all posts(top level comments) for every episode of the current `Webtoon`.
+    /// Retrieves all posts (top level comments) for every episode of the current `Webtoon`.
     ///
-    /// This method can return more posts than what is publicly available on the main webtoon page, as it includes certain deleted posts as well as those visible to all users.
+    /// # Behavior
     ///
-    /// ### Behavior
+    /// This method can return more posts than what is publicly available on the episode page, as it includes certain deleted posts, as well as those visible to all users.
     ///
-    /// - The method retrieves all posts across every episode, including:
+    /// - This retrieves all posts across every episode, including:
     ///   - **Publicly visible posts**: Comments that any user can see on the webtoon page.
     ///   - **Deleted posts with replies**: Posts that have been marked as deleted but still display the message "This comment has been deleted" because they have replies.
     ///   - **Excluded posts**: Deleted posts without any replies are not included in the results.
     ///
-    /// ### Clarification
+    /// # Example
     ///
-    /// - The method may return more posts than expected since it counts comments that are deleted but still display a "This comment has been deleted" message (due to having replies).
-    /// - **Hidden posts**: Posts from episodes behind fast-pass, ads, or even deleted/unpublished episodes will also be included, provided that they have replies and match the pattern mentioned above.
-    ///
-    /// ### Returns
-    ///
-    /// Returns a `Result<Posts, PostError>` containing:
-    ///
-    /// - `Ok(Posts)`: A `Posts` struct containing all posts retrieved.
-    /// - `Err(PostError)`: An error if the process fails while retrieving posts.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// let posts = webtoon.posts().await?;
-    /// for post in posts {
-    ///     println!("Post: {}", post.body().contents());
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(886472, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// for post in webtoon.posts().await? {
+    ///    println!("{} left a post on {}!", post.poster().username(), webtoon.title().await?);
     /// }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `PostError::ClientError`: If there is an issue with the client during episode or post retrieval.
-    /// - `PostError::Unexpected`: If an unexpected error occurs during the process.
     pub async fn posts(&self) -> Result<Posts, PostError> {
         let mut posts = Vec::new();
 
@@ -899,52 +842,66 @@ impl Webtoon {
     /// Retrieves the RSS feed information for the current `Webtoon`.
     ///
     /// This includes data for recently published episodes, but excludes episodes that are behind fast-pass or ad walls.
-    /// The feed is optimized to provide a more user-friendly representation of the webtoon’s episodes.
     ///
-    /// **CURRENTLY ONLY ENGLISH I SUPPORTED**
+    /// **CURRENTLY ONLY ENGLISH IS SUPPORTED**
     ///
-    /// ### Behavior
+    /// # Behavior
     ///
     /// - **Episode Data**: The feed includes only episodes that are publicly and freely available, without fast-pass or ad restrictions.
     /// - **Thumbnails**: Instead of including the links to the first two panels of the episode as Webtoons.com provides, this method returns a list of `Episode`s where `Episode::thumbnail` can be used, for example. This design choice aligns more closely with user expectations for an RSS feed, making the implementation more intuitive for feed readers.
-    /// - **Optimized Representation**: Some liberties have been taken in formatting the RSS data to better serve typical use cases, making this an opinionated representation of the webtoon’s content.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Returns a `Result<Rss, WebtoonError>` containing:
-    ///
-    /// - `Ok(Rss)`: The RSS feed containing episode data.
-    /// - `Err(WebtoonError)`: An error if the process fails to retrieve the RSS feed.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// for episode in webtoon.rss().await?.episodes() {
-    ///     println!("Episode: {}", episode.title().await?);
-    ///     println!("Thumbnail: {}", episode.thumbnail().await?);
-    /// }
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(7666, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let rss = webtoon.rss().await?;
+    ///
+    /// assert_eq!("The White Tower’s Rogue Mage", rss.title());
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError`: If there is an issue with the client while retrieving the RSS feed.
-    /// - `WebtoonError::Unexpected`: If an unexpected error occurs during the process.
     #[cfg(feature = "rss")]
     pub async fn rss(&self) -> Result<Rss, WebtoonError> {
         rss::feed(self).await
     }
 
-    /// Sets the rating of the webtoon for current user session.
+    /// Sets the rating of the `Webtoon` for current user session.
     ///
-    /// Values are 1-10. Any values outside this range will be clamped to 1 or 10.
+    /// Values can be 1-10. Any values outside this range will be clamped to 1 or 10.
+    ///
+    /// # Session
+    ///
+    /// This method requires a valid user session to perform actions on the Webtoon.
+    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
+    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::with_session("my-session");
+    ///
+    /// let Some(webtoon) = client.webtoon(81571, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if webtoon.rate(10).await.is_ok() {
+    ///    println!("I gave {} a 10 rating!", webtoon.title().await?);
+    /// }
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn rate(&self, rating: u8) -> Result<(), WebtoonError> {
         self.client
             .post_rate_webtoon(self, rating.clamp(1, 10))
@@ -954,97 +911,72 @@ impl Webtoon {
 
     /// Checks if the current user session is subscribed to the `Webtoon`.
     ///
-    /// ### Behavior
+    /// # Session
     ///
-    /// - **Session Required**: This method requires a valid user session to determine if the user has favorited the webtoon.
-    ///   - If the session is invalid, it will return an error indicating the problem.
-    ///   - If no session is provided, the method returns an error of type `WebtoonError(ClientError::NoSessionProvided)`.
+    /// This method requires a valid user session to perform actions on the Webtoon.
+    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
+    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// Returns a `Result<bool, WebtoonError>` containing:
-    ///
-    /// - `Ok(true)`: If the user is subscribed (favorited) to the webtoon.
-    /// - `Ok(false)`: If the user is not subscribed to the webtoon.
-    /// - `Err(WebtoonError::ClientError(ClientError::InvalidSession))`: If the session is invalid or expired.
-    /// - `Err(WebtoonError::ClientError(ClientError::NoSessionProvided))`: If no session was provided.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// if webtoon.is_subscribed().await.is_ok() {
-    ///     println!("User is subscribed to this webtoon.");
-    /// } else {
-    ///     println!("User is not subscribed.");
+    /// let client = Client::with_session("my-session");
+    ///
+    /// let Some(webtoon) = client.webtoon(2159, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if webtoon.is_subscribed().await? {
+    ///    println!("Already subscribed to {}!", webtoon.title().await?);
     /// }
-    /// # }
+    ///
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError(ClientError::InvalidSession)`: If the session is invalid or expired.
-    /// - `WebtoonError::ClientError(ClientError::NoSessionProvided)`: If no user session was provided.
-    /// - `WebtoonError::Unexpected`: If an unexpected issue occurs during the process of retrieving user information.
     pub async fn is_subscribed(&self) -> Result<bool, WebtoonError> {
         Ok(self.client.get_user_info_for_webtoon(self).await?.favorite)
     }
 
     /// Subscribes the current user to the `Webtoon`, if not already subscribed.
     ///
-    /// ### Behavior
+    /// # Session
     ///
-    /// - **Creator Check**: The method checks if the user is the creator of the webtoon.
-    ///   - If the user is the creator, the method does nothing and immediately returns `Ok(())`, as creators cannot subscribe to their own webtoons.
+    /// This method requires a valid user session to perform actions on the Webtoon.
+    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
+    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
     ///
-    /// - **Subscription Status Check**:
-    ///   - If the user is already subscribed, the method returns `Ok(())` without taking any further action.
+    /// # Behavior
     ///
-    /// - **Subscribing**:
-    ///   - After a successful API call, the method returns `Ok(())`.
+    /// - **Creator Check**: Checks if the user is the creator of the Webtoon. If the user is the creator, the method does nothing and immediately returns `Ok(())`.
+    /// - **Subscription Status Check**: If the user is already subscribed, returns `Ok(())` without taking any further action.
+    /// - **Subscribing**: If successful, returns `Ok(())`.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// This method returns a `Result<(), WebtoonError>`:
-    ///
-    /// - `Ok(())`: If the user is already subscribed, or the subscription is successful.
-    /// - `Err(WebtoonError::ClientError(ClientError::InvalidSession))`: If the session is invalid or expired.
-    /// - `Err(WebtoonError::ClientError(ClientError::NoSessionProvided))`: If no session is provided.
-    /// - `Err(WebtoonError::Unexpected)`: If an unexpected issue occurs during the subscription process.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{errors::{Error, ClientError, WebtoonError}, Client, Type};
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// match webtoon.subscribe().await {
-    ///     Ok(_) => println!("Subscription successful."),
-    ///     Err(WebtoonError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("no session provided"),
-    ///     Err(err) => panic!("{err}"),
+    /// let client = Client::with_session("my-session");
+    ///
+    /// let Some(webtoon) = client.webtoon(7829, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if webtoon.subscribe().await.is_ok() {
+    ///    println!("Subscribed to {}!", webtoon.title().await?);
     /// }
-    /// # }
+    ///
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError(ClientError::InvalidSession)`: If the session is invalid or expired.
-    /// - `WebtoonError::ClientError(ClientError::NoSessionProvided)`: If no user session was provided.
-    /// - `WebtoonError::Unexpected`: If an unexpected issue occurs during the process of subscribing.
     pub async fn subscribe(&self) -> Result<(), WebtoonError> {
         let user = self.client.get_user_info_for_webtoon(self).await?;
 
-        // Can't sub to own webtoon
+        // Can't sub to own Webtoon
         if user.is_webtoon_creator() {
             return Ok(());
         }
@@ -1061,49 +993,37 @@ impl Webtoon {
 
     /// Unsubscribes the current user from the `Webtoon`, if currently subscribed.
     ///
-    /// ### Behavior
+    /// # Session
     ///
-    /// - **Creator Check**: The method checks if the user is the creator of the webtoon.
-    ///   - If the user is the creator, the method does nothing and returns `Ok(())`, since creators cannot unsubscribe from their own webtoons.
+    /// This method requires a valid user session to perform actions on the Webtoon.
+    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
+    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
     ///
-    /// - **Subscription Status Check**:
-    ///   - If the user is not subscribed, the method returns `Ok(())` without taking any further action.
+    /// # Behavior
     ///
-    /// - **Unsubscribing**:
-    ///   - After a successful API call, the method returns `Ok(())`.
+    /// - **Creator Check**: Checks if the user is the creator of the Webtoon. If the user is the creator, the method does nothing and returns `Ok(())`.
+    /// - **Subscription Status Check**: If the user is not subscribed, the method returns `Ok(())` without taking any further action.
+    /// - **Unsubscribing**: If successful, returns `Ok(())`.
     ///
-    /// ### Returns
+    /// # Example
     ///
-    /// This method returns a `Result<(), WebtoonError>`:
-    ///
-    /// - `Ok(())`: If the user is not subscribed, or the unsubscription is successful.
-    /// - `Err(WebtoonError::ClientError(ClientError::InvalidSession))`: If the session is invalid or expired.
-    /// - `Err(WebtoonError::ClientError(ClientError::NoSessionProvided))`: If no session is provided.
-    /// - `Err(WebtoonError::Unexpected)`: If an unexpected issue occurs during the unsubscription process.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{errors::{Error, ClientError, WebtoonError}, Client, Type};
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// match webtoon.unsubscribe().await {
-    ///     Ok(_) => println!("Unsubscription successful."),
-    ///     Err(WebtoonError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("no session provided"),
-    ///     Err(err) => panic!("{err}"),
+    /// let client = Client::with_session("my-session");
+    ///
+    /// let Some(webtoon) = client.webtoon(7829, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if webtoon.unsubscribe().await.is_ok() {
+    ///    println!("Unubscribed to {} 😞", webtoon.title().await?);
     /// }
-    /// # }
+    ///
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ### Errors
-    ///
-    /// - `WebtoonError::ClientError(ClientError::InvalidSession)`: If the session is invalid or expired.
-    /// - `WebtoonError::ClientError(ClientError::NoSessionProvided)`: If no user session was provided.
-    /// - `WebtoonError::Unexpected`: If an unexpected issue occurs during the unsubscription process.
     pub async fn unsubscribe(&self) -> Result<(), WebtoonError> {
         let title_user_info = self.client.get_user_info_for_webtoon(self).await?;
 
@@ -1120,41 +1040,6 @@ impl Webtoon {
         self.client.post_unsubscribe_to_webtoon(self).await?;
 
         Ok(())
-    }
-
-    /// Clears the cached metadata for the current `Webtoon`, forcing future requests to retrieve fresh data from the network.
-    ///
-    /// ### Behavior
-    ///
-    /// - **Cache Eviction**:
-    ///   - This method clears the cached webtoon metadata (such as genre, title, and other page information) that has been stored for performance reasons.
-    ///   - After calling this method, subsequent calls that rely on this metadata will trigger a network request to re-fetch the data.
-    ///
-    /// ### Use Case
-    ///
-    /// - Use this method if you suspect the cached data is outdated or if you want to ensure that future data retrieval reflects the latest updates from the webtoon's page.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// webtoon.evict_cache().await;
-    /// println!("Cache cleared. Future requests will fetch fresh data.");
-    /// # }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// ### Notes
-    ///
-    /// - There are no errors returned from this function, as it only resets the cache.
-    /// - Cache eviction is useful if the webtoon metadata has changed or if up-to-date information is needed for further operations.
-    pub async fn evict_cache(&self) {
-        *self.page.write() = None;
     }
 }
 
