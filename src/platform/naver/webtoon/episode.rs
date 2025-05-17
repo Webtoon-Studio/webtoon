@@ -48,7 +48,9 @@ use super::Webtoon;
 ///
 /// if let Some(episode) = webtoon.episode(50).await? {
 ///     assert_eq!("50화", episode.title().await?);
+///     # return Ok(());
 /// }
+/// # unreachable!("should have entered the episode block and returned");
 /// # Ok(())
 /// # }
 /// ```
