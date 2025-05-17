@@ -1,11 +1,13 @@
-//! Module represening the canvas story list.
+//! Module representing the canvas story list as `www.webtoons.com/*/canvas/list`.
 //!
-//! ## Example
-//! ```rust,no_run
+//! # Example
+//!
+//! ```
 //! # use webtoon::platform::webtoons::{ Client, Language, errors::Error, canvas::Sort};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
-//! # let client = Client::new();
+//! let client = Client::new();
+//!
 //! let webtoons = client
 //!     .canvas(Language::En, 1..=3, Sort::Popularity)
 //!     .await?;
