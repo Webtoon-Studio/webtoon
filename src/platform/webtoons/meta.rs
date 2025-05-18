@@ -382,7 +382,7 @@ impl FromStr for Genre {
             "adaptation" | "影視化" => Ok(Self::Adaptation),
             "shonen" | "少年" => Ok(Self::Shonen),
             "web-novel" | "WEBNOVEL" | "小說" | "นิยาย" => Ok(Self::WebNovel),
-            "graphic-novel" | "GRAPHIC_NOVEL" => Ok(Self::GraphicNovel),
+            "graphic-novel" | "GRAPHIC_NOVEL" | "Graphic Novel" => Ok(Self::GraphicNovel),
             _ => Err(ParseGenreError(s.to_owned())),
         }
     }
