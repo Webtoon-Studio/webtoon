@@ -13,12 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: rui314/setup-mold@v1
     - name: Run tests
       run: cargo test --verbose --all-features --release
   test-with-session:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: rui314/setup-mold@v1
     - name: Run tests
       env:
         WEBTOON_SESSION: ${{ secrets.WEBTOON_SESSION }}
@@ -27,11 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: rui314/setup-mold@v1
     - name: Run format check
       run: cargo fmt --check
   clippy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: rui314/setup-mold@v1
     - name: Run clippy check
       run: cargo clippy --all-features -- -D warnings
