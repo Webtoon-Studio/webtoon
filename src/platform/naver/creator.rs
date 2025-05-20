@@ -281,7 +281,6 @@ fn username(html: &Html) -> Result<String, CreatorError> {
 
     if let Some(element) = html.select(&selector).next() {
         if let Some(text) = element.value().attr("content") {
-            eprintln!("{text}");
             return Ok(text.to_string());
         }
     }
@@ -292,12 +291,11 @@ fn username(html: &Html) -> Result<String, CreatorError> {
 }
 
 fn followers(html: &Html) -> Result<u32, CreatorError> {
-    let selector = Selector::parse("span.x7o99n6") //
-        .expect("`span.x7o99n6` should be a valid selector");
+    let selector = Selector::parse("button>span") //
+        .expect("`button>span` should be a valid selector");
 
-    if let Some(element) = html.select(&selector).next() {
+    if let Some(element) = html.select(&selector).nth(1) {
         if let Some(text) = element.text().nth(1) {
-            eprintln!("{text}");
             return text
                 .replace(',', "")
                 .parse()
