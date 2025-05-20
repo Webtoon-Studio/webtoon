@@ -1402,7 +1402,30 @@ impl Eq for Episode {}
 
 /// Represents a collection of episodes.
 ///
-/// This is a wrapper around a `Vec<Episode>` meant to provide methods for common interactions.
+/// This type is not constructed directly, but via [`Webtoon::episodes()`].
+///
+/// # Example
+///
+/// ```
+/// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Error> {
+/// let client = Client::new();
+///
+/// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
+///     unreachable!("webtoon is known to exist");
+/// };
+///
+/// let episodes = webtoon.episodes().await?;
+///
+/// assert_eq!(25, episodes.count());
+///
+/// for episode in &episodes {
+///     println!("title: {}", episode.title().await?);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct Episodes {
     pub(crate) count: u16,
@@ -1411,13 +1434,48 @@ pub struct Episodes {
 
 impl Episodes {
     /// Returns the count of the episodes retrieved.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let episodes = webtoon.episodes().await?;
+    ///
+    /// assert_eq!(25, episodes.count());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn count(&self) -> u16 {
         self.count
     }
 
     /// Gets the episode from passed in value if it exists.
-    #[must_use]
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(4470, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let episodes = webtoon.episodes().await?;
+    ///
+    /// assert_eq!(Some(1), episodes.episode(1).map(|episode| episode.number()));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
         // PERF: If in the process of making the Vec we can insert into the index that the number is, then we can use
         // `get(episode)` instead. As of now, the episodes can be in any order, so we have to search through and find

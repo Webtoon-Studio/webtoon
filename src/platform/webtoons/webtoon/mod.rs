@@ -629,7 +629,7 @@ impl Webtoon {
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
+    /// let client = Client::new();
     ///
     /// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
     ///     unreachable!("webtoon is known to exist");

@@ -118,7 +118,7 @@ impl ClientBuilder {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::naver::ClientBuilder;
+    /// # use webtoon::platform::webtons::ClientBuilder;
     /// let builder = ClientBuilder::new().user_agent("custom-agent/1.0");
     /// ```
     #[inline]
