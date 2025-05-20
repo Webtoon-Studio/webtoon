@@ -71,7 +71,7 @@ use super::{Webtoon, dashboard::episodes::DashboardStatus};
 //     "success": true
 // }
 
-/// Represents an episode on `comic.naver.com`.
+/// Represents an episode on `webtoons.com`.
 ///
 /// This type is not constructed directly, but gotten via [`Webtoon::episodes()`] or [`Webtoon::episode()`]
 ///

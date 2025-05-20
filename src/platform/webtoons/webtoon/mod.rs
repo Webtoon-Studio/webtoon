@@ -26,7 +26,7 @@ use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 
-/// Represents a Webtoon from `comic.naver.com`.
+/// Represents a Webtoon from `webtoons.com`.
 ///
 /// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`].
 ///
