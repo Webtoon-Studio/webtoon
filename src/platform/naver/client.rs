@@ -67,7 +67,6 @@ pub struct ClientBuilder {
 }
 
 impl Default for ClientBuilder {
-    #[must_use]
     fn default() -> Self {
         Self::new()
     }
