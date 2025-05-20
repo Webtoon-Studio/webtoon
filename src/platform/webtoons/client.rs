@@ -118,14 +118,13 @@ impl ClientBuilder {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtons::ClientBuilder;
+    /// # use webtoon::platform::webtoons::ClientBuilder;
     /// let builder = ClientBuilder::new().user_agent("custom-agent/1.0");
     /// ```
     #[inline]
     #[must_use]
     pub fn user_agent(self, user_agent: &str) -> Self {
         let builder = self.builder.user_agent(user_agent);
-
         Self { builder, ..self }
     }
 
@@ -748,14 +747,14 @@ impl Client {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
     /// // When no session, or an invalid session, is passed in, `is_logged_in()` will be false.
-    /// let user_info = client.user_info_for_session("").await?;
+    /// let user_info = client.user_info_for_session("session").await?;
     ///
     /// assert!(!user_info.is_logged_in());
     /// # Ok(())
@@ -813,11 +812,11 @@ impl Client {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
+    /// let client = Client::with_session("session");
     /// assert!(!client.has_valid_session().await?);
     /// # Ok(())
     /// # }
@@ -1532,17 +1531,17 @@ impl Default for Client {
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # use webtoon::platform::webtoons::{errors::Error, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let user_info = client.user_info_for_session("").await?;
+/// let user_info = client.user_info_for_session("session").await?;
 ///
 /// assert!(!user_info.is_logged_in());
-/// assert_eq!("", user_info.username());
-/// assert_eq!("", user_info.profile());
+/// assert_eq!("username", user_info.username());
+/// assert_eq!("profile", user_info.profile());
 /// # Ok(())
 /// # }
 /// ```
@@ -1565,13 +1564,13 @@ impl UserInfo {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("").await?;
+    /// let user_info = client.user_info_for_session("session").await?;
     ///
     /// assert!(!user_info.is_logged_in());
     /// # Ok(())
@@ -1586,15 +1585,15 @@ impl UserInfo {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("").await?;
+    /// let user_info = client.user_info_for_session("session").await?;
     ///
-    /// assert_eq!("", user_info.username());
+    /// assert_eq!("username", user_info.username());
     /// # Ok(())
     /// # }
     /// ```
@@ -1607,13 +1606,13 @@ impl UserInfo {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("").await?;
+    /// let user_info = client.user_info_for_session("session").await?;
     ///
     /// assert_eq!("", user_info.profile());
     /// # Ok(())

@@ -150,7 +150,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(25).await? {
-    ///     assert_eq!(15, episode.number());
+    ///     assert_eq!(25, episode.number());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -179,7 +179,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     assert_eq!("Myst, Might, Mayhem", episode.title().await?);
+    ///     assert_eq!("Ep. 1 - Prologue", episode.title().await?);
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -257,8 +257,10 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     assert!(episode.note().await?.starts_with("Find me as Jayessart"));
-    ///     # return Ok(());
+    ///     if let Some(note) = episode.note().await? {
+    ///         assert!(note.starts_with("Find me as Jayessart"));
+    ///         # return Ok(());
+    ///     }
     /// }
     /// # unreachable!("should have entered the episode block and returned");
     /// # Ok(())
@@ -292,7 +294,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     assert!(Some(0), episode.length().await?);
+    ///     assert_eq!(Some(89600), episode.length().await?);
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -346,7 +348,7 @@ impl Episode {
     /// let mut episodes = webtoon.episodes().await?.into_iter();
     ///
     /// if let Some(episode) = episodes.next() {
-    ///     assert!(Some(0), episode.published().await?);
+    ///     assert_eq!(Some(1745892000000), episode.published());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -388,7 +390,7 @@ impl Episode {
     /// let mut episodes = webtoon.episodes().await?.into_iter();
     ///
     /// if let Some(episode) = episodes.next() {
-    ///     println!("episode {} has {:?} views", episode.number(), episode.views().await?);
+    ///     println!("episode {} has {:?} views", episode.number(), episode.views());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -413,7 +415,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("episode {} has {} likes", episode.number(), episode.likes().await?);
     ///     # return Ok(());
     /// }
@@ -461,7 +463,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let (comments, replies) = episode.comments_and_replies().await?;
     ///     println!("episode {} has {comments} comments and {replies} replies", episode.number());
     ///     # return Ok(());
@@ -505,7 +507,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts().await? {
     ///         println!("{} left a comment on episode {} of {}", post.poster().username(), episode.number(), webtoon.title().await?);
     ///     }
@@ -624,7 +626,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///    episode.posts_for_each(async |post| {
     ///        println!("{} left a comment on episode {}", post.poster().username(), episode.number());
     ///    }).await?;
@@ -733,7 +735,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for post in episode.posts_till_id("GW-epicom:0-c_843910_1-g").await? {
     ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
     ///     }
@@ -831,7 +833,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     // UNIX timestamp
     ///     for post in episode.posts_till_date(1729582054).await? {
     ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
@@ -920,7 +922,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for panel in episode.panels().await? {
     ///         println!("url: {}", panel.url());
     ///     }
@@ -955,7 +957,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("thumbnail: {}", episode.thumbnail().await?);
     ///     # return Ok(());
     /// }
@@ -988,12 +990,12 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{errors::Error, webtoon::episode::PublishedStatus, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(316884, Type::Canvas).await? else {
+    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
@@ -1038,7 +1040,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, webtoon::episode::AdStatus, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1079,7 +1081,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1088,7 +1090,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.like().await {
     ///         Ok(_) => println!("Liked episode {} of {}!", episode.number(), webtoon.title().await?),
     ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
@@ -1119,7 +1121,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1128,7 +1130,7 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.unlike().await {
     ///         Ok(_) => println!("Uniked episode {} of {}!", episode.number(), webtoon.title().await?),
     ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
@@ -1153,7 +1155,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{errors::{Error, PostError, ClientError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1162,11 +1164,11 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = webtoon.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.post("Loved this episode!", false).await {
     ///         Ok(_) => println!("Left comment on episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(EpisodeError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(PostError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
+    ///         Err(PostError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1236,13 +1238,13 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(316884, Type::Canvas).await? else {
+    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// if let Some(episode) = episodes.episode(1) {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
-    ///     panels.save_single("panels/").await?;
+    ///     assert_eq!(201, panels.count());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -1420,7 +1422,7 @@ impl Eq for Episode {}
 ///
 /// assert_eq!(25, episodes.count());
 ///
-/// for episode in &episodes {
+/// for episode in episodes {
 ///     println!("title: {}", episode.title().await?);
 /// }
 /// # Ok(())

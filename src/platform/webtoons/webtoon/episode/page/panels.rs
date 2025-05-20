@@ -112,6 +112,30 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
 }
 
 /// Represents all the panels for an episode.
+///
+/// This type is not constructed directly, but gotten via [`Episode::panels()`](crate::platform::webtoons::webtoon::episode::Episode::panels()).
+///
+/// # Example
+///
+/// ```
+/// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Error> {
+/// let client = Client::new();
+///
+/// let Some(webtoon) = client.webtoon(961, Type::Original).await? else {
+///     unreachable!("webtoon is known to exist");
+/// };
+///
+/// if let Some(episode) = webtoon.episode(1).await? {
+///     let panels = episode.download().await?;
+///     assert_eq!(52 , panels.count());
+///     # return Ok(());
+/// }
+/// # unreachable!("should have entered the episode block and returned");
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Panels {
     pub(in crate::platform::webtoons::webtoon::episode) images: Vec<Panel>,
@@ -120,6 +144,33 @@ pub struct Panels {
 }
 
 impl Panels {
+    /// Returns how many `Panels` are on the episode.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(961, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(2).await? {
+    ///     let panels = episode.download().await?;
+    ///     assert_eq!(99 , panels.count());
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn count(&self) -> usize {
+        self.images.len()
+    }
+
     /// Saves all the panels of an episode as a single long image file in PNG format.
     ///
     /// # Behavior
@@ -128,13 +179,27 @@ impl Panels {
     /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
     /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
     ///
-    /// # Parameters
+    /// # Example
     ///
-    /// - `path`: The target directory where the combined image will be saved. If it doesn't exist, it will be created.
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
     ///
-    /// # Errors
+    /// let Some(webtoon) = client.webtoon(2960, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
     ///
-    /// - Returns a [`DownloadError`] if any issues arise during directory creation, image creation, or writing the combined image to disk.
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     let panels = episode.download().await?;
+    ///     panels.save_single("panels/").await?;
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,
@@ -187,13 +252,27 @@ impl Panels {
     ///
     /// - If the specified directory does not exist, it will be created, along with any necessary parent directories.
     ///
-    /// # Parameters
+    /// # Example
     ///
-    /// - `path`: The destination directory where the panels will be saved. If the path does not exist, it will be created automatically.
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
     ///
-    /// # Errors
+    /// let Some(webtoon) = client.webtoon(2960, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
     ///
-    /// - Returns a [`DownloadError`] if there are any issues creating the directory, writing to the files, or processing the file system.
+    /// if let Some(episode) = webtoon.episode(2).await? {
+    ///     let panels = episode.download().await?;
+    ///     panels.save_multiple("panels/").await?;
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where
         P: AsRef<Path> + Send,

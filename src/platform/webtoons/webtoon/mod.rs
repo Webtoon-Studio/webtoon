@@ -67,7 +67,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client, Language};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -202,7 +202,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// assert_eq!("Became a Level 999 Demon Queen", webtoon.title().await?.as_deref());
+    /// assert_eq!("I Became a Level 999 Demon Queen", webtoon.title().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -254,7 +254,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Genre, Client};
+    /// # use webtoon::platform::webtoons::{errors::Error, Type, meta::Genre, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -296,7 +296,7 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// assert_eq!("What do you desire? Money and wealth? Honor and pride? Authority and power? Revenge? Or something that transcends them all? Whatever you desire—it's here", webtoon.summary().await?);
+    /// assert_eq!("What do you desire? Money and wealth? Honor and pride? Authority and power? Revenge? Or something that transcends them all? Whatever you desire—it's here.", webtoon.summary().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -426,11 +426,11 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(7182, Type::Original).await? else {
+    /// let Some(webtoon) = client.webtoon(352, Type::Original).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// assert_eq!(7.33, webtoon.rating().await?);
+    /// assert_eq!(9.56, webtoon.rating().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -639,7 +639,7 @@ impl Webtoon {
     ///
     /// assert_eq!(25, episodes.count());
     ///
-    /// for episode in &episodes {
+    /// for episode in episodes {
     ///     println!("title: {}", episode.title().await?);
     /// }
     /// # Ok(())
@@ -703,7 +703,7 @@ impl Webtoon {
     ///
     /// // Known hidden episode.
     /// if let Some(episode) = webtoon.episode(121).await? {
-    ///     assert_eq!("[Season 2] Ep. 141", episode.title().await?);
+    ///     assert_eq!("[Season 2] Ep. 41", episode.title().await?);
     /// }
     /// # Ok(())
     /// # }

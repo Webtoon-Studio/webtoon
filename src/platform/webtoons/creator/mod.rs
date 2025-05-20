@@ -138,7 +138,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!(Some("w7ml9"), creator.profile().as_deref());
+    /// assert_eq!(Some("w7ml9"), creator.id().await?.as_deref());
     /// # Ok(())
     /// # }
     /// ```
@@ -177,7 +177,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// println!("{} has {} followers!", creator.username(), creator.followers());
+    /// println!("{} has {:?} followers!", creator.username(), creator.followers().await?);
     /// # Ok(())
     /// # }
     /// ```
@@ -225,8 +225,10 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// for webtoon in creator.webtoons().await? {
-    ///     println!("{} is/was involved in making {}", creator.username(), webtoon.title().await?);
+    /// if let Some(webtoons) = creator.webtoons().await? {
+    ///     for webtoon in webtoons  {
+    ///         println!("{} is/was involved in making {}", creator.username(), webtoon.title().await?);
+    ///     }
     /// }
     /// # Ok(())
     /// # }
@@ -316,7 +318,7 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert!(creator.has_patreon().await?);
+    /// assert_eq!(Some(true), creator.has_patreon().await?);
     /// # Ok(())
     /// # }
     /// ```
