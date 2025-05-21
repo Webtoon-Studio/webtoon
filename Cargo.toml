@@ -114,3 +114,7 @@ path = "examples/naver/download.rs"
 [[example]]
 name = "naver-creator"
 path = "examples/naver/creator.rs"
+
+[profile.dev]
+debug = false
+strip = "debuginfo"
