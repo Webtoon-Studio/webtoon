@@ -93,13 +93,13 @@ impl Language {
     }
 
     /// Returns a string representation of the language.
-    /// - En -> "en"
-    /// - Zh -> "zh-hant"
-    /// - Th -> "th"
-    /// - Id -> "id"
-    /// - Es -> "es"
-    /// - Fr -> "fr"
-    /// - De -> "de"
+    /// - En -> "ENGLISH"
+    /// - Zh -> "CHINESE"
+    /// - Th -> "THAI"
+    /// - Id -> "INDONESIAN"
+    /// - Es -> "SPANISH"
+    /// - Fr -> "FRENCH"
+    /// - De -> "GERMAN"
     #[must_use]
     pub const fn as_str_caps(self) -> &'static str {
         match self {
