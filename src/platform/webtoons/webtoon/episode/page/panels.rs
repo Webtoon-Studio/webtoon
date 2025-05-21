@@ -9,6 +9,8 @@ use std::path::Path;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 /// Represents a single panel for an episode.
+///
+/// This type is not constructed directly, but gotten via [`Episode::panels()`](super::super::Episode::panels()).
 #[derive(Debug, Clone)]
 pub struct Panel {
     pub(in crate::platform::webtoons::webtoon::episode) url: Url,
@@ -22,9 +24,33 @@ pub struct Panel {
 
 impl Panel {
     /// Returns the url for the panel.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     for panel in episode.panels().await? {
+    ///         println!("url: {}", panel.url());
+    ///     }
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
+
     pub(in crate::platform::webtoons::webtoon::episode) async fn download(
         &mut self,
         client: &Client,

@@ -131,13 +131,18 @@ use super::Episode;
 
 /// Represents a collection of posts.
 ///
-/// A wrapper for a `Vec<Post>` to provide methods on to further interact.
+/// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`].
 #[derive(Debug, Clone)]
 pub struct Posts {
     pub(super) posts: Vec<Post>,
 }
 
 impl Posts {
+    /// Returns the first post, or `None` if it is empty.
+    pub fn first(&self) -> Option<&Post> {
+        self.posts.first()
+    }
+
     /// Creates an iterator which uses a closure to determine if an element
     /// should be yielded.
     ///
@@ -201,7 +206,10 @@ impl Posts {
 // Replies for post
 //GET https://www.webtoons.com/p/api/community/v2/post/GW-epicom:0-c_843910_1-k/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize=10&withCursor=false&offsetPostId=
 
-/// Represensts a post on `webtoons.com`, either a reply or a top-level comment.
+/// Represents a post on `webtoons.com`, either a reply or a top-level comment.
+///
+/// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`] and iterated through,
+/// or with [`Episode::posts_for_each()`].
 #[derive(Clone)]
 pub struct Post {
     pub(crate) episode: Episode,
@@ -238,7 +246,30 @@ impl fmt::Debug for Post {
 
 impl Post {
     /// Returns the [`Poster`] of post.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(70).await? {
+    ///     episode.posts_for_each(async |post| {
+    ///         let poster = post.poster();
+    ///         println!("{} left a post on episode {}", poster.username(), episode.number());
+    ///     }).await?;
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn poster(&self) -> &Poster {
         &self.poster
     }
@@ -249,122 +280,231 @@ impl Post {
     /// in the context of a specific Webtoon episode. This includes the Webtoon ID,
     /// episode number, post identifier, and optionally a reply identifier if the post is a reply.
     ///
-    /// ### Example
+    /// The [`Id`] is a composite structure that reflects the internal format used by Webtoon's system.
     ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
-    /// for post in episode.posts().await? {
-    ///     println!("Post ID: {:?}", post.id());
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(70).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         println!("id: {}", post.id());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
     /// }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// The [`Id`] is a composite structure that reflects the internal format used by Webtoon's system.
-    #[must_use]
     pub fn id(&self) -> Id {
         self.id
     }
 
     /// Returns the parent [`Id`] of the post.
     ///
-    /// If the post is a top-level comment, the parent ID will be the same as the post's own [`Self::id`].
+    /// If the post is a top-level comment, the parent ID will be the same as the post's own ID.
     /// If the post is a reply to another comment, the parent ID will reflect the ID of the post it is replying to.
     ///
-    /// ### Example
+    /// # Example
     ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
-    /// # let posts = episode.posts().await?;
-    /// # if let Some(post) = posts.into_iter().next() {
-    /// if post.parent_id() == post.id() {
-    ///     println!("This is a top-level comment.");
-    /// } else {
-    ///     println!("This is a reply to post with ID: {:?}", post.parent_id());
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(50).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         println!("parent id: {}", post.parent_id());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
     /// }
-    /// # }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// This method is useful for determining whether a post is a top-level comment or a reply to another comment.
-    #[must_use]
     pub fn parent_id(&self) -> Id {
         self.parent_id
     }
 
     /// Returns a reference to the [`Body`] of the post.
     ///
-    /// This method provides access to the content of the post and whether it contains spoilers.
     /// The body contains the actual text of the post along with a flag indicating if it is marked as a spoiler.
     ///
-    /// ### Example
+    /// # Example
     ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error};
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
-    /// # let posts = episode.posts().await?;
-    /// # if let Some(post) = posts.into_iter().next() {
-    /// let body = post.body();
-    /// println!("Post content: {}", body.contents());
-    /// println!("Contains spoilers: {}", body.is_spoiler());
-    /// # }
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(60).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert_eq!("Let the Games begin!", post.body().contents());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn body(&self) -> &Body {
         &self.body
     }
 
     /// Returns how many upvotes the post has.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(30).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert_eq!(0, post.upvotes());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn upvotes(&self) -> u32 {
         self.upvotes
     }
 
     /// Returns how many downvotes the post has.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(30).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert_eq!(0, post.downvotes());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn downvotes(&self) -> u32 {
         self.downvotes
     }
 
-    // /// Returns the amount of replies on the post.
-    // #[must_use]
-    // pub fn reply_count(&self) -> u32 {
-    //     self.replies
-    // }
-
     /// Returns whether this post is a top-level comment and not a reply.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(30).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert!(post.is_comment());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn is_comment(&self) -> bool {
         self.id == self.parent_id
     }
 
     /// Returns whether this post is a reply and not a top-level comment.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(20).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert!(!post.is_reply());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn is_reply(&self) -> bool {
         self.id != self.parent_id
     }
 
     /// Returns whether this post is a `TOP` post, one of the pinned top three posts on the episode.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(10).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert!(!post.is_top());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn is_top(&self) -> bool {
         self.is_top
@@ -373,21 +513,88 @@ impl Post {
     /// Returns whether this post was deleted.
     ///
     /// One thing to keep in mind is that if a top-level post was deleted and no replies were left,
-    /// or if all replies were themselves deleted, it wont be returned in the `Episode::posts` response.
+    /// or if all replies were themselves deleted, it won't be returned in the [`Episode::posts()`](super::Episode::posts()) response.
     ///
     /// This will only return `true` if there is a top-level post that has replies on it. Otherwise will return `false`.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(1).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert!(!post.is_deleted());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn is_deleted(&self) -> bool {
         self.is_deleted
     }
 
     /// Returns the episode number of the post was left on.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert_eq!(11, post.episode());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn episode(&self) -> u16 {
         self.episode.number()
     }
 
-    /// Returns the posts' published date in an ISO 8601 millisecond timestamp format.
+    /// Returns the posts' published date in UNIX millisecond timestamp format.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         assert_eq!(1747797457021, post.posted());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn posted(&self) -> i64 {
         self.posted.timestamp_millis()
@@ -395,9 +602,31 @@ impl Post {
 
     /// Upvotes post via users session.
     ///
-    /// # Returns
-    ///
     /// Returns the updated values for upvotes and downvotes: `(upvotes, downvotes)`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::with_session("session");
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         let (upvotes, downvotes) = post.upvote().await?;
+    ///         println!("now post has {upvotes} upvotes and {downvotes} downvotes");
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn upvote(&self) -> Result<(u32, u32), PostError> {
         if self.poster.is_current_session_user {
             // If is_owner is true then user is trying to upvote their own post which is not allowed
@@ -436,9 +665,31 @@ impl Post {
 
     /// Downvotes post via users session.
     ///
-    /// # Returns
-    ///
     /// Returns the updated values for upvotes and downvotes: `(upvotes, downvotes)`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::with_session("session");
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         let (upvotes, downvotes) = post.downvote().await?;
+    ///         println!("now post has {upvotes} upvotes and {downvotes} downvotes");
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn downvote(&self) -> Result<(u32, u32), PostError> {
         if self.poster.is_current_session_user {
             // If is_owner is true then user is trying to downvote their own post which is not allowed
@@ -477,9 +728,31 @@ impl Post {
 
     /// Will clear any upvote or downvote the user might have on the post.
     ///
-    /// # Returns
-    ///
     /// Returns the updated values for upvotes and downvotes: `(upvotes, downvotes)`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::with_session("session");
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         let (upvotes, downvotes) = post.unvote().await?;
+    ///         println!("now post has {upvotes} upvotes and {downvotes} downvotes");
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn unvote(&self) -> Result<(u32, u32), PostError> {
         let page_id = format!(
             "{}_{}_{}",
@@ -538,13 +811,31 @@ impl Post {
 
     /// Returns the upvote and downvote count for the post.
     ///
-    /// # Returns
-    ///
     /// A tuple of `(upvotes, downvotes)`
     ///
-    /// # Errors
+    /// # Example
     ///
-    /// Will return an error if there is an issue with the request or deserialzation of the request.
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         let (upvotes, downvotes) = post.upvotes_and_downvotes().await?;
+    ///         println!("post has {upvotes} upvotes and {downvotes} downvotes!");
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostError> {
         let response = self
             .episode
@@ -587,26 +878,35 @@ impl Post {
     ///
     /// Depending on the type you specify, you can either retrieve the number of replies or the actual replies themselves:
     ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{Client, Language, Type, errors::Error, webtoon::episode::posts::Posts};
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::episode::posts::{Replies, Posts}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
-    /// # let posts = episode.posts().await?;
-    /// # if let Some(post) = posts.into_iter().next() {
-    /// let replies: u32 = post.replies().await?;
-    /// let replies: Posts = post.replies().await?;
-    /// # }
-    /// # }
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(4425, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(87).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         let replies: u32 = post.replies().await?;
+    ///         println!("post has {replies} relies!");
+    ///
+    ///         let replies: Posts = post.replies().await?;
+    ///
+    ///         for reply in replies {
+    ///             println!("{} left a reply to {}", reply.poster().username(), post.poster().username());
+    ///         }
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`PostError`] if there is an issue with the request, such as network issues or deserialization errors.
     pub async fn replies<R: Replies>(&self) -> Result<R, PostError> {
         R::replies(self).await
     }
@@ -615,38 +915,36 @@ impl Post {
     ///
     /// This method allows users to leave a reply on a top-level comment. The reply can be marked as a spoiler.
     ///
-    /// ### Parameters:
+    /// # Parameters:
     /// - `body`: The content of the comment to be posted.
     /// - `is_spoiler`: A boolean indicating whether the comment should be marked as a spoiler. If `true`, the comment will be marked as a spoiler.
     ///
-    /// ### Example:
+    /// # Example
     ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::{Error, ReplyError, ClientError}};
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? {
-    /// # let episode = webtoon.episode(1).await?.expect("episode 1 should always exist");
-    /// # let posts = episode.posts().await?;
-    /// # if let Some(post) = posts.into_iter().next() {
-    /// match post.reply("In the novel *spoiler*", true).await {
-    ///     Ok(_) => println!("left reply!"),
-    ///     Err(ReplyError::ClientError(ClientError::InvalidSession | ClientError::NoSessionProvided)) => println!("session issue, failed to leave reply"),
-    ///     Err(err) => panic!("{err}"),
+    /// let client = Client::with_session("session");
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         post.reply("Thanks for commenting!", false).await?;
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
     /// }
-    /// # }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Errors:
-    /// - Returns a [`ReplyError`] if there is an issue during the post request.
     pub async fn reply(&self, body: &str, is_spoiler: bool) -> Result<(), ReplyError> {
         if self.is_deleted {
             return Err(ReplyError::DeletedPost);
-        };
+        }
 
         self.episode
             .webtoon
@@ -660,16 +958,32 @@ impl Post {
     ///
     /// If post is already deleted it will short-circuit and return `Ok`.
     ///
-    /// ## Permissions
+    /// # Permissions
     /// **Own-post**: If the post is from the sessions user, then has permission to delete.
-    /// **Wetboon-Owner**: If the current user is the creator of the webtoon the post is on, and thus has moderation capability.
+    /// **Webtoon-Owner**: If the current user is the creator of the Webtoon the post is on, and thus has moderation capability.
     ///
-    /// # Errors
+    /// # Example
     ///
-    /// Will return an error if:
-    /// - there is a problem with the request or .
-    /// - there is a serializtion/deserialization error.
-    /// - session user has invalid permissions [`PostError::InvalidPermissions`].
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::with_session("session");
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(11).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         post.delete().await?;
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn delete(&self) -> Result<(), PostError> {
         let user = self
             .episode
@@ -1089,6 +1403,30 @@ impl Poster {
     }
 
     /// Returns poster username.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6054, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(70).await? {
+    ///     episode.posts_for_each(async |post| {
+    ///         let poster = post.poster();
+    ///         println!("{} left a post on episode {}", poster.username(), episode.number());
+    ///     }).await?;
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn username(&self) -> &str {
         &self.username
@@ -1224,7 +1562,11 @@ impl Eq for Post {}
 
 /// Represents a reaction for a post.
 ///
-/// These are mutually exclusive.
+/// <div class="warning">
+///
+/// **These are mutually exclusive**
+///
+/// </div>
 #[derive(Clone, Debug, Copy)]
 pub enum Reaction {
     /// User has upvoted
