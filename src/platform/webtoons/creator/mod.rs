@@ -1,4 +1,4 @@
-//! Module containing things related to a creator on webtoons.com.
+//! Module containing things related to a creator on `webtoons.com`.
 
 use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
@@ -8,9 +8,37 @@ use std::sync::Arc;
 
 use super::{Client, Language, Type, Webtoon, errors::CreatorError};
 
-/// Represents a creator of a webtoon.
+/// Represents a creator of a `Webtoon`.
 ///
-/// More generally this represents an account on webtoons.com.
+/// More generally this represents an account on `webtoons.com`.
+///
+/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::creator()`].
+///
+/// # Accounts and Languages
+///
+/// Not all languages support accounts, and the functionality of `Creator` will be more limited on those languages. This
+/// is also true for Korean stories that have been brought over and translated. Rarely will the Korean creator have an
+/// account on `webtoons.com`.
+///
+/// Some functionality works with such accountless creators, but it depends on the function. Read the method docs for more
+/// info.
+///
+/// # Example
+///
+/// ```
+/// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Error> {
+/// let client = Client::new();
+///
+/// let Some(creator) = client.creator("s0s2", Language::En).await? else {
+///     unreachable!("profile is known to exist");
+/// };
+///
+/// assert_eq!("s0s2", creator.username());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Creator {
     pub(super) client: Client,
@@ -43,27 +71,77 @@ pub(super) struct Page {
 
 impl Creator {
     /// Returns a `Creators` username.
-    #[must_use]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("hanzaart", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// assert_eq!("Hanza Art", creator.username());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn username(&self) -> &str {
         &self.username
     }
 
     /// Returns a `Creators` profile segment in `https://www.webtoons.com/*/creator/{profile}`
     ///
-    /// Not all creators for a story have a webtoons profile (Korean stories for example).
-    #[must_use]
+    /// Not all creators for a story have a `webtoons.com` profile (Korean stories for example).
+    ///
+    /// - If constructed via [`Client::creator()`], then this will always be `Some`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("MaccusNormann", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// assert_eq!(Some("MaccusNormann"), creator.profile());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
 
     /// Returns a `Creators` id.
     ///
-    /// Sometimes this is just the `profile` but with the `_` prefix stripped.
-    /// If creator has no webtoon profile then this will always return `None`.
+    /// Sometimes this is just the [`profile()`](Creator::profile()) with the `_` prefix stripped.
     ///
-    /// # Errors
+    /// If creator has no webtoon profile, then this will always return `None`.
     ///
-    /// Will error if failed to scrape the creators profile page.
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("MaccusNormann", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// assert_eq!(Some("w7ml9"), creator.id().await?.as_deref());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.id.clone()))
@@ -81,8 +159,28 @@ impl Creator {
 
     /// Returns the number of followers for the `Creator`.
     ///
-    /// Will return `None` if profile page is not supported for language version.
-    /// - French, German, Korean, and Chinese.
+    /// Will return `None` if profile page is not a supported language:
+    /// - French
+    /// - German
+    /// - Korean
+    /// - Chinese.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("g8dak", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// println!("{} has {:?} followers!", creator.username(), creator.followers().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.followers))
@@ -98,21 +196,43 @@ impl Creator {
         }
     }
 
-    /// Scrapes the profile page for the public facing webtoons.
+    /// Returns a list of [`Webtoon`] that the creator is/was involved with.
     ///
     /// # Returns
     ///
     /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`.
+    ///
     /// This is for creators where there are no profile, either due to being a Korean based creator,
-    /// or the language version of webtoons.com does not support profile pages.
+    /// or that the language version of `webtoons.com` does not support profile pages.
     ///
-    /// **Unsupported Languages**: Korean, Chinese, French, and German.
+    /// The webtoons returned are only those that are publicly viewable. If there are no viewable webtoons, it will return an empty `Vec`.
     ///
-    /// If there are no viewable webtoons, it will return an empty `Vec`.
+    /// **Unsupported Languages**:
+    /// - Korean
+    /// - Chinese
+    /// - French
+    /// - German.
     ///
-    /// # Errors
+    /// # Example
     ///
-    /// Will error if scrape encountered an unexpected html shape, or if network request encounter issues.
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("jayessart", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// if let Some(webtoons) = creator.webtoons().await? {
+    ///     for webtoon in webtoons  {
+    ///         println!("{} is/was involved in making {}", creator.username(), webtoon.title().await?);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
         let Some(profile) = self
             .profile
@@ -176,9 +296,32 @@ impl Creator {
         Ok(Some(webtoons))
     }
 
-    /// Returns if creator has a Patreon linked to their account.
+    /// Returns if creator has a `Patreon` linked to their account.
     ///
     /// Will return `None` if the language version of the site doesn't support profile pages.
+    ///
+    /// **Unsupported Languages**:
+    /// - Korean
+    /// - Chinese
+    /// - French
+    /// - German.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(creator) = client.creator("u8ehb", Language::En).await? else {
+    ///     unreachable!("profile is known to exist");
+    /// };
+    ///
+    /// assert_eq!(Some(true), creator.has_patreon().await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
         if let Some(page) = &*self.page.read() {
             Ok(Some(page.has_patreon))
@@ -192,41 +335,6 @@ impl Creator {
             *self.page.write() = page;
             Ok(has_patreon)
         }
-    }
-
-    /// Clears the cached metadata for the current `Creator`, forcing future requests to retrieve fresh data from the network.
-    ///
-    /// ### Behavior
-    ///
-    /// - **Cache Eviction**:
-    ///   - This method clears the cached creator metadata (such as username, followers, and other page information) that has been stored for performance reasons.
-    ///   - After calling this method, subsequent calls that rely on this metadata will trigger a network request to re-fetch the data.
-    ///
-    /// ### Use Case
-    ///
-    /// - Use this method if you suspect the cached data is outdated or if you want to ensure that future data retrieval reflects the latest updates from the creator's page.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// # let client = Client::new();
-    /// # if let Some(creator) = client.creator("JennyToons", Language::En).await? {
-    /// creator.evict_cache().await;
-    /// println!("Cache cleared. Future requests will fetch fresh data.");
-    /// # }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// ### Notes
-    ///
-    /// - There are no errors returned from this function, as it only resets the cache.
-    /// - Cache eviction is useful if the creators metadata has changed or if up-to-date information is needed for further operations.
-    pub async fn evict_cache(&self) {
-        *self.page.write() = None;
     }
 }
 

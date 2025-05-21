@@ -1,4 +1,4 @@
-//! Errors that can happen when interacting with webtoons.com.
+//! Errors that can happen when interacting with `webtoons.com`.
 
 use thiserror::Error;
 
