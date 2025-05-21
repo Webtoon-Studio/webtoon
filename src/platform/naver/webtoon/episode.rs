@@ -1080,7 +1080,7 @@ impl Episodes {
 
     /// Creates an immutable slice iterator that does not consume `self`.
     pub fn iter(&self) -> std::slice::Iter<'_, Episode> {
-        <&Self as IntoIterator>::into_iter(self)
+        self.episodes.iter()
     }
 
     /// Gets the episode from the collection.
@@ -1126,6 +1126,15 @@ impl From<Vec<Episode>> for Episodes {
                 .expect("max episode number should fit within `u16`"),
             episodes,
         }
+    }
+}
+
+impl IntoIterator for Episodes {
+    type Item = Episode;
+    type IntoIter = std::vec::IntoIter<Episode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.episodes.into_iter()
     }
 }
 

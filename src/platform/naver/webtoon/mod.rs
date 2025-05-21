@@ -523,7 +523,7 @@ impl Webtoon {
     /// let episodes = webtoon.episodes().await?;
     /// println!("Total episodes: {}", episodes.count());
     ///
-    /// for episode in &episodes {
+    /// for episode in episodes {
     ///     println!("Episode title: {}", episode.title().await?);
     ///
     ///     // Episodes behind cookies do not have a published date.

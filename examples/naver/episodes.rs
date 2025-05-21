@@ -9,7 +9,7 @@ async fn main() -> Result<(), Error> {
         .await?
         .expect("webtoon is known to exist");
 
-    for episode in &webtoon.episodes().await? {
+    for episode in webtoon.episodes().await? {
         println!("title: {}", episode.title().await?);
         println!("number: {}", episode.number());
         println!("thumbnail: {}", episode.thumbnail().await?);
