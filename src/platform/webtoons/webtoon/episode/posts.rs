@@ -143,6 +143,11 @@ impl Posts {
         self.posts.first()
     }
 
+    /// Returns the last post, or `None` if it is empty.
+    pub fn last(&self) -> Option<&Post> {
+        self.posts.last()
+    }
+
     /// Creates an iterator which uses a closure to determine if an element
     /// should be yielded.
     ///
@@ -295,8 +300,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(70).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         println!("id: {}", post.id());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         assert_eq!(post.id(), "GW-epicom:0-w_6054_70-1");
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
@@ -326,8 +331,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         println!("parent id: {}", post.parent_id());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         assert_eq!( post.parent_id(), "GW-epicom:0-w_6054_50-1");
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
@@ -356,8 +361,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(60).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         assert_eq!("Let the Games begin!", post.body().contents());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         assert_eq!("If Nerys is not Queen… the election is rigged", post.body().contents());
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
@@ -384,8 +389,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         assert_eq!(0, post.upvotes());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         println!("upvotes: {}", post.upvotes());
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
@@ -412,8 +417,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         assert_eq!(0, post.downvotes());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         println!("downvotes: {}", post.downvotes());
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
@@ -440,7 +445,7 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
+    ///     if let Some(post) = episode.posts().await?.last() {
     ///         assert!(post.is_comment());
     ///         # return Ok(());
     ///     }
@@ -468,7 +473,7 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(20).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
+    ///     if let Some(post) = episode.posts().await?.last() {
     ///         assert!(!post.is_reply());
     ///         # return Ok(());
     ///     }
@@ -496,7 +501,7 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(10).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
+    ///     if let Some(post) = episode.posts().await?.last() {
     ///         assert!(!post.is_top());
     ///         # return Ok(());
     ///     }
@@ -586,8 +591,8 @@ impl Post {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
-    ///     if let Some(post) = episode.posts().await?.first() {
-    ///         assert_eq!(1747797457021, post.posted());
+    ///     if let Some(post) = episode.posts().await?.last() {
+    ///         assert_eq!(1709085249648, post.posted());
     ///         # return Ok(());
     ///     }
     /// # unreachable!("should have entered the post block and returned");
