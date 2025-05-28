@@ -41,7 +41,7 @@ To use this library, add `webtoon` to your `Cargo.toml`:
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-webtoon = "0.7.0"
+webtoon = "0.8.0"
 ```
 
 ## Quick-Start
