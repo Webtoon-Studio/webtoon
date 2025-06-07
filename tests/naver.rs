@@ -57,6 +57,31 @@ async fn webtoon_shouldnt_exist() -> Result<(), Error> {
 }
 
 #[tokio::test]
+async fn episode() -> Result<(), Error> {
+    let client = Client::new();
+
+    let Some(webtoon) = client.webtoon(838432).await? else {
+        panic!("No webtoon of given id exits");
+    };
+
+    let episode = webtoon
+        .episode(1)
+        .await?
+        .expect("Episode 1 should always exist");
+
+    println!("title: {}", episode.title().await?);
+    println!("number: {}", episode.number());
+    println!("season: {:?}", episode.season().await?);
+    println!("likes: {}", episode.likes().await?);
+    let (comments, replies) = episode.comments_and_replies().await?;
+    println!("comments: {comments}");
+    println!("replies: {replies}");
+    println!("length: {:?}", episode.length().await?);
+
+    return Ok(());
+}
+
+#[tokio::test]
 async fn posts() -> Result<(), Error> {
     let client = Client::new();
 
