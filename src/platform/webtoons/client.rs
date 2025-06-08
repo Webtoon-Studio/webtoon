@@ -1540,8 +1540,8 @@ impl Default for Client {
 /// let user_info = client.user_info_for_session("session").await?;
 ///
 /// assert!(!user_info.is_logged_in());
-/// assert_eq!("username", user_info.username());
-/// assert_eq!("profile", user_info.profile());
+/// assert_eq!(Some("username"), user_info.username());
+/// assert_eq!(Some("profile"), user_info.profile());
 /// # Ok(())
 /// # }
 /// ```
@@ -1551,10 +1551,10 @@ pub struct UserInfo {
     is_logged_in: bool,
 
     #[serde(rename = "nickname")]
-    username: String,
+    username: Option<String>,
 
     #[serde(rename = "profileUrl")]
-    profile: String,
+    profile: Option<String>,
 }
 
 impl UserInfo {
@@ -1583,6 +1583,8 @@ impl UserInfo {
 
     /// Returns the users' username.
     ///
+    /// If the session provided is invalid, then `username` will be `None`.
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -1593,17 +1595,19 @@ impl UserInfo {
     ///
     /// let user_info = client.user_info_for_session("session").await?;
     ///
-    /// assert_eq!("username", user_info.username());
+    /// assert_eq!(Some("username"), user_info.username());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub fn username(&self) -> &str {
-        &self.username
+    pub fn username(&self) -> Option<&str> {
+        self.username.as_deref()
     }
 
     /// Returns the profile segment for `webtoons.com/*/creator/{profile}`.
     ///
+    /// If the session provided is invalid, then `profile` will be `None`.
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -1614,13 +1618,13 @@ impl UserInfo {
     ///
     /// let user_info = client.user_info_for_session("session").await?;
     ///
-    /// assert_eq!("", user_info.profile());
+    /// assert_eq!(Some("profile"), user_info.profile());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub fn profile(&self) -> &str {
-        &self.profile
+    pub fn profile(&self) -> Option<&str> {
+        self.profile.as_deref()
     }
 }
 
