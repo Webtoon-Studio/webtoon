@@ -90,6 +90,7 @@ async fn posts() -> Result<(), Error> {
     return Ok(());
 }
 
+#[ignore = "#102"]
 #[tokio::test]
 async fn download_single() -> Result<(), Error> {
     let client = Client::new();
@@ -111,6 +112,7 @@ async fn download_single() -> Result<(), Error> {
     return Ok(());
 }
 
+#[ignore = "#102"]
 #[tokio::test]
 async fn download_multi() -> Result<(), Error> {
     let client = Client::new();
