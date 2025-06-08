@@ -3,6 +3,22 @@ use webtoon::platform::webtoons::{
 };
 
 #[tokio::test]
+async fn user_info_should_deserialize_even_with_invalid_session() -> Result<(), Error> {
+    let client = Client::new();
+
+    let user_info = client
+        .user_info_for_session("not-a-real-session")
+        .await
+        .unwrap();
+
+    assert_eq!(None, user_info.username());
+    assert_eq!(None, user_info.profile());
+    assert!(!user_info.is_logged_in());
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn search() -> Result<(), Error> {
     let client = Client::new();
 
