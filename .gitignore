@@ -1,3 +1,3 @@
 target/*
-examples/panels
+tests/panels
 Cargo.lock

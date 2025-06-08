@@ -143,7 +143,7 @@ async fn posts() -> Result<(), Error> {
 }
 
 #[tokio::test]
-async fn download() -> Result<(), Error> {
+async fn download_single() -> Result<(), Error> {
     let client = Client::new();
 
     let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
@@ -156,9 +156,26 @@ async fn download() -> Result<(), Error> {
     let panels = episode.download().await?;
 
     // Save as a single, long image.
-    panels.save_single("examples/panels").await.unwrap();
+    panels.save_single("tests/panels").await.unwrap();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn download_multi() -> Result<(), Error> {
+    let client = Client::new();
+
+    let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
+
+    let episode = webtoon
+        .episode(1)
+        .await?
+        .expect("No episode for given number");
+
+    let panels = episode.download().await?;
+
     // Save each individual panel as a separate image.
-    panels.save_multiple("examples/panels").await.unwrap();
+    panels.save_multiple("tests/panels").await.unwrap();
 
     Ok(())
 }
