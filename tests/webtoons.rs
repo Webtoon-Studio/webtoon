@@ -72,7 +72,7 @@ async fn canvas_page() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn webtoon() -> Result<(), Error> {
+async fn webtoon_canvas() -> Result<(), Error> {
     let client = match std::env::var("WEBTOON_SESSION") {
         Ok(session) if !session.is_empty() => Client::with_session(&session),
         _ => Client::new(),
@@ -80,6 +80,40 @@ async fn webtoon() -> Result<(), Error> {
 
     let webtoon = client.webtoon_from_url(
         "https://www.webtoons.com/en/canvas/testing-service/list?title_no=843910",
+    )?;
+
+    let _title = webtoon.title().await.unwrap();
+    let _thumbnail = webtoon.thumbnail().await.unwrap();
+    let _banner = webtoon.banner().await.unwrap();
+    let _lang = webtoon.language();
+    let _creators = webtoon.creators().await.unwrap();
+    let _genres = webtoon.genres().await.unwrap();
+    let _schedule = webtoon.schedule().await.unwrap();
+    let _views = webtoon.views().await.unwrap();
+    let _likes = webtoon.likes().await.unwrap();
+    let _subscribers = webtoon.subscribers().await.unwrap();
+    let _rating = webtoon.rating().await.unwrap();
+    let _summary = webtoon.summary().await.unwrap();
+
+    if client.has_valid_session().await.is_ok_and(|result| result) {
+        webtoon.rate(10).await.unwrap();
+        webtoon.is_subscribed().await.unwrap();
+        webtoon.subscribe().await.unwrap();
+        webtoon.unsubscribe().await.unwrap();
+    }
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn webtoon_original() -> Result<(), Error> {
+    let client = match std::env::var("WEBTOON_SESSION") {
+        Ok(session) if !session.is_empty() => Client::with_session(&session),
+        _ => Client::new(),
+    };
+
+    let webtoon = client.webtoon_from_url(
+        "https://www.webtoons.com/en/romance/i-am-the-villain/list?title_no=4937",
     )?;
 
     let _title = webtoon.title().await.unwrap();
