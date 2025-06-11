@@ -834,8 +834,12 @@ impl Client {
 
 // Internal only impls
 impl Client {
-    pub(super) async fn get_originals_page(&self, lang: Language) -> Result<Response, ClientError> {
-        let url = format!("https://www.webtoons.com/{lang}/originals");
+    pub(super) async fn get_originals_page(
+        &self,
+        lang: Language,
+        day: &str,
+    ) -> Result<Response, ClientError> {
+        let url = format!("https://www.webtoons.com/{lang}/originals/{day}");
         let response = self.http.get(&url).retry().send().await?;
 
         Ok(response)
