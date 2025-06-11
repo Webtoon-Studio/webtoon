@@ -169,7 +169,7 @@ pub struct Client {
 
 // Creation impls
 impl Client {
-    /// Instantiates a new [`Client`] with the default user agent: `webtoon/VERSION`.
+    /// Instantiates a new [`Client`] with the default user agent: (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`).
     ///
     /// This method configures a basic `Client` with standard settings. If default
     /// configurations are sufficient, this is the simplest way to create a `Client`.
