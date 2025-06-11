@@ -1,3 +1,28 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## What's Changed in 0.8.0
+* doc: correct the default `user-agent` for clients by @RoloEdits in [#110](https://github.com/Webtoon-Studio/webtoon/pull/110)
+* fix(webtoons): accommodate new UI changes for originals by @RoloEdits in [#109](https://github.com/Webtoon-Studio/webtoon/pull/109)
+* chore: add `panels` to `.gitignore` by @RoloEdits in [#108](https://github.com/Webtoon-Studio/webtoon/pull/108)
+* test(naver): add `episode` test by @RoloEdits in [#107](https://github.com/Webtoon-Studio/webtoon/pull/107)
+* chore: add `test` task to `Justfile` by @RoloEdits in [#106](https://github.com/Webtoon-Studio/webtoon/pull/106)
+* refactor(webtoons): remove `thumbnail` for `Originals` by @RoloEdits in [#105](https://github.com/Webtoon-Studio/webtoon/pull/105)
+* ci: add `--no-fail-fast` to tests by @RoloEdits in [#103](https://github.com/Webtoon-Studio/webtoon/pull/103)
+* chore: add `examples/panels` to `.gitignore` by @RoloEdits in [#98](https://github.com/Webtoon-Studio/webtoon/pull/98)
+* fix(webtoons): make fields optional in `UserInfo` by @RoloEdits in [#101](https://github.com/Webtoon-Studio/webtoon/pull/101)
+* test: separate download tests to `*_single|multi` by @RoloEdits in [#99](https://github.com/Webtoon-Studio/webtoon/pull/99)
+* tests(webtoons): fix spurious tests by using oldest post by @RoloEdits in [#96](https://github.com/Webtoon-Studio/webtoon/pull/96)
+* docs: refine `webtoons` like `naver` by @RoloEdits in [#90](https://github.com/Webtoon-Studio/webtoon/pull/90)
+* refactor(naver): add consuming `IntoIterator` for `Episodes` by @RoloEdits in [#95](https://github.com/Webtoon-Studio/webtoon/pull/95)
+* build: use `mold` as `linux-gnu` linker by @RoloEdits in [#94](https://github.com/Webtoon-Studio/webtoon/pull/94)
+* fix(naver): parse creator followers with less specific selector by @RoloEdits in [#93](https://github.com/Webtoon-Studio/webtoon/pull/93)
+* fix(webtoons): also parse `Graphic Novel` as a genre by @RoloEdits in [#91](https://github.com/Webtoon-Studio/webtoon/pull/91)
+* feat!: add platform support for `naver` by @RoloEdits in [#89](https://github.com/Webtoon-Studio/webtoon/pull/89)
+
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.7.0...0.8.0
+
 ## What's Changed in 0.7.0
 * chore: bump version from `0.6.1` to `0.7.0` by @RoloEdits in [#88](https://github.com/Webtoon-Studio/webtoon/pull/88)
 * chore: remove trailing spaces from end of lines by @RoloEdits in [#87](https://github.com/Webtoon-Studio/webtoon/pull/87)
