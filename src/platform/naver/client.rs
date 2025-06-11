@@ -75,7 +75,7 @@ impl Default for ClientBuilder {
 impl ClientBuilder {
     /// Creates a new `ClientBuilder` with default settings.
     ///
-    /// This includes a default user agent (`webtoon/VERSION`), and is the starting point for configuring a `Client`.
+    /// This includes a default user agent (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`), and is the starting point for configuring a `Client`.
     ///
     /// # Example
     ///
@@ -99,7 +99,7 @@ impl ClientBuilder {
 
     /// Sets a custom `User-Agent` header for the [`Client`].
     ///
-    /// By default, the user agent is set to `webtoon/VERSION`, but this can be overridden using this method.
+    /// By default, the user agent is set to (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`), but this can be overridden using this method.
     ///
     /// # Example
     ///
