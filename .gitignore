@@ -1,4 +1,5 @@
 target/*
 examples/panels
 tests/panels
+panels
 Cargo.lock
