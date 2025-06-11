@@ -31,7 +31,7 @@ pub struct Page {
     subscribers: u32,
     rating: f64,
     schedule: Option<Schedule>,
-    thumbnail: Url,
+    thumbnail: Option<Url>,
     banner: Option<Url>,
     pages: u16,
 }
@@ -99,8 +99,8 @@ impl Page {
     }
 
     #[inline]
-    pub(crate) fn thumbnail(&self) -> &str {
-        self.thumbnail.as_str()
+    pub(crate) fn thumbnail(&self) -> Option<&str> {
+        self.thumbnail.as_ref().map(|url| url.as_str())
     }
 
     #[inline]

@@ -1,7 +1,6 @@
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
-use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use std::{str::FromStr, sync::Arc};
 use url::Url;
@@ -30,7 +29,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             subscribers: subscribers(html)?,
             rating: rating(html)?,
             schedule: Some(schedule(html)?),
-            thumbnail: original_thumbnail(html)?,
+            thumbnail: None,
             banner: Some(banner(html)?),
             pages: calculate_total_pages(html)?,
         },
@@ -43,7 +42,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             subscribers: subscribers(html)?,
             rating: rating(html)?,
             schedule: None,
-            thumbnail: canvas_thumbnail(html)?,
+            thumbnail: Some(canvas_thumbnail(html)?),
             banner: Some(banner(html)?),
             pages: calculate_total_pages(html)?,
         },
@@ -345,35 +344,8 @@ pub(super) fn summary(html: &Html) -> Result<String, WebtoonError> {
     Ok(summary)
 }
 
-pub fn original_thumbnail(html: &Html) -> Result<Url, WebtoonError> {
-    // `h1.subj` for featured `h3.subj` for challenge_list.
-    let selector = Selector::parse(r".detail_body") //
-        .expect("`.detail_body` should be a valid selector");
-
-    let style = html
-        .select(&selector)
-        .next()
-        .context("`.detail_body` is missing: webtoon should display a thumbnail for originals on the page")?
-        .attr("style")
-        .context("`style` is missing, `r.detail_body` should always have one")?;
-
-    let rgx = Regex::new(r"url\((?<url>.+)\)").expect("regex should be valid");
-
-    let cap = rgx
-        .captures(style)
-        .context("failed to find thumbail url on page: should have `url(...)` in style tag")?;
-
-    // Url is surrounded by single quotes: `'`
-    let url = cap["url"].trim_matches('\'');
-
-    let mut thumbnail = Url::parse(url)?;
-
-    thumbnail
-        // This host doesn't need a `referer` header to see the image.
-        .set_host(Some("swebtoon-phinf.pstatic.net"))
-        .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
-
-    Ok(thumbnail)
+pub fn _original_thumbnail(_html: &Html) -> Result<Url, WebtoonError> {
+    todo!()
 }
 
 pub(super) fn canvas_thumbnail(html: &Html) -> Result<Url, WebtoonError> {

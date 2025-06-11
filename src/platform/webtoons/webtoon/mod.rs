@@ -445,7 +445,9 @@ impl Webtoon {
         }
     }
 
-    /// Returns the thumbnail url for this `Webtoon`.
+    /// Returns the thumbnail `url` for this `Webtoon`.
+    ///
+    /// If `Webtoon` is an [`Original`](variant@Type::Original), this will return `None`.
     ///
     /// # Example
     ///
@@ -455,20 +457,25 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(7182, Type::Original).await? else {
+    /// let Some(webtoon) = client.webtoon(19985, Type::Canvas).await? else {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// println!("thumbnail for {} can be found here {}", webtoon.title().await?, webtoon.thumbnail().await?);
+    /// if let Some(thumbnail) = webtoon.thumbnail().await? {
+    ///     println!("thumbnail for {} can be found here {thumbnail}", webtoon.title().await?);
+    ///     # return Ok(());
+    /// }
+    ///
+    /// # unreachable!("should have entered the thumbail block");
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn thumbnail(&self) -> Result<String, WebtoonError> {
+    pub async fn thumbnail(&self) -> Result<Option<String>, WebtoonError> {
         if let Some(page) = &*self.page.read() {
-            Ok(page.thumbnail().to_owned())
+            Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
         } else {
             let page = page::scrape(self).await?;
-            let thumbnail = page.thumbnail().to_owned();
+            let thumbnail = page.thumbnail().map(|thumbnail| thumbnail.to_string());
             *self.page.write() = Some(page);
             Ok(thumbnail)
         }
