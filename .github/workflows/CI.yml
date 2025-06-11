@@ -17,7 +17,7 @@ jobs:
     - name: Run tests
       env:
         RUST_BACKTRACE: 1
-      run: cargo test --verbose --all-features --release
+      run: cargo test --verbose --all-features --release --no-fail-fast
   test-with-session:
     runs-on: ubuntu-latest
     steps:
@@ -27,7 +27,7 @@ jobs:
       env:
         WEBTOON_SESSION: ${{ secrets.WEBTOON_SESSION }}
         RUST_BACKTRACE: 1
-      run: cargo test --verbose --all-features --release
+      run: cargo test --verbose --all-features --release --no-fail-fast
   fmt:
     runs-on: ubuntu-latest
     steps:
