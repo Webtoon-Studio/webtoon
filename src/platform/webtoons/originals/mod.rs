@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 // mod genres;
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -15,21 +15,43 @@ pub(super) async fn scrape(
     language: Language,
 ) -> Result<Vec<Webtoon>, OriginalsError> {
     // NOTE: Currently all languages follow this pattern
-    let selector = Selector::parse("ul.daily_card>li>a") //
-        .expect("`ul.daily_card>li>a` should be a valid selector");
+    let selector = Selector::parse("ul.webtoon_list>li>a") //
+        .expect("`ul.webtoon_list>li>a` should be a valid selector");
 
     let mut webtoons = Vec::with_capacity(1000);
 
-    let document = client.get_originals_page(language).await?.text().await?;
+    let days = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "completed",
+    ];
 
-    let html = Html::parse_document(&document);
+    for day in days {
+        let document = client
+            .get_originals_page(language, day)
+            .await?
+            .text()
+            .await?;
 
-    for card in html.select(&selector) {
-        let href = card
-            .attr("href")
-            .context("`href` is missing, `a` tag should always have one")?;
+        let html = Html::parse_document(&document);
+        for card in html.select(&selector) {
+            let href = card
+                .attr("href")
+                .context("`href` is missing, `a` tag should always have one")?;
 
-        webtoons.push(Webtoon::from_url_with_client(href, client)?);
+            webtoons.push(Webtoon::from_url_with_client(href, client)?);
+        }
+    }
+
+    if webtoons.is_empty() {
+        return Err(OriginalsError::Unexpected(anyhow!(
+            "Failed to scrape the originals page for webtoons"
+        )));
     }
 
     Ok(webtoons)

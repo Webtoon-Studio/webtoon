@@ -10,8 +10,8 @@ async fn main() -> anyhow::Result<()> {
     let thirty_days_ago = chrono::Utc::now() - Duration::days(30);
 
     for webtoon in webtoons {
-        // Need to use `first_episode` is a specialized way to get this kind of data, with `published` yielding `Some`
-        // where `episode(1)` would yield `None`.
+        // `first_episode` is a specialized way to get this kind of data
+        //  with `published` yielding `Some` where `episode(1)` would yield `None`.
         let first_episode = webtoon.first_episode().await?;
 
         // Check for all Webtoons who's first episode was published within the last 30 days.
