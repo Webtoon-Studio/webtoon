@@ -16,7 +16,7 @@ jobs:
     - name: Run tests
       env:
         RUST_BACKTRACE: 1
-      run: cargo test --verbose --all-features --release --no-fail-faste
+      run: cargo test --verbose --all-features --release --no-fail-fast
   test-with-session:
     runs-on: ubuntu-latest
     steps:
