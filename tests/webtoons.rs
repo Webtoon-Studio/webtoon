@@ -92,11 +92,9 @@ async fn webtoon_canvas() -> Result<(), Error> {
     let _views = webtoon.views().await.unwrap();
     let _likes = webtoon.likes().await.unwrap();
     let _subscribers = webtoon.subscribers().await.unwrap();
-    let _rating = webtoon.rating().await.unwrap();
     let _summary = webtoon.summary().await.unwrap();
 
     if client.has_valid_session().await.is_ok_and(|result| result) {
-        webtoon.rate(10).await.unwrap();
         webtoon.is_subscribed().await.unwrap();
         webtoon.subscribe().await.unwrap();
         webtoon.unsubscribe().await.unwrap();
@@ -126,11 +124,9 @@ async fn webtoon_original() -> Result<(), Error> {
     let _views = webtoon.views().await.unwrap();
     let _likes = webtoon.likes().await.unwrap();
     let _subscribers = webtoon.subscribers().await.unwrap();
-    let _rating = webtoon.rating().await.unwrap();
     let _summary = webtoon.summary().await.unwrap();
 
     if client.has_valid_session().await.is_ok_and(|result| result) {
-        webtoon.rate(10).await.unwrap();
         webtoon.is_subscribed().await.unwrap();
         webtoon.subscribe().await.unwrap();
         webtoon.unsubscribe().await.unwrap();

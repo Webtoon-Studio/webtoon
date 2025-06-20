@@ -27,7 +27,6 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             summary: summary(html)?,
             views: views(html)?,
             subscribers: subscribers(html)?,
-            rating: rating(html)?,
             schedule: Some(schedule(html)?),
             thumbnail: None,
             banner: Some(banner(html)?),
@@ -40,7 +39,6 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             summary: summary(html)?,
             views: views(html)?,
             subscribers: subscribers(html)?,
-            rating: rating(html)?,
             schedule: None,
             thumbnail: Some(canvas_thumbnail(html)?),
             banner: Some(banner(html)?),
@@ -266,21 +264,6 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
             .parse::<u32>()
             .context(subscribers)?),
     }
-}
-
-pub(super) fn rating(html: &Html) -> Result<f64, WebtoonError> {
-    let selector = Selector::parse(r"em#_starScoreAverage") //
-        .expect("`em#_starScoreAverage` should be a valid selector");
-
-    let rating = html
-        .select(&selector)
-        .next()
-        .context("`em#_starScoreAverage` is missing: webtoons displays the rating")?
-        .text()
-        .next()
-        .context("`em#_starScoreAverage` was found but no text was present")?;
-
-    Ok(rating.parse::<f64>().with_context(|| rating.to_string())?)
 }
 
 // NOTE: Could also parse from the json on the story page `logParam`

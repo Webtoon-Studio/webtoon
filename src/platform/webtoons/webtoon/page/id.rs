@@ -21,7 +21,6 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             summary: super::en::summary(html)?,
             views: views(html)?,
             subscribers: subscribers(html)?,
-            rating: rating(html)?,
             schedule: Some(schedule(html)?),
             thumbnail: None,
             banner: Some(super::en::banner(html)?),
@@ -34,7 +33,6 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             summary: super::en::summary(html)?,
             views: views(html)?,
             subscribers: subscribers(html)?,
-            rating: rating(html)?,
             schedule: None,
             thumbnail: Some(super::en::canvas_thumbnail(html)?),
             banner: Some(super::en::banner(html)?),
@@ -108,22 +106,6 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
             .parse::<u32>()
             .context(subscribers)?),
     }
-}
-
-fn rating(html: &Html) -> Result<f64, WebtoonError> {
-    let selector = Selector::parse(r"em#_starScoreAverage") //
-        .expect("`em#_starScoreAverage` should be a valid selector");
-
-    let rating = html
-        .select(&selector)
-        .next()
-        .context("`em#_starScoreAverage` is missing: webtoons displays the rating")?
-        .text()
-        .next()
-        .context("`em#_starScoreAverage` was found but no text was present")?
-        .replace(',', ".");
-
-    Ok(rating.parse::<f64>().context(rating)?)
 }
 
 fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
