@@ -29,7 +29,6 @@ pub struct Page {
     summary: String,
     views: u64,
     subscribers: u32,
-    rating: f64,
     schedule: Option<Schedule>,
     thumbnail: Option<Url>,
     banner: Option<Url>,
@@ -86,11 +85,6 @@ impl Page {
     #[inline]
     pub(crate) fn subscribers(&self) -> u32 {
         self.subscribers
-    }
-
-    #[inline]
-    pub(crate) fn rating(&self) -> f64 {
-        self.rating
     }
 
     #[inline]

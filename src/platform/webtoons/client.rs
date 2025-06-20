@@ -957,39 +957,6 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn post_rate_webtoon(
-        &self,
-        webtoon: &Webtoon,
-        rating: u8,
-    ) -> Result<(), ClientError> {
-        if !self.has_valid_session().await? {
-            return Err(ClientError::InvalidSession);
-        };
-
-        let url = match webtoon.scope {
-            Scope::Original(_) => "https://www.webtoons.com/setStarScore",
-            Scope::Canvas => "https://www.webtoons.com/canvas/setStarScore",
-        };
-
-        let mut form = HashMap::new();
-        form.insert("titleNo", webtoon.id.to_string());
-        form.insert("score", rating.to_string());
-
-        let session = self.session.as_ref().unwrap();
-
-        self.http
-            .post(url)
-            .header("Referer", "https://www.webtoons.com/")
-            // NOTE: `wtu` just has to have something as a value and it works
-            .header("Cookie", format!("NEO_SES={session}; wtu=WTU"))
-            .form(&form)
-            .retry()
-            .send()
-            .await?;
-
-        Ok(())
-    }
-
     pub(super) async fn get_episodes_dashboard(
         &self,
         webtoon: &Webtoon,
@@ -1638,7 +1605,6 @@ impl UserInfo {
 pub(super) struct WebtoonUserInfo {
     author: bool,
     pub(super) favorite: bool,
-    pub(super) star_score: Option<u8>,
 }
 
 impl WebtoonUserInfo {
@@ -1649,12 +1615,6 @@ impl WebtoonUserInfo {
     #[allow(unused)]
     pub fn did_rate(&self) -> bool {
         self.favorite
-    }
-
-    /// If no rating was given, this will return `None`.
-    #[allow(unused)]
-    pub fn rating_given(&self) -> Option<u8> {
-        self.star_score
     }
 }
 

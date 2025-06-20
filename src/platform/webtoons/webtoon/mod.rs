@@ -43,7 +43,7 @@ pub struct Webtoon {
     pub(super) scope: Scope,
     /// url slug of the webtoon name: Tower of God -> tower-of-god
     pub(super) slug: Arc<str>,
-    /// Cache for data on the Wetboons landing page: title, rating, etc.
+    /// Cache for data on the Wetboons landing page: title, etc.
     pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
@@ -413,35 +413,6 @@ impl Webtoon {
             let subscribers = page.subscribers();
             *self.page.write() = Some(page);
             Ok(subscribers)
-        }
-    }
-
-    /// Returns the rating for this `Webtoon`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(352, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// assert_eq!(9.56, webtoon.rating().await?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn rating(&self) -> Result<f64, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(page.rating())
-        } else {
-            let page = page::scrape(self).await?;
-            let rating = page.rating();
-            *self.page.write() = Some(page);
-            Ok(rating)
         }
     }
 
@@ -878,42 +849,6 @@ impl Webtoon {
     #[cfg(feature = "rss")]
     pub async fn rss(&self) -> Result<Rss, WebtoonError> {
         rss::feed(self).await
-    }
-
-    /// Sets the rating of the `Webtoon` for current user session.
-    ///
-    /// Values can be 1-10. Any values outside this range will be clamped to 1 or 10.
-    ///
-    /// # Session
-    ///
-    /// This method requires a valid user session to perform actions on the Webtoon.
-    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
-    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::with_session("my-session");
-    ///
-    /// let Some(webtoon) = client.webtoon(81571, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if webtoon.rate(10).await.is_ok() {
-    ///    println!("I gave {} a 10 rating!", webtoon.title().await?);
-    /// }
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn rate(&self, rating: u8) -> Result<(), WebtoonError> {
-        self.client
-            .post_rate_webtoon(self, rating.clamp(1, 10))
-            .await?;
-        Ok(())
     }
 
     /// Checks if the current user session is subscribed to the `Webtoon`.
