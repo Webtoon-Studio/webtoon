@@ -73,6 +73,6 @@ impl Display for Sort {
             Sort::Best => "BEST",
         };
 
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
