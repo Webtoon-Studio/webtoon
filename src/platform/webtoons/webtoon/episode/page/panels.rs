@@ -71,6 +71,22 @@ impl Panel {
 
 #[allow(unused, reason = "not all features use `episode`")]
 pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
+    let panels = if super::is_audio_reader(html) {
+        return Ok(Vec::new());
+    } else {
+        from_normal_reader(html, episode)?
+    };
+
+    if panels.is_empty() {
+        return Err(EpisodeError::Unexpected(anyhow!(
+            "Failed to find a single panel on episode page"
+        )));
+    }
+
+    Ok(panels)
+}
+
+fn from_normal_reader(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
     let selector = Selector::parse(r"img._images") //
         .expect("`img._images` should be a valid selector");
 
@@ -126,12 +142,6 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
             ext,
             bytes: Vec::new(),
         });
-    }
-
-    if panels.is_empty() {
-        return Err(EpisodeError::Unexpected(anyhow!(
-            "Failed to find a single panel on episode page"
-        )));
     }
 
     Ok(panels)

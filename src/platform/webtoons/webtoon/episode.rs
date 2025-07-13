@@ -303,7 +303,7 @@ impl Episode {
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
         if let Some(page) = &*self.page.read() {
-            Ok(Some(page.length))
+            Ok(page.length)
         } else {
             let page = match self.scrape().await {
                 Ok(page) => page,
@@ -314,7 +314,7 @@ impl Episode {
             let length = page.length;
             *self.page.write() = Some(page);
 
-            Ok(Some(length))
+            Ok(length)
         }
     }
 
