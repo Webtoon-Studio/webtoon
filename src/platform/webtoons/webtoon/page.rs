@@ -137,8 +137,8 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
-    // NOTE: Episodes are scraped from newest to oldest, this will make the returned Vec oldest first.
-    episodes.reverse();
+    // NOTE: Consistently return by episode order
+    episodes.sort_by(|a, b| a.number.cmp(&b.number));
 
     Ok(episodes)
 }
