@@ -6,10 +6,7 @@ use core::fmt;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
 use crate::{
-    platform::{
-        naver::client::posts::CommentList,
-        naver::{Webtoon, errors::PostError},
-    },
+    platform::naver::{Webtoon, errors::PostError},
     private::Sealed,
 };
 
@@ -526,11 +523,13 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, CommentList)> for Post {
+impl TryFrom<(&Episode, crate::platform::naver::client::posts::Post)> for Post {
     type Error = anyhow::Error;
 
     #[allow(clippy::too_many_lines)]
-    fn try_from((episode, post): (&Episode, CommentList)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (episode, post): (&Episode, crate::platform::naver::client::posts::Post),
+    ) -> Result<Self, Self::Error> {
         let id = if let Some(id) = post.id_no {
             id
         } else if let Some(id) = post.user_id_no {
@@ -773,7 +772,7 @@ impl Replies for Posts {
             .trim_start_matches("_callback(")
             .trim_end_matches(");");
 
-        let api = serde_json::from_str::<crate::platform::naver::client::posts::Posts>(text)
+        let api = serde_json::from_str::<crate::platform::naver::client::posts::PostsResult>(text)
             .with_context(|| text.to_string())?;
 
         let pages = api.result.page_model.total_pages;
@@ -802,8 +801,9 @@ impl Replies for Posts {
                 .trim_start_matches("_callback(")
                 .trim_end_matches(");");
 
-            let api = serde_json::from_str::<crate::platform::naver::client::posts::Posts>(text)
-                .with_context(|| text.to_string())?;
+            let api =
+                serde_json::from_str::<crate::platform::naver::client::posts::PostsResult>(text)
+                    .with_context(|| text.to_string())?;
 
             for reply in api.result.comment_list {
                 if reply.deleted {

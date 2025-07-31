@@ -16,11 +16,12 @@ use std::{cmp::Ordering, collections::HashSet};
 use self::page::Page;
 use self::posts::Posts;
 use crate::platform::naver::client::episodes::Sort;
+use crate::platform::naver::client::posts::{Id, PostsResult};
 use crate::platform::naver::client::{
     self,
     episodes::{Article, Root},
 };
-use crate::platform::naver::errors::{EpisodeError, PostError};
+use crate::platform::naver::errors::{ClientError, EpisodeError, PostError};
 pub use page::panels::{Panel, Panels};
 use posts::Post;
 
@@ -390,24 +391,20 @@ impl Episode {
     /// # }
     /// ```
     pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostError> {
-        use crate::platform::naver::client::posts::Posts;
+        use crate::platform::naver::client::posts::PostsResult;
 
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, 15, client::posts::Sort::Best)
+            .get_posts_for_episode(self, None, 1)
             .await?
             .text()
             .await?;
 
-        let txt = response
-            .trim_start_matches("_callback(")
-            .trim_end_matches(");");
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        let api = serde_json::from_str::<Posts>(txt).with_context(|| txt.to_string())?;
-
-        let comments = api.result.count.comment;
-        let replies = api.result.count.reply;
+        let comments = api.result.active_root_post_count;
+        let replies = api.result.active_post_count - comments;
 
         Ok((comments, replies))
     }
@@ -495,81 +492,85 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, 100, client::posts::Sort::New)
+            .get_posts_for_episode(self, None, 100)
             .await?
             .text()
             .await?;
 
-        let text = response
-            .trim_start_matches("_callback(")
-            .trim_end_matches(");");
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        let api =
-            serde_json::from_str::<client::posts::Posts>(text).with_context(|| text.to_string())?;
-
-        let pages = api.result.page_model.total_pages;
+        let mut next: Option<Id> = api.result.pagination.next;
 
         // Add first posts
-        for post in api.result.comment_list {
-            if post.deleted {
-                continue;
-            }
-
-            posts.insert(Post::try_from((self, post)).with_context(|| text.to_string())?);
+        for post in api.result.posts {
+            posts.insert(Post::try_from((self, post))?);
         }
 
-        for page in 2..pages {
+        // Get rest if any
+        while let Some(cursor) = next {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, page, 100, client::posts::Sort::New)
+                .get_posts_for_episode(self, Some(cursor), 100)
                 .await?
                 .text()
                 .await?;
 
-            let text = response
-                .trim_start_matches("_callback(")
-                .trim_end_matches(");");
+            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-            let api = serde_json::from_str::<client::posts::Posts>(text)
-                .with_context(|| text.to_string())?;
-
-            for post in api.result.comment_list {
-                if post.deleted {
-                    continue;
-                }
-
-                posts.insert(Post::try_from((self, post)).with_context(|| text.to_string())?);
+            for post in api.result.posts {
+                posts.replace(Post::try_from((self, post))?);
             }
+
+            next = api.result.pagination.next;
         }
+
+        // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
+        // This extra step to the other API is a one off to get only the top comment info attached to
+        // the top 3 posts.
+        let page_id = format!(
+            "{}_{}_{}",
+            if matches!(
+                self.webtoon.r#type(),
+                crate::platform::naver::Type::BestChallenge
+                    | crate::platform::naver::Type::Challenge
+            ) {
+                "challenge"
+            } else {
+                "webtoon"
+            },
+            self.webtoon.id(),
+            self.number
+        );
+
+        let url = format!(
+            "https://comic.naver.com/comment/api/community/v1/page/{page_id}/top-recent-posts?topCount=15&recentTopCount=0&pinRepresentation=distinct"
+        );
 
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, 15, client::posts::Sort::New)
-            .await?
+            .http
+            .get(url)
+            .header("Service-Ticket-Id", "comic_webtoon")
+            .send()
+            .await
+            .map_err(|err| ClientError::Unexpected(err.into()))?
             .text()
             .await?;
 
-        let text = response
-            .trim_start_matches("_callback(")
-            .trim_end_matches(");");
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        let api =
-            serde_json::from_str::<client::posts::Posts>(text).with_context(|| text.to_string())?;
-
-        // Add `is_top` info to posts
-        for post in api.result.comment_list {
-            if post.deleted {
-                continue;
+        if let Some(tops) = api.result.tops {
+            for post in tops {
+                posts.replace(Post::try_from((self, post))?);
             }
-
-            posts.replace(Post::try_from((self, post)).with_context(|| text.to_string())?);
         }
 
-        let posts = Posts {
-            posts: posts.into_iter().collect(),
-        };
+        let posts: Vec<Post> = posts.into_iter().collect();
+        let mut posts = Posts { posts };
+
+        posts.sort_by_newest();
 
         Ok(posts)
     }
@@ -618,55 +619,82 @@ impl Episode {
     /// # }
     /// ```
     pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
+        // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
+        // This extra step to the other API is a one off to get only the top comment info attached to
+        // the top 3 posts.
+        let page_id = format!(
+            "{}_{}_{}",
+            if matches!(
+                self.webtoon.r#type(),
+                crate::platform::naver::Type::BestChallenge
+                    | crate::platform::naver::Type::Challenge
+            ) {
+                "challenge"
+            } else {
+                "webtoon"
+            },
+            self.webtoon.id(),
+            self.number
+        );
+
+        let url = format!(
+            "https://comic.naver.com/comment/api/community/v1/page/{page_id}/top-recent-posts?topCount=15&recentTopCount=0&pinRepresentation=distinct"
+        );
+
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, 1, 100, client::posts::Sort::New)
+            .http
+            .get(url)
+            .header("Service-Ticket-Id", "comic_webtoon")
+            .send()
+            .await
+            .map_err(|err| ClientError::Unexpected(err.into()))?
+            .text()
+            .await?;
+
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
+
+        if let Some(tops) = api.result.tops {
+            for post in tops {
+                closure(Post::try_from((self, post))?).await;
+            }
+        }
+
+        let response = self
+            .webtoon
+            .client
+            .get_posts_for_episode(self, None, 100)
             .await?
             .text()
             .await?;
 
-        let text = response
-            .trim_start_matches("_callback(")
-            .trim_end_matches(");");
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        let api =
-            serde_json::from_str::<client::posts::Posts>(text).with_context(|| text.to_string())?;
-
-        let pages = api.result.page_model.total_pages;
+        let mut next: Option<Id> = api.result.pagination.next;
 
         // Add first posts
-        for post in api.result.comment_list {
-            if post.deleted {
-                continue;
-            }
-
+        for post in api.result.posts {
             closure(Post::try_from((self, post))?).await;
         }
 
-        for page in 2..pages {
+        // Get rest if any
+        while let Some(cursor) = next {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, page, 100, client::posts::Sort::New)
+                .get_posts_for_episode(self, Some(cursor), 100)
                 .await?
                 .text()
                 .await?;
 
-            let text = response
-                .trim_start_matches("_callback(")
-                .trim_end_matches(");");
+            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-            let api = serde_json::from_str::<client::posts::Posts>(text)
-                .with_context(|| text.to_string())?;
-
-            for post in api.result.comment_list {
-                if post.deleted {
-                    continue;
-                }
-
+            for post in api.result.posts {
                 closure(Post::try_from((self, post))?).await;
             }
+
+            next = api.result.pagination.next;
         }
 
         Ok(())
