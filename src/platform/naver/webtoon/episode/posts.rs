@@ -1,14 +1,15 @@
 //! Module containing things related to posts and their posters.
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use core::fmt;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
 use crate::{
-    platform::{
-        naver::client::posts::CommentList,
-        naver::{Webtoon, errors::PostError},
+    platform::naver::{
+        Webtoon,
+        client::posts::{Id, PostsResult},
+        errors::PostError,
     },
     private::Sealed,
 };
@@ -144,13 +145,14 @@ impl Posts {
 #[derive(Clone)]
 pub struct Post {
     pub(crate) episode: Episode,
-    pub(crate) id: String,
-    pub(crate) parent_id: String,
+    pub(crate) id: Id,
+    pub(crate) parent_id: Id,
     pub(crate) body: String,
     pub(crate) upvotes: u32,
     pub(crate) downvotes: u32,
     pub(crate) replies: u32,
     pub(crate) is_top: bool,
+    pub(crate) is_deleted: bool,
     pub(crate) posted: DateTime<Utc>,
     pub(crate) poster: Poster,
 }
@@ -203,8 +205,6 @@ impl Post {
 
     /// Returns the unique id for the post.
     ///
-    /// The platform id is a positive integer stored as a string: `"12089402312"`.
-    ///
     /// # Example
     ///
     /// ```
@@ -226,8 +226,8 @@ impl Post {
     /// # }
     /// ```
     #[inline]
-    pub fn id(&self) -> &str {
-        &self.id
+    pub fn id(&self) -> Id {
+        self.id
     }
 
     /// Returns the parent id of the post.
@@ -256,8 +256,8 @@ impl Post {
     /// # }
     /// ```
     #[inline]
-    pub fn parent_id(&self) -> &str {
-        &self.parent_id
+    pub fn parent_id(&self) -> Id {
+        self.parent_id
     }
 
     /// Returns the actual content of the post.
@@ -433,6 +433,36 @@ impl Post {
         self.is_top
     }
 
+    /// Returns whether this post is a deleted post.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::naver::{errors::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(813443).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(50).await? {
+    ///     for post in episode.posts().await? {
+    ///         if post.is_deleted() {
+    ///             println!("Post by {} was deleted by!", post.poster().username());
+    ///         }
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn is_deleted(&self) -> bool {
+        self.is_deleted
+    }
+
     /// Returns the episode number of the post was left on.
     ///
     /// # Example
@@ -526,41 +556,68 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, CommentList)> for Post {
+impl TryFrom<(&Episode, crate::platform::naver::client::posts::Post)> for Post {
     type Error = anyhow::Error;
 
     #[allow(clippy::too_many_lines)]
-    fn try_from((episode, post): (&Episode, CommentList)) -> Result<Self, Self::Error> {
-        let id = if let Some(id) = post.id_no {
-            id
-        } else if let Some(id) = post.user_id_no {
-            id
-        } else if let Some(id) = post.profile_user_id {
-            id
-        } else {
-            bail!("failed to find a user id for post that wasn't `null`")
-        };
+    fn try_from(
+        (episode, post): (&Episode, crate::platform::naver::client::posts::Post),
+    ) -> Result<Self, Self::Error> {
+        let mut did_like: bool = false;
+        let mut did_dislike: bool = false;
 
-        Ok(Self {
+        let upvotes = post
+            .reactions
+            .first()
+            .context("`reactions` field didn't have a 0th element and it should always have one")?
+            .emotions
+            .iter()
+            .find(|emotion| emotion.emotion_id == "like")
+            .map(|likes| {
+                did_like = likes.reacted;
+                likes.count
+            })
+            .unwrap_or_default();
+
+        let downvotes = post
+            .reactions
+            .first()
+            .context("`reactions` field didn't have a 0th element and it should always have one")?
+            .emotions
+            .iter()
+            .find(|emotion| emotion.emotion_id == "dislike")
+            .map(|dislikes| {
+                did_dislike = dislikes.reacted;
+                dislikes.count
+            })
+            .unwrap_or_default();
+
+        let is_deleted = post.status == "DELETE";
+
+        Ok(Post {
             episode: episode.clone(),
-            id: post.comment_no.clone(),
-            parent_id: post.parent_comment_no,
-            body: post.contents,
-            upvotes: post.sympathy_count,
-            downvotes: post.antipathy_count,
-            replies: post.reply_count,
-            is_top: post.best,
-            posted: post
-                .mod_time
-                .parse::<DateTime<Utc>>()
-                .with_context(|| format!("`{}` is not a valid timestamp", post.mod_time))?,
+            id: post.id,
+            parent_id: post.root_id,
+            body: post.body,
+            upvotes,
+            downvotes,
+            replies: post.child_post_count,
+            is_top: post.is_pinned,
+            is_deleted,
+            posted: DateTime::from_timestamp_millis(post.created_at).with_context(|| {
+                format!(
+                    "`{}` is not a valid unix millisecond timestamp",
+                    post.created_at
+                )
+            })?,
             poster: Poster {
                 webtoon: episode.webtoon.clone(),
                 episode: episode.number,
-                post_id: post.comment_no,
-                id,
-                username: post.user_name,
-                is_creator: post.manager,
+                post_id: post.id,
+                cuid: post.created_by.cuid,
+                username: post.created_by.name,
+                profile: post.created_by.profile_url,
+                is_creator: post.created_by.is_creator,
             },
         })
     }
@@ -625,9 +682,10 @@ impl From<Vec<Post>> for Posts {
 pub struct Poster {
     webtoon: Webtoon,
     episode: u16,
-    post_id: String,
-    pub(crate) id: String,
+    post_id: Id,
+    pub(crate) cuid: String,
     pub(crate) username: String,
+    pub(crate) profile: String,
     pub(crate) is_creator: bool,
 }
 
@@ -636,8 +694,9 @@ impl fmt::Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Poster")
             // omitting `webtoon`
-            .field("id", &self.id)
+            .field("cuid", &self.cuid)
             .field("username", &self.username)
+            .field("profile", &self.profile)
             .field("is_creator", &self.is_creator)
             .finish()
     }
@@ -662,15 +721,15 @@ impl Poster {
     ///     for post in episode.posts().await? {
     ///         let poster = post.poster();
     ///
-    ///         println!("poster id: `{}`", poster.id());
+    ///         println!("poster cuid: `{}`", poster.cuid());
     ///     }
     /// }
     /// # Ok(())
     /// # }
     /// ```
     #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id
+    pub fn cuid(&self) -> &str {
+        &self.cuid
     }
 
     /// Returns poster username.
@@ -754,71 +813,57 @@ impl Replies for Posts {
     async fn replies(post: &Post) -> Result<Self, PostError> {
         // No need to make a network request when there are no replies to fetch.
         if post.replies == 0 {
-            return Ok(Self { posts: Vec::new() });
+            return Ok(Posts { posts: Vec::new() });
         }
-
-        #[allow(clippy::mutable_key_type)]
+        #[allow(
+            clippy::mutable_key_type,
+            reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
+        )]
         let mut replies = HashSet::new();
 
         let response = post
             .episode
             .webtoon
             .client
-            .get_replies_for_post(post, 1)
+            .get_replies_for_post(post, None, 100)
             .await?
             .text()
             .await?;
 
-        let text = response
-            .trim_start_matches("_callback(")
-            .trim_end_matches(");");
+        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        let api = serde_json::from_str::<crate::platform::naver::client::posts::Posts>(text)
-            .with_context(|| text.to_string())?;
+        let mut next: Option<Id> = api.result.pagination.and_then(|pagination| pagination.next);
 
-        let pages = api.result.page_model.total_pages;
-
-        // Add first posts
-        for reply in api.result.comment_list {
-            if reply.deleted {
-                continue;
-            }
-
-            replies
-                .insert(Post::try_from((&post.episode, reply)).with_context(|| text.to_string())?);
+        // Add first replies
+        for reply in api.result.posts {
+            replies.insert(Post::try_from((&post.episode, reply))?);
         }
 
-        for page in 2..pages {
+        // Get rest if any
+        while let Some(cursor) = next {
             let response = post
                 .episode
                 .webtoon
                 .client
-                .get_replies_for_post(post, page)
+                .get_replies_for_post(post, Some(cursor), 100)
                 .await?
                 .text()
                 .await?;
 
-            let text = response
-                .trim_start_matches("_callback(")
-                .trim_end_matches(");");
+            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-            let api = serde_json::from_str::<crate::platform::naver::client::posts::Posts>(text)
-                .with_context(|| text.to_string())?;
-
-            for reply in api.result.comment_list {
-                if reply.deleted {
-                    continue;
-                }
-
-                replies.insert(
-                    Post::try_from((&post.episode, reply)).with_context(|| text.to_string())?,
-                );
+            for reply in api.result.posts {
+                replies.replace(Post::try_from((&post.episode, reply))?);
             }
+
+            next = api.result.pagination.and_then(|pagination| pagination.next);
         }
 
-        let replies = Self {
+        let mut replies = Posts {
             posts: replies.into_iter().collect(),
         };
+
+        replies.sort_by_oldest();
 
         Ok(replies)
     }
