@@ -28,7 +28,7 @@ pub(super) async fn scrape(
         "friday",
         "saturday",
         "sunday",
-        "completed",
+        "complete",
     ];
 
     for day in days {
