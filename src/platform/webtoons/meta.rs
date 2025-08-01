@@ -259,7 +259,7 @@ impl Genre {
             Self::ShortStory => "short-story",
             Self::SliceOfLife => "slice-of-life",
             Self::Sports => "sports",
-            Self::Superhero => "superhero",
+            Self::Superhero => "super-hero",
             Self::Supernatural => "supernatural",
             Self::Thriller => "thriller",
             Self::Zombies => "zombies",
