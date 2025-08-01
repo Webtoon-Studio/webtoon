@@ -136,6 +136,44 @@ async fn webtoon_original() -> Result<(), Error> {
 }
 
 #[tokio::test]
+async fn episode_with_normal_reader() -> Result<(), Error> {
+    let client = Client::new();
+
+    let webtoon = client.webtoon(7492, Type::Original).await.unwrap().unwrap();
+
+    let episode = webtoon
+        .episode(19)
+        .await
+        .unwrap()
+        .expect("No episode for given number");
+
+    let title = episode.title().await?;
+
+    assert_eq!("Episode 19", title);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn episode_with_alternate_reader() -> Result<(), Error> {
+    let client = Client::new();
+
+    let webtoon = client.webtoon(4784, Type::Original).await.unwrap().unwrap();
+
+    let episode = webtoon
+        .episode(1)
+        .await
+        .unwrap()
+        .expect("No episode for given number");
+
+    let title = episode.title().await?;
+
+    assert_eq!("Ep. 1 - The Busan Karaoke Ghost", title);
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn posts() -> Result<(), Error> {
     let client = match std::env::var("WEBTOON_SESSION") {
         Ok(session) if !session.is_empty() => Client::with_session(&session),

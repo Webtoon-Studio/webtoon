@@ -31,16 +31,16 @@ impl Page {
 }
 
 fn title(html: &Html) -> Result<String, EpisodeError> {
-    let selector = Selector::parse("div.subj_info>h1.subj_episode") //
-        .expect("`div.subj_info>h1.subj_episode` should be a valid selector");
+    let selector = Selector::parse("div.subj_info>.subj_episode") //
+        .expect("`div.subj_info>.subj_episode` should be a valid selector");
 
     let title = html
             .select(&selector)
             .next()
-            .context("`h1.subj_episode` is missing: episode page should always contain a title for the episode")?
+            .context("`.subj_episode` is missing: episode page should always contain a title for the episode")?
             .text()
             .next()
-            .context("`h1.subj_episode` was found but no text was present")?;
+            .context("`.subj_episode` was found but no text was present")?;
 
     Ok(html_escape::decode_html_entities(title).to_string())
 }
