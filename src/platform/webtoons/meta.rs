@@ -255,7 +255,7 @@ impl Genre {
             Self::PostApocalyptic => "post-apocalyptic",
             Self::Romance => "romance",
             Self::School => "school",
-            Self::SciFi => "sci-fi",
+            Self::SciFi => "sf",
             Self::ShortStory => "short-story",
             Self::SliceOfLife => "slice-of-life",
             Self::Sports => "sports",
