@@ -12,8 +12,10 @@ use super::EpisodeError;
 pub struct Page {
     pub(super) title: String,
     pub(super) thumbnail: Url,
-    pub(super) length: u32,
+    pub(super) length: Option<u32>,
     pub(super) note: Option<String>,
+    // TODO: Make this Option<Vec<Panel>>? For audio readers, there wont be any panels that can be gotten, which is
+    // different than just no panels in a Vec?
     pub(super) panels: Vec<Panel>,
 }
 
@@ -45,7 +47,11 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
     Ok(html_escape::decode_html_entities(title).to_string())
 }
 
-fn length(html: &Html) -> Result<u32, EpisodeError> {
+fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
+    if is_audio_reader(html) {
+        return Ok(None);
+    }
+
     let selector = Selector::parse(r"img._images") //
         .expect("`img._images` should be a valid selector");
 
@@ -67,7 +73,7 @@ fn length(html: &Html) -> Result<u32, EpisodeError> {
         return Err(EpisodeError::NoPanelsFound);
     }
 
-    Ok(length)
+    Ok(Some(length))
 }
 
 fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
@@ -127,4 +133,12 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
     }
 
     Err(EpisodeError::NoThumbnailFound)
+}
+
+fn is_audio_reader(html: &Html) -> bool {
+    let selector = Selector::parse("button#soundControl")
+        .expect("`button#soundControl` should be a valid selector");
+
+    // If `<button ... id="soundControl"` exists, then it is an audio reader
+    html.select(&selector).next().is_some()
 }

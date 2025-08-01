@@ -147,9 +147,8 @@ async fn episode_with_normal_reader() -> Result<(), Error> {
         .unwrap()
         .expect("No episode for given number");
 
-    let title = episode.title().await?;
-
-    assert_eq!("Episode 19", title);
+    assert_eq!("Episode 19", episode.title().await?);
+    assert_eq!(Some(111800), episode.length().await?);
 
     Ok(())
 }
@@ -166,9 +165,8 @@ async fn episode_with_alternate_reader() -> Result<(), Error> {
         .unwrap()
         .expect("No episode for given number");
 
-    let title = episode.title().await?;
-
-    assert_eq!("Ep. 1 - The Busan Karaoke Ghost", title);
+    assert_eq!("Ep. 1 - The Busan Karaoke Ghost", episode.title().await?);
+    assert_eq!(None, episode.length().await?);
 
     Ok(())
 }
