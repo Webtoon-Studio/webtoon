@@ -101,7 +101,10 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
             season: Arc::new(RwLock::new(None)),
             title: Arc::new(RwLock::new(Some(title))),
             published: Some(published),
-            page: Arc::new(RwLock::new(None)),
+            length: Arc::new(RwLock::new(None)),
+            thumbnail: Arc::new(RwLock::new(None)),
+            note: Arc::new(RwLock::new(None)),
+            panels: Arc::new(RwLock::new(None)),
             views: None,
             ad_status: None,
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.

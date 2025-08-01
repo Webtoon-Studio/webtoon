@@ -34,7 +34,10 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
                 DateTime::from_timestamp_millis(timestamp)
                     .expect("webtoons should be using proper timestamps")
             }),
-            page: Arc::new(RwLock::new(None)),
+            length: Arc::new(RwLock::new(None)),
+            thumbnail: Arc::new(RwLock::new(None)),
+            note: Arc::new(RwLock::new(None)),
+            panels: Arc::new(RwLock::new(None)),
             views: Some(episode.metadata.views),
             ad_status: Some(episode.dashboard_status.ad_status()),
             published_status: Some(episode.dashboard_status.into()),
@@ -63,7 +66,10 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
                     DateTime::from_timestamp_millis(timestamp)
                         .expect("webtoons should be using proper timestamps")
                 }),
-                page: Arc::new(RwLock::new(None)),
+                length: Arc::new(RwLock::new(None)),
+                thumbnail: Arc::new(RwLock::new(None)),
+                note: Arc::new(RwLock::new(None)),
+                panels: Arc::new(RwLock::new(None)),
                 views: Some(episode.metadata.views),
                 ad_status: Some(episode.dashboard_status.ad_status()),
                 published_status: Some(episode.dashboard_status.into()),
