@@ -6,9 +6,12 @@ pub(super) mod likes;
 pub(super) mod posts;
 pub(super) mod rating;
 
-use crate::stdx::{
-    http::{DEFAULT_USER_AGENT, IRetry},
-    math::MathExt,
+use crate::{
+    platform::naver::client::posts::Id,
+    stdx::{
+        http::{DEFAULT_USER_AGENT, IRetry},
+        math::MathExt,
+    },
 };
 
 use super::{
@@ -485,21 +488,26 @@ impl Client {
     pub(super) async fn get_posts_for_episode(
         &self,
         episode: &Episode,
-        page: u32,
-        size: u32,
-        sort: posts::Sort,
+        cursor: Option<Id>,
+        stride: u8,
     ) -> Result<Response, ClientError> {
-        let id = episode.webtoon.id();
+        let scope = match episode.webtoon.r#type() {
+            Type::Featured => "webtoon",
+            Type::BestChallenge | Type::Challenge => "challenge",
+        };
+
+        let webtoon = episode.webtoon.id();
         let episode = episode.number;
+        let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
         let url = format!(
-            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize={size}&indexSize=10&page={page}&sort={sort}"
+            "https://comic.naver.com/comment/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}"
         );
 
         let response = self
             .http
             .get(&url)
-            .header("Referer", "https://comic.naver.com/")
+            .header("Service-Ticket-Id", "comic_webtoon")
             .retry()
             .send()
             .await?;
@@ -510,20 +518,20 @@ impl Client {
     pub(super) async fn get_replies_for_post(
         &self,
         post: &Post,
-        page: u32,
+        cursor: Option<Id>,
+        stride: u8,
     ) -> Result<Response, ClientError> {
-        let parent_comment_number = &post.id;
-        let id = post.episode.webtoon.id();
-        let episode = post.episode.number();
+        let id = post.id;
+        let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
         let url = format!(
-            "https://apis.naver.com/commentBox/cbox/web_naver_list_jsonp.json?ticket=comic&pool=cbox3&lang=ko&country=KR&objectId={id}_{episode}&pageSize=100&indexSize=10&parentCommentNo={parent_comment_number}&page={page}&sort=NEW"
+            "https://comic.naver.com/comment/api/community/v2/post/{id}/child-posts?sort=oldest&prevSize=0&nextSize={stride}&cursor={cursor}"
         );
 
         let response = self
             .http
             .get(&url)
-            .header("Referer", "https://comic.naver.com/")
+            .header("Service-Ticket-Id", "comic_webtoon")
             .retry()
             .send()
             .await?;
