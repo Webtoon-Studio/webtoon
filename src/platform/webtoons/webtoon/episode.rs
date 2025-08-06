@@ -666,10 +666,8 @@ impl Episode {
 
         let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        if let Some(tops) = api.result.tops {
-            for post in tops {
-                posts.replace(Post::try_from((self, post))?);
-            }
+        for post in api.result.tops {
+            posts.replace(Post::try_from((self, post))?);
         }
 
         let posts: Vec<Post> = posts.into_iter().collect();
@@ -743,10 +741,8 @@ impl Episode {
 
         let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
 
-        if let Some(tops) = api.result.tops {
-            for post in tops {
-                closure(Post::try_from((self, post))?).await;
-            }
+        for post in api.result.tops {
+            closure(Post::try_from((self, post))?).await;
         }
 
         let response = self
