@@ -25,7 +25,8 @@ pub struct Result {
     pub posts: Vec<Post>,
     #[serde(default)]
     pub root_post_count: u32,
-    pub tops: Option<Vec<Post>>,
+    #[serde(default)]
+    pub tops: Vec<Post>,
 }
 
 #[allow(dead_code)]
