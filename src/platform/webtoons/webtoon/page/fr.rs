@@ -154,7 +154,10 @@ pub(super) fn episode(
         title: Arc::new(RwLock::new(Some(title))),
         number,
         published: Some(published),
-        page: Arc::new(RwLock::new(None)),
+        length: Arc::new(RwLock::new(None)),
+        thumbnail: Arc::new(RwLock::new(None)),
+        note: Arc::new(RwLock::new(None)),
+        panels: Arc::new(RwLock::new(None)),
         views: None,
         // NOTE: Impossible to say from this page. In general any random Original episode would have been
         // behind an ad, but the initial release episodes which never were would be impossible to tell.
