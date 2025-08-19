@@ -1,8 +1,24 @@
-# Changelog
+## What's Changed in 0.9.0
+* build(deps): update scraper requirement from 0.23 to 0.24 by @dependabot[bot] in [#128](https://github.com/Webtoon-Studio/webtoon/pull/128)
+* refactor(webtoons): remove `Option` and make `default` by @RoloEdits in [#127](https://github.com/Webtoon-Studio/webtoon/pull/127)
+* refactor(webtoons): de-nest more project structure by @RoloEdits in [#126](https://github.com/Webtoon-Studio/webtoon/pull/126)
+* refactor(webtoons): flatten episode file structure by @RoloEdits in [#125](https://github.com/Webtoon-Studio/webtoon/pull/125)
+* fix(naver)!: change to new comment api by @RoloEdits in [#122](https://github.com/Webtoon-Studio/webtoon/pull/122)
+* fix(webtoons): properly support readers for audio episodes by @RoloEdits in [#124](https://github.com/Webtoon-Studio/webtoon/pull/124)
+* fix(webtoons): be less specific with episode title selector by @RoloEdits in [#123](https://github.com/Webtoon-Studio/webtoon/pull/123)
+* refactor(webtoons): always return episodes by same order by @RoloEdits in [#121](https://github.com/Webtoon-Studio/webtoon/pull/121)
+* fix(webtoons): change scope name from `superhero` to `super-hero` by @RoloEdits in [#120](https://github.com/Webtoon-Studio/webtoon/pull/120)
+* fix(webtoons): change scope name from `sci-fi` to `sf` by @RoloEdits in [#119](https://github.com/Webtoon-Studio/webtoon/pull/119)
+* fix(originals): completed -> complete by @RoloEdits in [#117](https://github.com/Webtoon-Studio/webtoon/pull/117)
+* chore: clippy 1.88 lints by @RoloEdits in [#115](https://github.com/Webtoon-Studio/webtoon/pull/115)
+* fix(webtoons): rating is no longer a data point so remove by @RoloEdits in [#114](https://github.com/Webtoon-Studio/webtoon/pull/114)
+* ci: correct `faste` to `fast` by @RoloEdits in [#112](https://github.com/Webtoon-Studio/webtoon/pull/112)
+* doc: change default `user-agent` for `Client` by @RoloEdits in [#111](https://github.com/Webtoon-Studio/webtoon/pull/111)
 
-All notable changes to this project will be documented in this file.
+**Full Changelog**: https://github.com/Webtoon-Studio/webtoon/compare/0.8.0...0.9.0
 
 ## What's Changed in 0.8.0
+* chore: bump version from 0.7.0 to 0.8.0 by @RoloEdits in [#97](https://github.com/Webtoon-Studio/webtoon/pull/97)
 * doc: correct the default `user-agent` for clients by @RoloEdits in [#110](https://github.com/Webtoon-Studio/webtoon/pull/110)
 * fix(webtoons): accommodate new UI changes for originals by @RoloEdits in [#109](https://github.com/Webtoon-Studio/webtoon/pull/109)
 * chore: add `panels` to `.gitignore` by @RoloEdits in [#108](https://github.com/Webtoon-Studio/webtoon/pull/108)
