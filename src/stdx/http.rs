@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn default_user_agent_should_be_expected() {
-        const AGENT: &str = "webtoon/0.8.0";
+        const AGENT: &str = "webtoon/0.9.0";
         const { assert!(AGENT.len() == DEFAULT_USER_AGENT.len()) }
         assert_eq!(AGENT, DEFAULT_USER_AGENT);
     }
