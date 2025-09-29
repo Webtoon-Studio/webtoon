@@ -18,8 +18,6 @@ pub(super) async fn scrape(
     let selector = Selector::parse("ul.webtoon_list>li>a") //
         .expect("`ul.webtoon_list>li>a` should be a valid selector");
 
-    let mut webtoons = Vec::with_capacity(1000);
-
     let days = [
         "monday",
         "tuesday",
@@ -31,13 +29,20 @@ pub(super) async fn scrape(
         "complete",
     ];
 
-    for day in days {
+    let documents: Vec<String> = futures::future::try_join_all(days.iter().map(|day| async {
         let document = client
             .get_originals_page(language, day)
             .await?
             .text()
             .await?;
 
+        Ok::<String, OriginalsError>(document)
+    }))
+    .await?;
+
+    let mut webtoons = Vec::with_capacity(2000);
+
+    for document in documents {
         let html = Html::parse_document(&document);
         for card in html.select(&selector) {
             let href = card

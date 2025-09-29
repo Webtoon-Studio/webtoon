@@ -524,9 +524,7 @@ impl Client {
     ///
     /// let originals = client.originals(Language::En).await?;
     ///
-    /// for webtoon in originals {
-    ///     println!("Webtoon: {:?}", webtoon.title().await?);
-    /// }
+    /// println!("Found {} originals", originals.len());
     /// # Ok(())
     /// # }
     /// ```
