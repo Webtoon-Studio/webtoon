@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use super::{Client, Language, Type, Webtoon, errors::CreatorError};
+use super::{Client, Language, Webtoon, errors::CreatorError};
 
 /// Represents a creator of a `Webtoon`.
 ///
@@ -280,18 +280,18 @@ impl Creator {
                 .await?
         };
 
-        let mut webtoons = Vec::with_capacity(response.result.total_count);
+        let webtoons =
+            futures::future::try_join_all(response.result.titles.iter().map(|webtoon| async {
+                let id = webtoon
+                    .id
+                    .parse::<u32>()
+                    .context("failed to parse webtoon id to number")?;
 
-        for webtoon in response.result.titles {
-            let id = webtoon
-                .id
-                .parse::<u32>()
-                .context("failed to parse webtoon id to number")?;
+                let r#type = webtoon.r#type.parse()?;
 
-            let r#type: Type = webtoon.r#type.parse()?;
-
-            webtoons.push(Webtoon::new_with_client(id, r#type, &self.client).await?);
-        }
+                Webtoon::new_with_client(id, r#type, &self.client).await
+            }))
+            .await?;
 
         Ok(Some(webtoons))
     }
