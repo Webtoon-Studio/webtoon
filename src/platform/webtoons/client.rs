@@ -1641,15 +1641,3 @@ struct ReactResult {
     timestamp: Option<i64>,
     status_code: Option<u16>,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-struct NewLikesResponse {
-    result: NewLikesResult,
-    success: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NewLikesResult {
-    count: u32,
-}
