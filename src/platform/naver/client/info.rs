@@ -61,6 +61,7 @@ pub(super) struct FirstArticle {
     pub subtitle: String,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Tag {
