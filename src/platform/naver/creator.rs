@@ -38,13 +38,19 @@ pub struct Creator {
     pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
-#[allow(clippy::missing_fields_in_debug)]
 impl Debug for Creator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            client: _,
+            username,
+            profile,
+            page,
+        } = self;
+
         f.debug_struct("Creator")
-            // omitting `client`
-            .field("username", &self.username)
-            .field("profile", &self.profile)
+            .field("username", username)
+            .field("profile", profile)
+            .field("page", page)
             .finish()
     }
 }
