@@ -2,9 +2,17 @@
 
 pub(super) mod api;
 
+// TODO: Is this the best spot for this to be exported?
+pub use api::user_info::UserInfo;
+
 use crate::{
     platform::webtoons::{
-        client::api::posts::RawPostResponse, search::Item, webtoon::post::id::Id,
+        client::api::{
+            api_token::ApiToken, posts::RawPostResponse, react_token::ReactToken,
+            webtoon_user_info::WebtoonUserInfo,
+        },
+        search::Item,
+        webtoon::post::id::Id,
     },
     stdx::http::{DEFAULT_USER_AGENT, IRetry},
 };
@@ -28,7 +36,6 @@ use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
 use reqwest::{Response, StatusCode};
 use scraper::Html;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
 
@@ -828,7 +835,7 @@ impl Client {
 
         let user_info = self.user_info_for_session(session).await?;
 
-        Ok(user_info.is_logged_in)
+        Ok(user_info.is_logged_in())
     }
 }
 
@@ -1543,153 +1550,4 @@ impl Default for Client {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
-///
-/// This can be used to get the username and profile, as well as check if user is logged in. This type is not constructed
-/// directly, but gotten through [`Client::user_info_for_session()`].
-///
-/// # Example
-///
-/// ```no_run
-/// # use webtoon::platform::webtoons::{errors::Error, Client};
-/// # #[tokio::main]
-/// # async fn main() -> Result<(), Error> {
-/// let client = Client::new();
-///
-/// let user_info = client.user_info_for_session("session").await?;
-///
-/// assert!(!user_info.is_logged_in());
-/// assert_eq!(Some("username"), user_info.username());
-/// assert_eq!(Some("profile"), user_info.profile());
-/// # Ok(())
-/// # }
-/// ```
-#[derive(Deserialize, Debug)]
-pub struct UserInfo {
-    #[serde(rename = "loginUser")]
-    is_logged_in: bool,
-
-    #[serde(rename = "nickname")]
-    username: Option<String>,
-
-    #[serde(rename = "profileUrl")]
-    profile: Option<String>,
-}
-
-impl UserInfo {
-    /// Returns if current user session is logged in.
-    ///
-    /// Functionally, this tells whether a session is valid or not.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let user_info = client.user_info_for_session("session").await?;
-    ///
-    /// assert!(!user_info.is_logged_in());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    pub fn is_logged_in(&self) -> bool {
-        self.is_logged_in
-    }
-
-    /// Returns the users' username.
-    ///
-    /// If the session provided is invalid, then `username` will be `None`.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let user_info = client.user_info_for_session("session").await?;
-    ///
-    /// assert_eq!(Some("username"), user_info.username());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    pub fn username(&self) -> Option<&str> {
-        self.username.as_deref()
-    }
-
-    /// Returns the profile segment for `webtoons.com/*/creator/{profile}`.
-    ///
-    /// If the session provided is invalid, then `profile` will be `None`.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let user_info = client.user_info_for_session("session").await?;
-    ///
-    /// assert_eq!(Some("profile"), user_info.profile());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    pub fn profile(&self) -> Option<&str> {
-        self.profile.as_deref()
-    }
-}
-
-#[allow(unused)]
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub(super) struct WebtoonUserInfo {
-    author: bool,
-    pub(super) favorite: bool,
-}
-
-impl WebtoonUserInfo {
-    pub fn is_webtoon_creator(&self) -> bool {
-        self.author
-    }
-
-    #[allow(unused)]
-    pub fn did_rate(&self) -> bool {
-        self.favorite
-    }
-}
-
-#[allow(unused)]
-#[derive(Deserialize, Debug)]
-pub(super) struct ApiToken {
-    status: String,
-    result: Token,
-}
-
-#[derive(Deserialize, Debug)]
-pub(super) struct Token {
-    token: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ReactToken {
-    result: ReactResult,
-    success: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ReactResult {
-    guest_token: Option<String>,
-    timestamp: Option<i64>,
-    status_code: Option<u16>,
 }
