@@ -27,6 +27,7 @@ use super::{
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
 use reqwest::{Response, StatusCode};
+use scraper::Html;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
@@ -880,7 +881,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
         page: Option<u16>,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<Html, ClientError> {
         let id = webtoon.id;
         let lang = webtoon.language;
         let scope = webtoon.scope.as_slug();
@@ -892,9 +893,11 @@ impl Client {
             format!("https://www.webtoons.com/{lang}/{scope}/{slug}/list?title_no={id}")
         };
 
-        let response = self.http.get(&url).retry().send().await?;
+        let response = self.http.get(&url).retry().send().await?.text().await?;
 
-        Ok(response)
+        let html = Html::parse_document(&response);
+
+        Ok(html)
     }
 
     pub(super) async fn post_subscribe_to_webtoon(
