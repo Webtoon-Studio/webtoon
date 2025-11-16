@@ -300,7 +300,7 @@ impl Client {
             return Err(CreatorError::UnsupportedLanguage);
         }
 
-        let Some(page) = creator::page(language, profile, self).await? else {
+        let Some(page) = creator::homepage(language, profile, self).await? else {
             return Ok(None);
         };
 
@@ -309,7 +309,7 @@ impl Client {
             language,
             profile: Some(profile.into()),
             username: page.username.clone(),
-            page: Arc::new(RwLock::new(Some(page))),
+            homepage: Arc::new(RwLock::new(Some(page))),
         }))
     }
 
@@ -860,12 +860,20 @@ impl Client {
         &self,
         lang: Language,
         profile: &str,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<Option<String>, CreatorError> {
         let url = format!("https://www.webtoons.com/p/community/{lang}/u/{profile}");
 
         let response = self.http.get(&url).retry().send().await?;
 
-        Ok(response)
+        if response.status() == 404 {
+            return Ok(None);
+        }
+
+        if response.status() == 400 {
+            return Err(CreatorError::DisabledByCreator);
+        }
+
+        Ok(Some(response.text().await?))
     }
 
     pub(super) async fn get_webtoon_page(

@@ -141,7 +141,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
             language: Language::En,
             profile: Some(profile.into()),
             username,
-            page: Arc::new(RwLock::new(None)),
+            homepage: Arc::new(RwLock::new(None)),
         });
     }
 
@@ -176,7 +176,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                     language: Language::En,
                     profile: None,
                     username: username.trim().into(),
-                    page: Arc::new(RwLock::new(None)),
+                    homepage: Arc::new(RwLock::new(None)),
                 });
             }
         }

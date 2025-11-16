@@ -46,7 +46,7 @@ pub struct Creator {
     pub(super) username: String,
     // Originals authors might not have a profile: Korean, Chinese, German, and French
     pub(super) profile: Option<String>,
-    pub(super) page: Arc<RwLock<Option<Page>>>,
+    pub(super) homepage: Arc<RwLock<Option<Homepage>>>,
 }
 
 impl Debug for Creator {
@@ -56,20 +56,20 @@ impl Debug for Creator {
             language,
             username,
             profile,
-            page,
+            homepage,
         } = self;
 
         f.debug_struct("Creator")
             .field("language", language)
             .field("username", username)
             .field("profile", profile)
-            .field("page", page)
+            .field("homepage", homepage)
             .finish()
     }
 }
 
 #[derive(Debug)]
-pub(super) struct Page {
+pub(super) struct Homepage {
     pub username: String,
     pub followers: u32,
     pub id: String,
@@ -150,23 +150,23 @@ impl Creator {
     /// # }
     /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.id.clone()))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.id.clone()))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let followers = page.as_ref().map(|page| page.id.clone());
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let followers = homepage.as_ref().map(|homepage| homepage.id.clone());
+            *self.homepage.write() = homepage;
             Ok(followers)
         }
     }
 
     /// Returns the number of followers for the `Creator`.
     ///
-    /// Will return `None` if profile page is not a supported language:
+    /// Will return `None` if profile homepage is not a supported language:
     /// - French
     /// - German
     /// - Korean
@@ -189,16 +189,16 @@ impl Creator {
     /// # }
     /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.followers))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.followers))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let followers = page.as_ref().map(|page| page.followers);
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let followers = homepage.as_ref().map(|page| page.followers);
+            *self.homepage.write() = homepage;
             Ok(followers)
         }
     }
@@ -267,12 +267,12 @@ impl Creator {
         {
             response
         } else {
-            let page = page(self.language, profile, &self.client).await?;
-            let profile = page
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let profile = homepage
                 .as_ref()
-                .map(|page| page.id.clone())
-                .context("failed to find creator profile property on creator page html")?;
-            *self.page.write() = page;
+                .map(|homepage| homepage.id.clone())
+                .context("failed to find creator profile property on creator homepage html")?;
+            *self.homepage.write() = homepage;
 
             let url = format!(
                 "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
@@ -330,41 +330,33 @@ impl Creator {
     /// # }
     /// ```
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.has_patreon))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.has_patreon))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let has_patreon = page.as_ref().map(|page| page.has_patreon);
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
+            *self.homepage.write() = homepage;
             Ok(has_patreon)
         }
     }
 }
 
-pub(super) async fn page(
+pub(super) async fn homepage(
     language: Language,
     profile: &str,
     client: &Client,
-) -> Result<Option<Page>, CreatorError> {
-    let response = client.get_creator_page(language, profile).await?;
-
-    if response.status() == 404 {
+) -> Result<Option<Homepage>, CreatorError> {
+    let Some(document) = client.get_creator_page(language, profile).await? else {
         return Ok(None);
-    }
-
-    if response.status() == 400 {
-        return Err(CreatorError::DisabledByCreator);
-    }
-
-    let document = response.text().await?;
+    };
 
     let html = Html::parse_document(&document);
 
-    Ok(Some(Page {
+    Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
         has_patreon: has_patreon(&html),
@@ -389,7 +381,7 @@ fn username(html: &Html) -> Result<String, CreatorError> {
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator username on creator page"
+        "failed to find creator username on creator homepage"
     )))
 }
 
@@ -419,7 +411,7 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator follower count on creator page"
+        "failed to find creator follower count on creator homepage"
     )))
 }
 
@@ -471,7 +463,7 @@ fn id(html: &Html) -> Result<String, CreatorError> {
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find alternate creator profile in creatior page html"
+        "failed to find alternate creator profile in creatior homepage html"
     )))
 }
 
