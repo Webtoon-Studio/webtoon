@@ -1259,7 +1259,7 @@ impl Client {
         Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
     }
 
-    pub(super) async fn get_if_episode_exists(
+    pub(super) async fn check_if_episode_exists(
         &self,
         episode: &Episode,
     ) -> Result<bool, ClientError> {
