@@ -4,7 +4,7 @@ use crate::platform::webtoons::webtoon::post::id::Id;
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
-pub struct PostsResult {
+pub struct RawPostResponse {
     pub result: Result,
     // "success"
     pub status: String,

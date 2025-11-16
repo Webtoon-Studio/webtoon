@@ -3,7 +3,9 @@
 pub(super) mod api;
 
 use crate::{
-    platform::webtoons::{search::Item, webtoon::post::id::Id},
+    platform::webtoons::{
+        client::api::posts::RawPostResponse, search::Item, webtoon::post::id::Id,
+    },
     stdx::http::{DEFAULT_USER_AGENT, IRetry},
 };
 
@@ -24,7 +26,7 @@ use super::{
 };
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
-use reqwest::Response;
+use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
@@ -1171,7 +1173,48 @@ impl Client {
         episode: &Episode,
         cursor: Option<Id>,
         stride: u8,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<RawPostResponse, ClientError> {
+        let session = self
+            .session
+            .as_ref()
+            .map(|session| session.as_ref())
+            .unwrap_or_default();
+
+        let scope = match episode.webtoon.scope {
+            Scope::Original(_) => "w",
+            Scope::Canvas => "c",
+        };
+
+        let webtoon = episode.webtoon.id;
+
+        let episode = episode.number;
+
+        let cursor = cursor.map_or_else(String::new, |id| id.to_string());
+
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
+        );
+
+        let response = self
+            .http
+            .get(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .retry()
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
+    }
+
+    pub(super) async fn get_status_code_for_episode(
+        &self,
+        episode: &Episode,
+        cursor: Option<Id>,
+        stride: u8,
+    ) -> Result<StatusCode, ClientError> {
         let session = self
             .session
             .as_ref()
@@ -1202,7 +1245,7 @@ impl Client {
             .send()
             .await?;
 
-        Ok(response)
+        Ok(response.status())
     }
 
     pub(super) async fn get_upvotes_and_downvotes_for_post(
@@ -1247,7 +1290,7 @@ impl Client {
         post: &Post,
         cursor: Option<Id>,
         stride: u8,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<RawPostResponse, ClientError> {
         let session = self
             .session
             .as_ref()
@@ -1269,9 +1312,11 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        Ok(response)
+        Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
     }
 
     pub(super) async fn post_reply(

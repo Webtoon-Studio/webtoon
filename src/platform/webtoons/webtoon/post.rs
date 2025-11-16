@@ -8,6 +8,19 @@ use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::A
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+use crate::{
+    platform::webtoons::{
+        self, Webtoon,
+        client::api::posts::{Count, Section},
+        errors::{ClientError, PostError, PosterError, ReplyError},
+        meta::Scope,
+        webtoon::post::id::Id,
+    },
+    private::Sealed,
+};
+
+use super::Episode;
+
 //Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
 
 // GIF search
@@ -113,19 +126,6 @@ use tokio::sync::RwLock;
 //   }
 // }
 // contentSubType can also be "CHALLENGE"
-
-use crate::{
-    platform::webtoons::{
-        self, Webtoon,
-        client::api::posts::{Count, PostsResult, Section},
-        errors::{ClientError, PostError, PosterError, ReplyError},
-        meta::Scope,
-        webtoon::post::id::Id,
-    },
-    private::Sealed,
-};
-
-use super::Episode;
 
 /// Represents a collection of posts.
 ///
@@ -1581,17 +1581,13 @@ pub enum Reaction {
 }
 
 pub(super) async fn check_episode_exists(episode: &Episode) -> Result<bool, PostError> {
-    let response = episode
+    let status_code = episode
         .webtoon
         .client
-        .get_posts_for_episode(episode, None, 1)
+        .get_status_code_for_episode(episode, None, 1)
         .await?;
 
-    if response.status() == 404 {
-        Ok(false)
-    } else {
-        Ok(true)
-    }
+    Ok(status_code != 404)
 }
 
 impl IntoIterator for Posts {
@@ -1645,16 +1641,12 @@ impl Replies for Posts {
             .webtoon
             .client
             .get_replies_for_post(post, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first replies
-        for reply in api.result.posts {
+        for reply in response.result.posts {
             replies.insert(Post::try_from((&post.episode, reply))?);
         }
 
@@ -1665,17 +1657,13 @@ impl Replies for Posts {
                 .webtoon
                 .client
                 .get_replies_for_post(post, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for reply in api.result.posts {
+            for reply in response.result.posts {
                 replies.replace(Post::try_from((&post.episode, reply))?);
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         let mut replies = Posts {

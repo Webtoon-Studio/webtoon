@@ -22,7 +22,7 @@ use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
-    client::{Client, api::likes::Likes, api::posts::PostsResult},
+    client::{Client, api::likes::Likes, api::posts::RawPostResponse},
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,
 };
@@ -553,14 +553,10 @@ impl Episode {
             .webtoon
             .client
             .get_posts_for_episode(self, None, 1)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let comments = api.result.active_root_post_count;
-        let replies = api.result.active_post_count - comments;
+        let comments = response.result.active_root_post_count;
+        let replies = response.result.active_post_count - comments;
 
         Ok((comments, replies))
     }
@@ -604,16 +600,12 @@ impl Episode {
             .webtoon
             .client
             .get_posts_for_episode(self, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first posts
-        for post in api.result.posts {
+        for post in response.result.posts {
             posts.insert(Post::try_from((self, post))?);
         }
 
@@ -623,17 +615,13 @@ impl Episode {
                 .webtoon
                 .client
                 .get_posts_for_episode(self, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for post in api.result.posts {
+            for post in response.result.posts {
                 posts.replace(Post::try_from((self, post))?);
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
@@ -662,7 +650,7 @@ impl Episode {
             .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
+        let api = serde_json::from_str::<RawPostResponse>(&response).context(response)?;
 
         for post in api.result.tops {
             posts.replace(Post::try_from((self, post))?);
@@ -737,7 +725,7 @@ impl Episode {
             .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
+        let api = serde_json::from_str::<RawPostResponse>(&response).context(response)?;
 
         for post in api.result.tops {
             closure(Post::try_from((self, post))?).await;
@@ -747,16 +735,12 @@ impl Episode {
             .webtoon
             .client
             .get_posts_for_episode(self, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first posts
-        for post in api.result.posts {
+        for post in response.result.posts {
             closure(Post::try_from((self, post))?).await;
         }
 
@@ -766,17 +750,13 @@ impl Episode {
                 .webtoon
                 .client
                 .get_posts_for_episode(self, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for post in api.result.posts {
+            for post in response.result.posts {
                 closure(Post::try_from((self, post))?).await;
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         Ok(())
@@ -830,16 +810,12 @@ impl Episode {
             .webtoon
             .client
             .get_posts_for_episode(self, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first posts
-        for post in api.result.posts {
+        for post in response.result.posts {
             if post.id == id {
                 return Ok(Posts {
                     posts: posts.into_iter().collect(),
@@ -855,13 +831,9 @@ impl Episode {
                 .webtoon
                 .client
                 .get_posts_for_episode(self, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for post in api.result.posts {
+            for post in response.result.posts {
                 if post.id == id {
                     return Ok(Posts {
                         posts: posts.into_iter().collect(),
@@ -871,7 +843,7 @@ impl Episode {
                 posts.insert(Post::try_from((self, post))?);
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         let mut posts = Posts {
@@ -927,16 +899,12 @@ impl Episode {
             .webtoon
             .client
             .get_posts_for_episode(self, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first posts
-        for post in api.result.posts {
+        for post in response.result.posts {
             if post.created_at < date {
                 return Ok(Posts {
                     posts: posts.into_iter().collect(),
@@ -952,13 +920,9 @@ impl Episode {
                 .webtoon
                 .client
                 .get_posts_for_episode(self, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for post in api.result.posts {
+            for post in response.result.posts {
                 if post.created_at < date {
                     return Ok(Posts {
                         posts: posts.into_iter().collect(),
@@ -968,7 +932,7 @@ impl Episode {
                 posts.insert(Post::try_from((self, post))?);
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         let mut posts = Posts {
