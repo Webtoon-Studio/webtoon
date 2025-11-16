@@ -49,16 +49,23 @@ pub struct Webtoon {
     pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl fmt::Debug for Webtoon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            client: _,
+            id,
+            language,
+            scope,
+            slug,
+            page,
+        } = self;
+
         f.debug_struct("Webtoon")
-            // omitting `client`
-            .field("id", &self.id)
-            .field("language", &self.language)
-            .field("scope", &self.scope)
-            .field("slug", &self.slug)
-            .field("page", &self.page)
+            .field("id", id)
+            .field("language", language)
+            .field("scope", scope)
+            .field("slug", slug)
+            .field("page", page)
             .finish()
     }
 }
