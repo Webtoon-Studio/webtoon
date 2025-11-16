@@ -1983,7 +1983,7 @@ pub(crate) mod id {
     }
 
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-    pub enum Scope {
+    enum Scope {
         W,
         C,
     }
