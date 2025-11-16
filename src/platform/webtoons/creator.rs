@@ -368,15 +368,14 @@ fn username(html: &Html) -> Result<String, CreatorError> {
     let selector = Selector::parse("h3").expect("`h3` should be a valid selector");
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(class) = element.value().attr("class") {
-            if class.starts_with("HomeProfile_nickname") {
-                return Ok(element
-                    .text()
-                    .next()
-                    .context("username element was empty")?
-                    .to_string());
-            }
+        if let Some(class) = element.value().attr("class")
+            && class.starts_with("HomeProfile_nickname")
+        {
+            return Ok(element
+                .text()
+                .next()
+                .context("username element was empty")?
+                .to_string());
         }
     }
 
@@ -392,21 +391,20 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
     let mut encountered_class = false;
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(class) = element.value().attr("class") {
-            if class.starts_with("CreatorBriefMetric_count") {
-                if encountered_class {
-                    return Ok(element
-                        .text()
-                        .next()
-                        .context("follower count element was empty")?
-                        .replace(',', "")
-                        .parse()
-                        .context("follower count was not a number")?);
-                }
-
-                encountered_class = true;
+        if let Some(class) = element.value().attr("class")
+            && class.starts_with("CreatorBriefMetric_count")
+        {
+            if encountered_class {
+                return Ok(element
+                    .text()
+                    .next()
+                    .context("follower count element was empty")?
+                    .replace(',', "")
+                    .parse()
+                    .context("follower count was not a number")?);
             }
+
+            encountered_class = true;
         }
     }
 
@@ -473,12 +471,11 @@ fn has_patreon(html: &Html) -> bool {
     let mut has_patreon = false;
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(alt) = element.value().attr("alt") {
-            if alt == "PATREON" {
-                has_patreon = true;
-                break;
-            }
+        if let Some(alt) = element.value().attr("alt")
+            && alt == "PATREON"
+        {
+            has_patreon = true;
+            break;
         }
     }
 
