@@ -876,7 +876,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::episode::posts::{Replies, Posts}};
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::post::{Replies, Posts}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -2083,7 +2083,7 @@ pub(crate) mod id {
         fn should_turn_reply_id_to_string() {
             let id = Id {
                 tag: 0,
-                scope: Scope::W,
+                scope: Scope::C,
                 webtoon: 656_579,
                 episode: 161,
                 post: Base36::new(35),
