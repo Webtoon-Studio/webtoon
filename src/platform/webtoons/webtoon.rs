@@ -3,7 +3,7 @@
 mod homepage;
 
 pub mod episode;
-pub mod posts;
+pub mod post;
 
 use anyhow::Context;
 use core::fmt;
@@ -19,7 +19,7 @@ use rss::Rss;
 use self::{
     episode::{Episode, Episodes},
     homepage::Page,
-    posts::Posts,
+    post::Posts,
 };
 
 use super::Type;

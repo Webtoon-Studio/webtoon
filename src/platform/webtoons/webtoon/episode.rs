@@ -14,10 +14,10 @@ use std::{hash::Hash, str::FromStr};
 use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
-use super::posts::Posts;
+use super::post::Posts;
 
 use super::Webtoon;
-use crate::platform::webtoons::webtoon::posts::Post;
+use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::{
     client::{
         Client,
@@ -1444,7 +1444,7 @@ impl Episode {
 
     /// Returns `true` id episode exists, `false` if not. Returns `PostError` if there was an error.
     pub(super) async fn exists(&self) -> Result<bool, PostError> {
-        super::posts::check_episode_exists(self).await
+        super::post::check_episode_exists(self).await
     }
 }
 

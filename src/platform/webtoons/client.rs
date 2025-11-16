@@ -19,7 +19,7 @@ use super::{
     originals::{self},
     webtoon::{
         episode::Episode,
-        posts::{Post, Reaction},
+        post::{Post, Reaction},
     },
 };
 use anyhow::{Context, anyhow};

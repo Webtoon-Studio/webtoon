@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language, Type, canvas::Sort, errors::Error, webtoon::episode::posts::Posts,
+    Client, Language, Type, canvas::Sort, errors::Error, webtoon::post::Posts,
 };
 
 #[tokio::test]
