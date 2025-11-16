@@ -1009,10 +1009,7 @@ impl Client {
         DashboardEpisode::parse(&response)
     }
 
-    pub(super) async fn get_stats_dashboard(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<Response, ClientError> {
+    pub(super) async fn get_stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, ClientError> {
         let Some(session) = &self.session else {
             return Err(ClientError::NoSessionProvided);
         };
@@ -1032,9 +1029,13 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        Ok(response)
+        let html = Html::parse_document(&response);
+
+        Ok(html)
     }
 
     #[cfg(feature = "rss")]
