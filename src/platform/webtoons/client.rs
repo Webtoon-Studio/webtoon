@@ -906,7 +906,7 @@ impl Client {
     ) -> Result<(), ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let session = self.session.as_ref().unwrap();
 
@@ -938,7 +938,7 @@ impl Client {
     ) -> Result<(), ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let session = self.session.as_ref().unwrap();
 
@@ -1092,7 +1092,7 @@ impl Client {
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let session = self
             .session
@@ -1135,7 +1135,7 @@ impl Client {
     pub(super) async fn unlike_episode(&self, episode: &Episode) -> Result<(), ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let session = self
             .session
@@ -1455,7 +1455,7 @@ impl Client {
     ) -> Result<WebtoonUserInfo, ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let Some(session) = &self.session else {
             return Err(ClientError::NoSessionProvided);
@@ -1492,7 +1492,7 @@ impl Client {
     async fn get_react_token(&self) -> Result<ReactToken, ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let Some(session) = &self.session else {
             return Err(ClientError::NoSessionProvided);
@@ -1517,7 +1517,7 @@ impl Client {
     pub(super) async fn get_api_token(&self) -> Result<String, ClientError> {
         if !self.has_valid_session().await? {
             return Err(ClientError::InvalidSession);
-        };
+        }
 
         let Some(session) = &self.session else {
             return Err(ClientError::NoSessionProvided);
