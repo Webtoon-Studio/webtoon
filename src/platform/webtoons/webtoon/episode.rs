@@ -21,9 +21,9 @@ use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::{
     client::{
         Client,
-        dashboard::episodes::DashboardStatus,
-        likes::Likes,
-        posts::{PostsResult, id::Id},
+        api::dashboard::episodes::DashboardStatus,
+        api::likes::Likes,
+        api::posts::{PostsResult, id::Id},
     },
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,

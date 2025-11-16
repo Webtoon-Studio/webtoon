@@ -2,7 +2,7 @@ use chrono::DateTime;
 use parking_lot::RwLock;
 
 use crate::platform::webtoons::{
-    client::dashboard::episodes::DashboardEpisode,
+    client::api::dashboard::episodes::DashboardEpisode,
     errors::EpisodeError,
     webtoon::{
         Webtoon,
@@ -26,7 +26,9 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     let pages = calculate_max_pages(&response)?;
 
     let dashboard_episodes =
-        crate::platform::webtoons::client::dashboard::episodes::DashboardEpisode::parse(&response)?;
+        crate::platform::webtoons::client::api::dashboard::episodes::DashboardEpisode::parse(
+            &response,
+        )?;
 
     for episode in dashboard_episodes {
         episodes.insert(Episode {

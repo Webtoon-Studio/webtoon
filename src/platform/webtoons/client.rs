@@ -1,11 +1,10 @@
 //! Represents a client abstraction for `webtoons.com`.
 
-pub(crate) mod dashboard;
-pub(super) mod likes;
-pub(super) mod posts;
-pub mod search;
+pub mod api;
 
 use crate::stdx::http::{DEFAULT_USER_AGENT, IRetry};
+
+use api::{posts::id::Id, search::Item};
 
 use super::{
     Language, Type, Webtoon,
@@ -24,9 +23,7 @@ use super::{
 };
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
-use posts::id::Id;
 use reqwest::Response;
-use search::Item;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
@@ -368,7 +365,7 @@ impl Client {
 
         let response = self.http.get(&url).retry().send().await?;
 
-        let api = serde_json::from_str::<search::Api>(&response.text().await?)
+        let api = serde_json::from_str::<api::search::RawSearch>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
 
         let Some(originals) = api.result.webtoon_title_list else {
@@ -403,7 +400,7 @@ impl Client {
 
             let response = self.http.get(&url).retry().send().await?;
 
-            let api = serde_json::from_str::<search::Api>(&response.text().await?)
+            let api = serde_json::from_str::<api::search::RawSearch>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
 
             let Some(originals) = api.result.webtoon_title_list else {
@@ -438,7 +435,7 @@ impl Client {
 
         let response = self.http.get(&url).retry().send().await?;
 
-        let api = serde_json::from_str::<search::Api>(&response.text().await?)
+        let api = serde_json::from_str::<api::search::RawSearch>(&response.text().await?)
             .context("Failed to deserialize search api response")?;
 
         let Some(canvas) = api.result.challenge_title_list else {
@@ -473,7 +470,7 @@ impl Client {
 
             let response = self.http.get(&url).retry().send().await?;
 
-            let api = serde_json::from_str::<search::Api>(&response.text().await?)
+            let api = serde_json::from_str::<api::search::RawSearch>(&response.text().await?)
                 .context("Failed to deserialize search api response")?;
 
             let Some(canvas) = api.result.challenge_title_list else {

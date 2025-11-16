@@ -9,7 +9,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 
 // Id will now be in `episode::posts` documentation
-pub use crate::platform::webtoons::client::posts::Id;
+pub use crate::platform::webtoons::client::api::posts::Id;
 
 //Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
 
@@ -120,7 +120,7 @@ pub use crate::platform::webtoons::client::posts::Id;
 use crate::{
     platform::webtoons::{
         self, Webtoon,
-        client::posts::{Count, PostsResult, Section},
+        client::api::posts::{Count, PostsResult, Section},
         errors::{ClientError, PostError, PosterError, ReplyError},
         meta::Scope,
     },
@@ -1013,12 +1013,12 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
+impl TryFrom<(&Episode, webtoons::client::api::posts::Post)> for Post {
     type Error = anyhow::Error;
 
     #[allow(clippy::too_many_lines)]
     fn try_from(
-        (episode, post): (&Episode, webtoons::client::posts::Post),
+        (episode, post): (&Episode, webtoons::client::api::posts::Post),
     ) -> Result<Self, Self::Error> {
         let mut did_like: bool = false;
         let mut did_dislike: bool = false;

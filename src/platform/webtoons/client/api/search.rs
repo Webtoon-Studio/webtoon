@@ -4,16 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::platform::webtoons::{Type, Webtoon, errors::WebtoonError};
 
-use super::Client;
+use super::super::Client;
 
 /// Represents a single item in the search result.
 pub struct Item {
-    pub(super) client: Client,
-    pub(super) id: u32,
-    pub(super) r#type: Type,
-    pub(super) title: String,
-    pub(super) thumbnail: String,
-    pub(super) creator: String,
+    pub client: Client,
+    pub id: u32,
+    pub r#type: Type,
+    pub title: String,
+    pub thumbnail: String,
+    pub creator: String,
 }
 
 impl Item {
@@ -64,21 +64,21 @@ impl Item {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Api {
+pub struct RawSearch {
     pub result: SearchResult,
     pub status: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SearchResult {
+pub struct SearchResult {
     pub challenge_title_list: Option<Canvas>,
     pub webtoon_title_list: Option<Originals>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Originals {
+pub struct Originals {
     pub data: Vec<Data>,
     pub pagination: Pagination,
     pub total_count: i64,
@@ -86,7 +86,7 @@ pub(super) struct Originals {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Canvas {
+pub struct Canvas {
     pub data: Vec<Data>,
     pub pagination: Pagination,
     pub total_count: i64,
@@ -94,7 +94,7 @@ pub(super) struct Canvas {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Data {
+pub struct Data {
     pub content_id: String,
     pub content_sub_type: String,
     pub extra: Extra,
@@ -104,29 +104,29 @@ pub(super) struct Data {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Illustrator {
+pub struct Illustrator {
     pub nickname: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Writer {
+pub struct Writer {
     pub nickname: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Thumbnail {
+pub struct Thumbnail {
     pub domain: String,
     pub path: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Pagination {
+pub struct Pagination {
     pub next: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Extra {
+pub struct Extra {
     pub illustrator: Illustrator,
     pub unsuitable_for_children: Option<bool>,
     pub writer: Writer,
