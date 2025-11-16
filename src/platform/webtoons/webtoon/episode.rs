@@ -1368,19 +1368,11 @@ impl Episode {
 
     /// Scrapes episode page, getting `note`, `length`, `title`, `thumbnail` and the urls for the panels.
     async fn scrape(&self) -> Result<(), EpisodeError> {
-        let response = self
+        let html = self
             .webtoon
             .client
             .get_episode(&self.webtoon, self.number)
             .await?;
-
-        if response.status() == 404 {
-            return Err(EpisodeError::NotViewable);
-        }
-
-        let text = response.text().await?;
-
-        let html = Html::parse_document(&text);
 
         let title = title(&html).context("Episode title failed to be parsed")?;
         *self.title.write() = Some(title);

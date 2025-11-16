@@ -1063,7 +1063,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
         episode: u16,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<Html, EpisodeError> {
         let id = webtoon.id;
         let scope = webtoon.scope.as_slug();
 
@@ -1074,7 +1074,13 @@ impl Client {
 
         let response = self.http.get(&url).retry().send().await?;
 
-        Ok(response)
+        if response.status() == 404 {
+            return Err(EpisodeError::NotViewable);
+        }
+
+        let html = Html::parse_document(&response.text().await?);
+
+        Ok(html)
     }
 
     pub(super) async fn get_likes_for_episode(
