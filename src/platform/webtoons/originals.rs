@@ -30,13 +30,7 @@ pub(super) async fn scrape(
     ];
 
     let documents: Vec<String> = futures::future::try_join_all(days.iter().map(|day| async {
-        let document = client
-            .get_originals_page(language, day)
-            .await?
-            .text()
-            .await?;
-
-        Ok::<String, OriginalsError>(document)
+        Ok::<String, OriginalsError>(client.get_originals_page(language, day).await?)
     }))
     .await?;
 
