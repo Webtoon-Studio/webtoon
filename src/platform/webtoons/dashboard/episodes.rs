@@ -3,13 +3,15 @@ use parking_lot::RwLock;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::platform::webtoons::{
-    client::api::dashboard::episodes::DashboardEpisode,
-    errors::EpisodeError,
-    webtoon::{
-        Webtoon,
-        episode::{self, AdStatus, Episode},
+use crate::{
+    platform::webtoons::{
+        errors::EpisodeError,
+        webtoon::{
+            Webtoon,
+            episode::{self, AdStatus, Episode},
+        },
     },
+    stdx::math::MathExt,
 };
 use std::{collections::HashSet, str::FromStr, sync::Arc, time::Duration};
 
@@ -18,19 +20,12 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     #[allow(clippy::mutable_key_type)]
     let mut episodes: HashSet<Episode> = HashSet::new();
 
-    let response = webtoon
-        .client
-        .get_episodes_dashboard(webtoon, 1)
-        .await?
-        .text()
-        .await?;
+    let dashboard_episodes = webtoon.client.get_episodes_dashboard(webtoon, 1).await?;
 
-    let pages = calculate_max_pages(&response)?;
-
-    let dashboard_episodes =
-        crate::platform::webtoons::client::api::dashboard::episodes::DashboardEpisode::parse(
-            &response,
-        )?;
+    // This gets the highest numerical episode number and calculates what page it
+    // would be in, given max episodes per page value. This gives us how many
+    // pages we need to go through.
+    let pages = dashboard_episodes[0].metadata.number.in_bucket_of(10);
 
     for episode in dashboard_episodes {
         episodes.insert(Episode {
@@ -53,14 +48,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     }
 
     for page in 2..=pages {
-        let response = webtoon
-            .client
-            .get_episodes_dashboard(webtoon, page)
-            .await?
-            .text()
-            .await?;
-
-        let dashboard_episodes = DashboardEpisode::parse(&response)?;
+        let dashboard_episodes = webtoon.client.get_episodes_dashboard(webtoon, page).await?;
 
         for episode in dashboard_episodes {
             episodes.insert(Episode {
@@ -82,7 +70,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             });
         }
 
-        // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
+        // Sleep for one second to prevent getting a 429 response code for going between the pages too quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
@@ -162,27 +150,4 @@ impl TryFrom<String> for DashboardStatus {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(&value)
     }
-}
-
-// TODO: Use the `stdx::math` trait like in other places with episode per page calculation.
-fn calculate_max_pages(html: &str) -> Result<u16, EpisodeError> {
-    let episodes = DashboardEpisode::parse(html)?;
-
-    if episodes.is_empty() {
-        return Ok(0);
-    }
-
-    let latest = episodes[0].metadata.number;
-
-    // 10 per page. Gets within -1 of the actual page count if there is overflow
-    let min = latest / 10;
-
-    // Checks for overflow chapters that would make an extra page
-    // If there is any excess it will at most be one extra page, and so if true, the value becomes `1`
-    // later added to the page count from before
-    let overflow = u16::from((latest % 10) != 0);
-
-    let pages = min + overflow;
-
-    Ok(pages)
 }

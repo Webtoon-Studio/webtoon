@@ -8,9 +8,10 @@ pub use api::user_info::UserInfo;
 use crate::{
     platform::webtoons::{
         client::api::{
-            api_token::ApiToken, posts::RawPostResponse, react_token::ReactToken,
-            webtoon_user_info::WebtoonUserInfo,
+            api_token::ApiToken, dashboard::episodes::DashboardEpisode, posts::RawPostResponse,
+            react_token::ReactToken, webtoon_user_info::WebtoonUserInfo,
         },
+        errors::EpisodeError,
         search::Item,
         webtoon::post::id::Id,
     },
@@ -985,15 +986,14 @@ impl Client {
         &self,
         webtoon: &Webtoon,
         page: u16,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<Vec<DashboardEpisode>, EpisodeError> {
         let Some(session) = &self.session else {
-            return Err(ClientError::NoSessionProvided);
+            return Err(EpisodeError::ClientError(ClientError::NoSessionProvided));
         };
 
-        let id = webtoon.id;
-
         let url = format!(
-            "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}"
+            "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}",
+            id = webtoon.id
         );
 
         let response = self
@@ -1002,9 +1002,11 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        Ok(response)
+        DashboardEpisode::parse(&response)
     }
 
     pub(super) async fn get_stats_dashboard(
