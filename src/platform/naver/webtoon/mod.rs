@@ -44,20 +44,35 @@ pub(super) struct WebtoonInner {
 #[expect(clippy::missing_fields_in_debug)]
 impl Debug for Webtoon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let WebtoonInner {
+            id,
+            r#type,
+            title,
+            thumbnail,
+            summary,
+            is_new,
+            on_hiatus,
+            is_completed,
+            favorites,
+            schedule,
+            genres,
+            creators,
+        } = self.inner.as_ref();
+
         f.debug_struct("Webtoon")
             // omitting `client`
-            .field("id", &self.inner.id)
-            .field("type", &self.inner.r#type)
-            .field("title", &self.inner.title)
-            .field("thumbnail", &self.inner.thumbnail)
-            .field("summary", &self.inner.summary)
-            .field("is_new", &self.inner.is_new)
-            .field("on_hiatus", &self.inner.on_hiatus)
-            .field("is_completed", &self.inner.is_completed)
-            .field("favorites", &self.inner.favorites)
-            .field("schedule", &self.inner.schedule)
-            .field("genres", &self.inner.genres)
-            .field("creators", &self.inner.creators)
+            .field("id", id)
+            .field("type", r#type)
+            .field("title", title)
+            .field("thumbnail", thumbnail)
+            .field("summary", summary)
+            .field("is_new", is_new)
+            .field("on_hiatus", on_hiatus)
+            .field("is_completed", is_completed)
+            .field("favorites", favorites)
+            .field("schedule", schedule)
+            .field("genres", genres)
+            .field("creators", creators)
             .finish()
     }
 }

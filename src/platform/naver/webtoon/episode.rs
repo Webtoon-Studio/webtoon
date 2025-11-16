@@ -64,17 +64,26 @@ pub struct Episode {
     pub(crate) page: Arc<RwLock<Option<Page>>>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl Debug for Episode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            webtoon: _,
+            number,
+            title,
+            thumbnail,
+            season,
+            published,
+            page,
+        } = self;
+
         f.debug_struct("Episode")
             // omitting `webtoon`
-            .field("number", &self.number)
-            .field("season", &self.season)
-            .field("title", &self.title)
-            .field("published", &self.published)
-            .field("thumbnail", &self.title)
-            .field("page", &self.page)
+            .field("number", number)
+            .field("season", season)
+            .field("title", title)
+            .field("published", published)
+            .field("thumbnail", thumbnail)
+            .field("page", page)
             .finish()
     }
 }

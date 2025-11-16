@@ -228,21 +228,33 @@ pub struct Post {
     pub(crate) poster: Poster,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl Debug for Post {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            episode: _,
+            id,
+            parent_id,
+            body,
+            upvotes,
+            downvotes,
+            replies,
+            is_top,
+            is_deleted,
+            posted,
+            poster,
+        } = self;
+
         f.debug_struct("Post")
-            // omitting `episode`
-            .field("id", &self.id)
-            .field("parent_id", &self.parent_id)
-            .field("body", &self.body)
-            .field("upvotes", &self.upvotes)
-            .field("downvotes", &self.downvotes)
-            .field("replies", &self.replies)
-            .field("is_top", &self.is_top)
-            .field("is_deleted", &self.is_deleted)
-            .field("posted", &self.posted)
-            .field("poster", &self.poster)
+            .field("id", id)
+            .field("parent_id", parent_id)
+            .field("body", body)
+            .field("upvotes", upvotes)
+            .field("downvotes", downvotes)
+            .field("replies", replies)
+            .field("is_top", is_top)
+            .field("is_deleted", is_deleted)
+            .field("posted", posted)
+            .field("poster", poster)
             .finish()
     }
 }
@@ -1360,24 +1372,35 @@ pub struct Poster {
     pub(crate) super_like: Option<u32>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            webtoon: _,
+            episode,
+            post_id,
+            cuid,
+            profile,
+            username,
+            is_creator,
+            is_blocked,
+            is_current_session_user,
+            is_current_webtoon_creator,
+            reaction,
+            super_like,
+        } = self;
+
         f.debug_struct("Poster")
-            // omitting `webtoon`
-            .field("episode", &self.episode)
-            .field("cuid", &self.cuid)
-            .field("profile", &self.profile)
-            .field("username", &self.username)
-            .field("is_creator", &self.is_creator)
-            .field("is_blocked", &self.is_blocked)
-            .field("is_current_session_user", &self.is_current_session_user)
-            .field(
-                "is_current_webtoon_creator",
-                &self.is_current_webtoon_creator,
-            )
-            .field("reaction", &self.reaction)
-            .field("super_likes", &self.super_like)
+            .field("episode", episode)
+            .field("post_id", post_id)
+            .field("cuid", cuid)
+            .field("profile", profile)
+            .field("username", username)
+            .field("is_creator", is_creator)
+            .field("is_blocked", is_blocked)
+            .field("is_current_session_user", is_current_session_user)
+            .field("is_current_webtoon_creator", is_current_webtoon_creator)
+            .field("reaction", reaction)
+            .field("super_likes", super_like)
             .finish()
     }
 }
