@@ -620,7 +620,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentaion::Distinct)
+            .get_posts_for_episode(self, None, 1, PinRepresentaion::Distinct)
             .await?;
 
         for post in response.result.tops {
