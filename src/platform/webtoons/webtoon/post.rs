@@ -1689,7 +1689,7 @@ impl Replies for Posts {
 }
 
 pub(crate) mod id {
-    use serde_with::{DeserializeFromStr, SerializeDisplay};
+    use serde::{Deserialize, Serialize};
     use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
     use thiserror::Error;
 
@@ -1768,10 +1768,12 @@ pub(crate) mod id {
     /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
     ///   were posted earlier than those with higher values.
     /// - The ID must have non-zero values for both the post and reply components, ensuring that each comment and reply is uniquely identifiable.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, DeserializeFromStr, SerializeDisplay)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+    #[serde(try_from = "String")]
+    #[serde(into = "String")]
     pub struct Id {
         tag: u32,
-        scope: &'static str,
+        scope: Scope,
         webtoon: u32,
         episode: u16,
         post: Base36,
@@ -1826,8 +1828,8 @@ pub(crate) mod id {
 
             // trick to get a static str from a runtime value
             let scope = match page_id_parts[0] {
-                "w" => "w",
-                "c" => "c",
+                "w" => Scope::W,
+                "c" => Scope::C,
                 _ => unreachable!("a webtoon can only be either an original or canvas"),
             };
 
@@ -1963,6 +1965,37 @@ pub(crate) mod id {
         }
     }
 
+    impl From<Id> for String {
+        fn from(val: Id) -> Self {
+            val.to_string()
+        }
+    }
+
+    impl TryFrom<String> for Id {
+        type Error = ParseIdError;
+
+        fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+            Self::from_str(&value)
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+    pub enum Scope {
+        W,
+        C,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let letter = match self {
+                Self::W => "w",
+                Self::C => "c",
+            };
+
+            write!(f, "{letter}")
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use super::*;
@@ -1971,7 +2004,7 @@ pub(crate) mod id {
         fn should_be_equal_str() {
             let id = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(49),
@@ -1980,7 +2013,7 @@ pub(crate) mod id {
 
             let id_with_reply = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(49),
@@ -1996,7 +2029,7 @@ pub(crate) mod id {
         fn should_be_not_equal_str() {
             let id = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(49),
@@ -2011,7 +2044,7 @@ pub(crate) mod id {
         fn should_be_ordered() {
             let forty_nine = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(49),
@@ -2020,7 +2053,7 @@ pub(crate) mod id {
 
             let fifty = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(50),
@@ -2029,7 +2062,7 @@ pub(crate) mod id {
 
             let fifty_with_reply = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(50),
@@ -2056,7 +2089,7 @@ pub(crate) mod id {
         fn should_turn_post_id_to_string() {
             let id = Id {
                 tag: 0,
-                scope: "w",
+                scope: Scope::W,
                 webtoon: 95,
                 episode: 1,
                 post: Base36::new(49),
@@ -2070,7 +2103,7 @@ pub(crate) mod id {
         fn should_turn_reply_id_to_string() {
             let id = Id {
                 tag: 0,
-                scope: "c",
+                scope: Scope::W,
                 webtoon: 656_579,
                 episode: 161,
                 post: Base36::new(35),
@@ -2084,7 +2117,7 @@ pub(crate) mod id {
         fn should_parse_post_id() {
             let id = Id::from_str("GW-epicom:0-w_95_1-1d").unwrap();
 
-            pretty_assertions::assert_eq!(id.scope, "w");
+            pretty_assertions::assert_eq!(id.scope, Scope::W);
             pretty_assertions::assert_eq!(id.webtoon, 95);
             pretty_assertions::assert_eq!(id.episode, 1);
             pretty_assertions::assert_eq!(id.post, 49);
@@ -2096,7 +2129,7 @@ pub(crate) mod id {
             {
                 let id = Id::from_str("GW-epicom:0-w_95_1-1d-z").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, "w");
+                pretty_assertions::assert_eq!(id.scope, Scope::W);
                 pretty_assertions::assert_eq!(id.webtoon, 95);
                 pretty_assertions::assert_eq!(id.episode, 1);
                 pretty_assertions::assert_eq!(id.post, 49);
@@ -2105,7 +2138,7 @@ pub(crate) mod id {
             {
                 let id = Id::from_str("GW-epicom:0-c_656579_161-13-1").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, "c");
+                pretty_assertions::assert_eq!(id.scope, Scope::C);
                 pretty_assertions::assert_eq!(id.webtoon, 656_579);
                 pretty_assertions::assert_eq!(id.episode, 161);
                 pretty_assertions::assert_eq!(id.post, 39);

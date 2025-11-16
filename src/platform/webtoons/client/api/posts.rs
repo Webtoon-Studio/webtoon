@@ -53,7 +53,7 @@ pub struct Post {
     // "BY_USER"
     pub creation_type: String,
     pub depth: u8,
-    // pub // extraList: Vec<_>,
+    // pub extraList: Vec<_>,
     pub id: Id,
     pub is_owner: bool,
     pub is_pinned: bool,
