@@ -1015,12 +1015,12 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, webtoons::client::api::posts::Post)> for Post {
+impl TryFrom<(&Episode, webtoons::client::api::posts::RawPost)> for Post {
     type Error = anyhow::Error;
 
     #[allow(clippy::too_many_lines)]
     fn try_from(
-        (episode, post): (&Episode, webtoons::client::api::posts::Post),
+        (episode, post): (&Episode, webtoons::client::api::posts::RawPost),
     ) -> Result<Self, Self::Error> {
         let mut did_like: bool = false;
         let mut did_dislike: bool = false;

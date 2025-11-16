@@ -22,11 +22,11 @@ pub struct Result {
     pub pagination: Pagination,
     #[serde(default)]
     pub post_count: u32,
-    pub posts: Vec<Post>,
+    pub posts: Vec<RawPost>,
     #[serde(default)]
     pub root_post_count: u32,
     #[serde(default)]
-    pub tops: Vec<Post>,
+    pub tops: Vec<RawPost>,
 }
 
 #[allow(dead_code)]
@@ -41,7 +41,7 @@ pub struct Pagination {
 #[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Post {
+pub struct RawPost {
     pub active_child_post_count: i32,
     pub active_page_owner_child_post_count: i32,
     pub body: String,
