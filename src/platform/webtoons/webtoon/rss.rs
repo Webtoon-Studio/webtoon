@@ -64,15 +64,7 @@ impl Rss {
 }
 
 pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
-    let response = webtoon
-        .client
-        .get_rss_for_webtoon(webtoon)
-        .await?
-        .text()
-        .await?;
-
-    let channel = rss::Channel::from_str(&response) //
-        .map_err(|err| WebtoonError::Unexpected(err.into()))?;
+    let channel = webtoon.client.get_rss_for_webtoon(webtoon).await?;
 
     let mut episodes = Vec::new();
 
