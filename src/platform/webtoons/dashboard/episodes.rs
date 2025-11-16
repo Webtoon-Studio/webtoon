@@ -1,9 +1,14 @@
-mod json;
 use chrono::DateTime;
-pub use json::*;
 use parking_lot::RwLock;
 
-use crate::platform::webtoons::{Webtoon, errors::EpisodeError, webtoon::episode::Episode};
+use crate::platform::webtoons::{
+    client::dashboard::episodes::DashboardEpisode,
+    errors::EpisodeError,
+    webtoon::{
+        Webtoon,
+        episode::{self, Episode},
+    },
+};
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
@@ -20,15 +25,14 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
 
     let pages = calculate_max_pages(&response)?;
 
-    let dashboard_episodes = DashboardEpisode::parse(&response)?;
+    let dashboard_episodes =
+        crate::platform::webtoons::client::dashboard::episodes::DashboardEpisode::parse(&response)?;
 
     for episode in dashboard_episodes {
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,
-            season: Arc::new(RwLock::new(super::super::episode::season(
-                &episode.metadata.title,
-            ))),
+            season: Arc::new(RwLock::new(episode::season(&episode.metadata.title))),
             title: Arc::new(RwLock::new(Some(episode.metadata.title))),
             published: episode.published.map(|timestamp| {
                 DateTime::from_timestamp_millis(timestamp)
@@ -58,9 +62,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             episodes.insert(Episode {
                 webtoon: webtoon.clone(),
                 number: episode.metadata.number,
-                season: Arc::new(RwLock::new(super::super::episode::season(
-                    &episode.metadata.title,
-                ))),
+                season: Arc::new(RwLock::new(episode::season(&episode.metadata.title))),
                 title: Arc::new(RwLock::new(Some(episode.metadata.title))),
                 published: episode.published.map(|timestamp| {
                     DateTime::from_timestamp_millis(timestamp)

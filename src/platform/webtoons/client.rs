@@ -1,5 +1,6 @@
 //! Represents a client abstraction for `webtoons.com`.
 
+pub(crate) mod dashboard;
 pub(super) mod likes;
 pub(super) mod posts;
 pub mod search;

@@ -18,10 +18,11 @@ use url::Url;
 pub mod posts;
 use self::posts::Posts;
 
-use super::{Webtoon, dashboard::episodes::DashboardStatus};
+use super::Webtoon;
 use crate::platform::webtoons::{
-    Client,
     client::{
+        Client,
+        dashboard::episodes::DashboardStatus,
         likes::Likes,
         posts::{PostsResult, id::Id},
     },
@@ -1448,7 +1449,7 @@ impl Episode {
     }
 }
 
-pub(super) fn season(title: &str) -> Option<u8> {
+pub(crate) fn season(title: &str) -> Option<u8> {
     // [Season 3]
     let square_brackets_long =
         Regex::new(r"\[Season (?P<season>\d+)\]").expect("regex should be valid");

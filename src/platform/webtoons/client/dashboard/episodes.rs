@@ -45,7 +45,7 @@ pub struct DashboardEpisode {
 }
 
 impl DashboardEpisode {
-    pub(super) fn parse(html: &str) -> Result<Vec<Self>, EpisodeError> {
+    pub fn parse(html: &str) -> Result<Vec<Self>, EpisodeError> {
         for line in html.lines().rev() {
             let trimmed = line.trim_start();
 

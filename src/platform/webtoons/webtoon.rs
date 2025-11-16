@@ -1,6 +1,5 @@
 //! Represents an abstraction for a Webtoon on `webtoons.com`.
 
-mod dashboard;
 pub mod episode;
 mod page;
 
@@ -341,7 +340,7 @@ impl Webtoon {
     pub async fn views(&self) -> Result<u64, EpisodeError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let views = dashboard::episodes::scrape(self)
+                let views = super::dashboard::episodes::scrape(self)
                     .await?
                     .into_iter()
                     .filter_map(|episode| episode.views.map(u64::from))
@@ -398,7 +397,9 @@ impl Webtoon {
     pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let subscribers = dashboard::stats::scrape(self).await?.subscribers;
+                let subscribers = super::dashboard::statistics::scrape(self)
+                    .await?
+                    .subscribers;
                 return Ok(subscribers);
             }
             // Fallback to public data
@@ -626,7 +627,7 @@ impl Webtoon {
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let episodes = match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                self::dashboard::episodes::scrape(self).await?
+                super::dashboard::episodes::scrape(self).await?
             }
             // Fallback to public data
             Ok(_) | Err(ClientError::NoSessionProvided) => {
