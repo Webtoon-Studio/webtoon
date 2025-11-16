@@ -1,1 +1,1 @@
-pub(crate) mod episodes;
+pub mod episodes;

@@ -18,13 +18,11 @@ use url::Url;
 use super::post::Posts;
 
 use super::Webtoon;
+use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
-    client::{
-        Client, api::dashboard::episodes::DashboardStatus, api::likes::Likes,
-        api::posts::PostsResult,
-    },
+    client::{Client, api::likes::Likes, api::posts::PostsResult},
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,
 };
