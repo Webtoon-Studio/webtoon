@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use core::fmt;
+use core::fmt::{self, Debug};
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
 use crate::{
@@ -158,7 +158,7 @@ pub struct Post {
 }
 
 #[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Post {
+impl Debug for Post {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Post")
             // omitting `episode`
@@ -690,7 +690,7 @@ pub struct Poster {
 }
 
 #[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Poster {
+impl Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Poster")
             // omitting `webtoon`

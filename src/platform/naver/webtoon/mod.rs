@@ -7,7 +7,7 @@ use super::errors::{EpisodeError, PostError, WebtoonError};
 use super::meta::Genre;
 use super::{Client, creator::Creator};
 use super::{Type, meta::Weekday};
-use core::fmt;
+use core::fmt::{self, Debug};
 use episode::{Episode, Episodes, posts::Posts};
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ pub(super) struct WebtoonInner {
 }
 
 #[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Webtoon {
+impl Debug for Webtoon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Webtoon")
             // omitting `client`

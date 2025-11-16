@@ -6,7 +6,7 @@ pub mod episode;
 pub mod post;
 
 use anyhow::Context;
-use core::fmt;
+use core::fmt::{self, Debug};
 use parking_lot::RwLock;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -49,7 +49,7 @@ pub struct Webtoon {
     pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
-impl fmt::Debug for Webtoon {
+impl Debug for Webtoon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self {
             client: _,

@@ -5,7 +5,7 @@ pub mod posts;
 
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
-use core::fmt;
+use core::fmt::{self, Debug};
 use parking_lot::RwLock;
 use regex::Regex;
 use scraper::Html;
@@ -65,7 +65,7 @@ pub struct Episode {
 }
 
 #[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Episode {
+impl Debug for Episode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Episode")
             // omitting `webtoon`
