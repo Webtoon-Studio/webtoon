@@ -29,15 +29,14 @@ pub(super) async fn scrape(
         "complete",
     ];
 
-    let documents: Vec<String> = futures::future::try_join_all(days.iter().map(|day| async {
-        Ok::<String, OriginalsError>(client.get_originals_page(language, day).await?)
+    let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|day| async {
+        Ok::<Html, OriginalsError>(client.get_originals_page(language, day).await?)
     }))
     .await?;
 
     let mut webtoons = Vec::with_capacity(2000);
 
-    for document in documents {
-        let html = Html::parse_document(&document);
+    for html in documents {
         for card in html.select(&selector) {
             let href = card
                 .attr("href")

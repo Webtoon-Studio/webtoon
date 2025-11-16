@@ -845,10 +845,14 @@ impl Client {
         &self,
         lang: Language,
         day: &str,
-    ) -> Result<String, ClientError> {
+    ) -> Result<Html, ClientError> {
         let url = format!("https://www.webtoons.com/{lang}/originals/{day}");
 
-        Ok(self.http.get(&url).retry().send().await?.text().await?)
+        let document = self.http.get(&url).retry().send().await?.text().await?;
+
+        let html = Html::parse_document(&document);
+
+        Ok(html)
     }
 
     pub(super) async fn get_canvas_page(
@@ -856,19 +860,23 @@ impl Client {
         lang: Language,
         page: u16,
         sort: Sort,
-    ) -> Result<String, ClientError> {
+    ) -> Result<Html, ClientError> {
         let url = format!(
             "https://www.webtoons.com/{lang}/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
         );
 
-        Ok(self.http.get(&url).retry().send().await?.text().await?)
+        let document = self.http.get(&url).retry().send().await?.text().await?;
+
+        let html = Html::parse_document(&document);
+
+        Ok(html)
     }
 
     pub(super) async fn get_creator_page(
         &self,
         lang: Language,
         profile: &str,
-    ) -> Result<Option<String>, CreatorError> {
+    ) -> Result<Option<Html>, CreatorError> {
         let url = format!("https://www.webtoons.com/p/community/{lang}/u/{profile}");
 
         let response = self.http.get(&url).retry().send().await?;
@@ -881,7 +889,9 @@ impl Client {
             return Err(CreatorError::DisabledByCreator);
         }
 
-        Ok(Some(response.text().await?))
+        let html = Html::parse_document(&response.text().await?);
+
+        Ok(Some(html))
     }
 
     pub(super) async fn get_webtoon_page(

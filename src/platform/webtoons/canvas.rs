@@ -20,7 +20,7 @@
 //! ```
 
 use anyhow::{Context, Result, anyhow};
-use scraper::{Html, Selector};
+use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
 use super::{Client, Language, Webtoon, errors::CanvasError};
@@ -56,9 +56,7 @@ pub(super) async fn scrape(
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
-        let document = client.get_canvas_page(language, page, sort).await?;
-
-        let html = Html::parse_document(&document);
+        let html = client.get_canvas_page(language, page, sort).await?;
 
         for card in html.select(&selector) {
             let href = card

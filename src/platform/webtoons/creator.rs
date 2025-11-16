@@ -350,11 +350,9 @@ pub(super) async fn homepage(
     profile: &str,
     client: &Client,
 ) -> Result<Option<Homepage>, CreatorError> {
-    let Some(document) = client.get_creator_page(language, profile).await? else {
+    let Some(html) = client.get_creator_page(language, profile).await? else {
         return Ok(None);
     };
-
-    let html = Html::parse_document(&document);
 
     Ok(Some(Homepage {
         username: username(&html)?,
