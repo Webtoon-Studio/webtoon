@@ -22,7 +22,7 @@ use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
-    client::{Client, api::likes::Likes, api::posts::RawPostResponse},
+    client::{Client, api::posts::RawPostResponse},
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,
 };
@@ -500,21 +500,13 @@ impl Episode {
     /// # }
     /// ```
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
-        let response = self
-            .webtoon
-            .client
-            .get_likes_for_episode(self)
-            .await?
-            .text()
-            .await?;
+        let response = self.webtoon.client.get_likes_for_episode(self).await?;
 
-        let api = serde_json::from_str::<Likes>(&response).context(response)?;
+        let contents = response.result.contents.first().context(
+            "`contents` field in likes api didn't have a 0th element and it should always have one",
+        )?;
 
-        let api = api.result.contents.first().context(
-        "`contents` field  in likes api didn't have a 0th element and it should always have one",
-    )?;
-
-        let likes = api
+        let likes = contents
             .reactions
             .first()
             .map(|likes| likes.count)

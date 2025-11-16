@@ -8,8 +8,8 @@ pub use api::user_info::UserInfo;
 use crate::{
     platform::webtoons::{
         client::api::{
-            api_token::ApiToken, dashboard::episodes::DashboardEpisode, posts::RawPostResponse,
-            react_token::ReactToken, webtoon_user_info::WebtoonUserInfo,
+            api_token::ApiToken, dashboard::episodes::DashboardEpisode, likes::RawLikesResponse,
+            posts::RawPostResponse, react_token::ReactToken, webtoon_user_info::WebtoonUserInfo,
         },
         errors::EpisodeError,
         search::Item,
@@ -1086,7 +1086,7 @@ impl Client {
     pub(super) async fn get_likes_for_episode(
         &self,
         episode: &Episode,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<RawLikesResponse, ClientError> {
         let session = self
             .session
             .as_ref()
@@ -1110,9 +1110,11 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        Ok(response)
+        Ok(serde_json::from_str::<RawLikesResponse>(&response).context(response)?)
     }
 
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), ClientError> {
