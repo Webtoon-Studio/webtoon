@@ -6,6 +6,18 @@ use std::hash::Hash;
 use crate::platform::webtoons::{dashboard::episodes::DashboardStatus, errors::EpisodeError};
 
 pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
+    // PERF: Creating new string during cleaning
+    fn clean(line: &str) -> String {
+        // Removes `dashboardEpisodeList: ` from the front and `,` from the back
+        let cleaned = line[22..line.len() - 1]
+            .replace(r"\'", "'")
+            .replace(r"\x3c", "<")
+            // If left in, the HTML entity decode will leave raw `"` in the string, leaving a malformed JSON because of it
+            .replace("&quot;", r#"\""#);
+
+        html_escape::decode_html_entities(&cleaned).to_string()
+    }
+
     for line in html.lines().rev() {
         let trimmed = line.trim_start();
 
@@ -70,18 +82,6 @@ impl Hash for DashboardEpisode {
             piece.hash(state);
         }
     }
-}
-
-// PERF: Creating new string during cleaning
-fn clean(line: &str) -> String {
-    // removes `dashboardEpisodeList: ` from the front and `,` from the back
-    let cleaned = line[22..line.len() - 1]
-        .replace(r"\'", "'")
-        .replace(r"\x3c", "<")
-        // If left in, the html entity decode will leave raw `"` in the string, leaving a malformed json because of it
-        .replace("&quot;", r#"\""#);
-
-    html_escape::decode_html_entities(&cleaned).to_string()
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
