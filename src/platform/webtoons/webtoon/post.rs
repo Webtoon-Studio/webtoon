@@ -1595,16 +1595,6 @@ pub enum Reaction {
     None,
 }
 
-pub(super) async fn check_episode_exists(episode: &Episode) -> Result<bool, PostError> {
-    let status_code = episode
-        .webtoon
-        .client
-        .get_status_code_for_episode(episode, None, 1)
-        .await?;
-
-    Ok(status_code != 404)
-}
-
 impl IntoIterator for Posts {
     type Item = Post;
 

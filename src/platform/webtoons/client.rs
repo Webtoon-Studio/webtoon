@@ -42,7 +42,6 @@ use super::{
 };
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
-use reqwest::StatusCode;
 use scraper::Html;
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
@@ -1255,12 +1254,12 @@ impl Client {
         Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
     }
 
-    pub(super) async fn get_status_code_for_episode(
+    pub(super) async fn get_if_episode_exists(
         &self,
         episode: &Episode,
         cursor: Option<Id>,
         stride: u8,
-    ) -> Result<StatusCode, ClientError> {
+    ) -> Result<bool, ClientError> {
         let session = self
             .session
             .as_ref()
@@ -1291,7 +1290,7 @@ impl Client {
             .send()
             .await?;
 
-        Ok(response.status())
+        Ok(response.status() != 404)
     }
 
     pub(super) async fn get_upvotes_and_downvotes_for_post(

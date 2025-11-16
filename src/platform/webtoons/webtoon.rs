@@ -700,10 +700,7 @@ impl Webtoon {
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
         let episode = Episode::new(self, number);
 
-        if !episode.exists().await.map_err(|err| match err {
-            PostError::ClientError(client_error) => EpisodeError::ClientError(client_error),
-            error => EpisodeError::Unexpected(error.into()),
-        })? {
+        if !episode.exists().await? {
             return Ok(None);
         }
 
