@@ -1,6 +1,5 @@
 //! Module containing things related to posts and their posters.
 
-use anyhow::{Context, bail};
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
 use serde_json::json;
@@ -10,8 +9,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     platform::webtoons::{
-        self, Webtoon,
-        client::api::posts::Section,
+        Webtoon,
         errors::{ClientError, PostError, PosterError, ReplyError},
         meta::Scope,
         webtoon::post::id::Id,
@@ -1015,156 +1013,14 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, webtoons::client::api::posts::RawPost)> for Post {
-    type Error = anyhow::Error;
-
-    #[allow(clippy::too_many_lines)]
-    fn try_from(
-        (episode, post): (&Episode, webtoons::client::api::posts::RawPost),
-    ) -> Result<Self, Self::Error> {
-        let mut did_like: bool = false;
-        let mut did_dislike: bool = false;
-
-        let upvotes = post
-            .reactions
-            .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
-            .emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "like")
-            .map(|likes| {
-                did_like = likes.reacted;
-                likes.count
-            })
-            .unwrap_or_default();
-
-        let downvotes = post
-            .reactions
-            .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
-            .emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "dislike")
-            .map(|dislikes| {
-                did_dislike = dislikes.reacted;
-                dislikes.count
-            })
-            .unwrap_or_default();
-
-        // The way webtoons keeps track of a like or dislike guarantees(?) they are mutually exclusive.
-        let reaction = if did_like {
-            Reaction::Upvote
-        } else if did_dislike {
-            Reaction::Downvote
-        } else {
-            // Defaults to `None` if no session was available for use.
-            Reaction::None
-        };
-
-        let is_deleted = post.status == "DELETE";
-        let is_spoiler = post.settings.spoiler_filter == "ON";
-        let mut super_like: Option<u32> = None;
-
-        // Only Webtoon flare can have multiple.
-        // Super likes might be able to exist along with other flare?
-        let flare = if post.section_group.sections.len() > 1 {
-            let mut webtoons = Vec::new();
-            for section in post.section_group.sections {
-                match section {
-                    Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                        webtoons.push(webtoon);
-                    }
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                    }
-                    _ => {
-                        bail!(
-                            "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
-                        );
-                    }
-                }
-            }
-            Some(Flare::Webtoons(webtoons))
-        } else {
-            match post.section_group.sections.first() {
-                Some(section) => match section {
-                    Section::Giphy { data, .. } => {
-                        Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())))
-                    }
-                    Section::Sticker { data, .. } => {
-                        let sticker = Sticker::from_str(&data.sticker_id)
-                            .context("Failed to parse sticker id")?;
-                        Some(Flare::Sticker(sticker))
-                    }
-                    Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                        Some(Flare::Webtoons(vec![webtoon]))
-                    }
-                    // Ignore super likes
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                        None
-                    }
-                },
-                None => None,
-            }
-        };
-
-        Ok(Post {
-            episode: episode.clone(),
-            id: post.id,
-            parent_id: post.root_id,
-            body: Body {
-                contents: Arc::from(post.body),
-                flare,
-                is_spoiler,
-            },
-            upvotes,
-            downvotes,
-            replies: post.child_post_count,
-            is_top: post.is_pinned,
-            is_deleted,
-            posted: DateTime::from_timestamp_millis(post.created_at).with_context(|| {
-                format!(
-                    "`{}` is not a valid unix millisecond timestamp",
-                    post.created_at
-                )
-            })?,
-            poster: Poster {
-                webtoon: episode.webtoon.clone(),
-                episode: episode.number,
-                post_id: post.id,
-                cuid: Arc::from(post.created_by.cuid),
-                profile: Arc::from(post.created_by.profile_url),
-                username: Arc::from(post.created_by.name),
-                is_current_session_user: post.created_by.is_page_owner,
-                is_current_webtoon_creator: post.created_by.is_page_owner,
-                is_creator: post.created_by.is_creator,
-                is_blocked: post.created_by.restriction.is_write_post_restricted,
-                reaction: Arc::new(RwLock::new(reaction)),
-                super_like,
-            },
-        })
-    }
-}
-
 /// Represents the body of a post, including its content and whether it is marked as a spoiler.
 ///
 /// The body contains the text content of the post, and a flag indicating whether the post contains spoilers.
 #[derive(Debug, Clone)]
 pub struct Body {
-    contents: Arc<str>,
-    is_spoiler: bool,
-    flare: Option<Flare>,
+    pub(crate) contents: Arc<str>,
+    pub(crate) is_spoiler: bool,
+    pub(crate) flare: Option<Flare>,
 }
 
 impl Body {
@@ -1358,9 +1214,9 @@ impl Giphy {
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Poster {
-    webtoon: Webtoon,
-    episode: u16,
-    post_id: Id,
+    pub(crate) webtoon: Webtoon,
+    pub(crate) episode: u16,
+    pub(crate) post_id: Id,
     pub(crate) cuid: Arc<str>,
     pub(crate) profile: Arc<str>,
     pub(crate) username: Arc<str>,
@@ -1593,6 +1449,11 @@ pub enum Reaction {
     Downvote,
     /// User has not voted
     None,
+}
+
+pub(crate) enum PinRepresentaion {
+    None,
+    Distinct,
 }
 
 impl IntoIterator for Posts {

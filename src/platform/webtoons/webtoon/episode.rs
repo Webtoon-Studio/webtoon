@@ -15,10 +15,9 @@ use std::sync::Arc;
 use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
-use super::post::Posts;
+use super::post::{PinRepresentaion, Posts};
 
 use super::Webtoon;
-use crate::platform::webtoons::client::api::posts::PinRepresentaion;
 use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;

@@ -1,11 +1,15 @@
+use anyhow::{Context, bail};
+use chrono::DateTime;
 use serde::Deserialize;
+use std::{str::FromStr, sync::Arc};
+use tokio::sync::RwLock;
 
 use crate::platform::webtoons::webtoon::post::id::Id;
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct RawPostResponse {
-    pub result: Result,
+    pub result: RawResult,
     // "success"
     pub status: String,
 }
@@ -13,7 +17,7 @@ pub struct RawPostResponse {
 #[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Result {
+pub struct RawResult {
     #[serde(default)]
     pub active_post_count: u32,
     #[serde(default)]
@@ -256,7 +260,164 @@ pub struct CountResult {
     pub emotions: Vec<Emotions>,
 }
 
-pub enum PinRepresentaion {
-    None,
-    Distinct,
+impl
+    TryFrom<(
+        &crate::platform::webtoons::webtoon::episode::Episode,
+        RawPost,
+    )> for crate::platform::webtoons::webtoon::post::Post
+{
+    type Error = anyhow::Error;
+
+    #[allow(clippy::too_many_lines)]
+    fn try_from(
+        (episode, post): (
+            &crate::platform::webtoons::webtoon::episode::Episode,
+            RawPost,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mut did_like: bool = false;
+        let mut did_dislike: bool = false;
+
+        let upvotes = post
+            .reactions
+            .first()
+            .context("`reactions` field didn't have a 0th element and it should always have one")?
+            .emotions
+            .iter()
+            .find(|emotion| emotion.emotion_id == "like")
+            .map(|likes| {
+                did_like = likes.reacted;
+                likes.count
+            })
+            .unwrap_or_default();
+
+        let downvotes = post
+            .reactions
+            .first()
+            .context("`reactions` field didn't have a 0th element and it should always have one")?
+            .emotions
+            .iter()
+            .find(|emotion| emotion.emotion_id == "dislike")
+            .map(|dislikes| {
+                did_dislike = dislikes.reacted;
+                dislikes.count
+            })
+            .unwrap_or_default();
+
+        // The way webtoons keeps track of a like or dislike guarantees(?) they are mutually exclusive.
+        let reaction = if did_like {
+            crate::platform::webtoons::webtoon::post::Reaction::Upvote
+        } else if did_dislike {
+            crate::platform::webtoons::webtoon::post::Reaction::Downvote
+        } else {
+            // Defaults to `None` if no session was available for use.
+            crate::platform::webtoons::webtoon::post::Reaction::None
+        };
+
+        let is_deleted = post.status == "DELETE";
+        let is_spoiler = post.settings.spoiler_filter == "ON";
+        let mut super_like: Option<u32> = None;
+
+        // Only Webtoon flare can have multiple.
+        // Super likes might be able to exist along with other flare?
+        let flare = if post.section_group.sections.len() > 1 {
+            let mut webtoons = Vec::new();
+            for section in post.section_group.sections {
+                match section {
+                    Section::ContentMeta { data, .. } => {
+                        let url = format!(
+                            "https://www.webtoons.com{}",
+                            data.info.extra.episode_list_path
+                        );
+                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
+                        webtoons.push(webtoon);
+                    }
+                    Section::SuperLike { data, .. } => {
+                        super_like = Some(data.super_like_count);
+                    }
+                    _ => {
+                        bail!(
+                            "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
+                        );
+                    }
+                }
+            }
+            Some(crate::platform::webtoons::webtoon::post::Flare::Webtoons(
+                webtoons,
+            ))
+        } else {
+            match post.section_group.sections.first() {
+                Some(section) => match section {
+                    Section::Giphy { data, .. } => {
+                        Some(crate::platform::webtoons::webtoon::post::Flare::Giphy(
+                            crate::platform::webtoons::webtoon::post::Giphy::new(
+                                data.giphy_id.clone(),
+                            ),
+                        ))
+                    }
+                    Section::Sticker { data, .. } => {
+                        let sticker = crate::platform::webtoons::webtoon::post::Sticker::from_str(
+                            &data.sticker_id,
+                        )
+                        .context("Failed to parse sticker id")?;
+                        Some(crate::platform::webtoons::webtoon::post::Flare::Sticker(
+                            sticker,
+                        ))
+                    }
+                    Section::ContentMeta { data, .. } => {
+                        let url = format!(
+                            "https://www.webtoons.com{}",
+                            data.info.extra.episode_list_path
+                        );
+                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
+                        Some(crate::platform::webtoons::webtoon::post::Flare::Webtoons(
+                            vec![webtoon],
+                        ))
+                    }
+                    // Ignore super likes
+                    Section::SuperLike { data, .. } => {
+                        super_like = Some(data.super_like_count);
+                        None
+                    }
+                },
+                None => None,
+            }
+        };
+
+        Ok(Self {
+            episode: episode.clone(),
+            id: post.id,
+            parent_id: post.root_id,
+            body: crate::platform::webtoons::webtoon::post::Body {
+                contents: Arc::from(post.body),
+                flare,
+                is_spoiler,
+            },
+            upvotes,
+            downvotes,
+            replies: post.child_post_count,
+            is_top: post.is_pinned,
+            is_deleted,
+            posted: DateTime::from_timestamp_millis(post.created_at).with_context(|| {
+                format!(
+                    "`{}` is not a valid unix millisecond timestamp",
+                    post.created_at
+                )
+            })?,
+            poster: crate::platform::webtoons::webtoon::post::Poster {
+                webtoon: episode.webtoon.clone(),
+                episode: episode.number,
+                post_id: post.id,
+                cuid: Arc::from(post.created_by.cuid),
+                profile: Arc::from(post.created_by.profile_url),
+                username: Arc::from(post.created_by.name),
+                is_current_session_user: post.created_by.is_page_owner,
+                is_current_webtoon_creator: post.created_by.is_page_owner,
+                is_creator: post.created_by.is_creator,
+                is_blocked: post.created_by.restriction.is_write_post_restricted,
+                reaction: Arc::new(RwLock::new(reaction)),
+                super_like,
+            },
+        })
+    }
 }

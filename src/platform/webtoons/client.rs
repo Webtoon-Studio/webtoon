@@ -1,6 +1,6 @@
 //! Represents a client abstraction for `webtoons.com`.
 
-pub(super) mod api;
+mod api;
 
 // TODO: Is this the best spot for this to be exported?
 pub use api::user_info::UserInfo;
@@ -14,13 +14,13 @@ use crate::{
             api_token::ApiToken,
             dashboard::episodes::DashboardEpisode,
             likes::RawLikesResponse,
-            posts::{Count, PinRepresentaion, RawPostResponse},
+            posts::{Count, RawPostResponse},
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
         errors::EpisodeError,
         search::Item,
-        webtoon::post::id::Id,
+        webtoon::post::{PinRepresentaion, id::Id},
     },
     stdx::http::{DEFAULT_USER_AGENT, IRetry},
 };
