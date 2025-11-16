@@ -8,8 +8,12 @@ pub use api::user_info::UserInfo;
 use crate::{
     platform::webtoons::{
         client::api::{
-            api_token::ApiToken, dashboard::episodes::DashboardEpisode, likes::RawLikesResponse,
-            posts::RawPostResponse, react_token::ReactToken, webtoon_user_info::WebtoonUserInfo,
+            api_token::ApiToken,
+            dashboard::episodes::DashboardEpisode,
+            likes::RawLikesResponse,
+            posts::{Count, RawPostResponse},
+            react_token::ReactToken,
+            webtoon_user_info::WebtoonUserInfo,
         },
         errors::EpisodeError,
         search::Item,
@@ -35,7 +39,7 @@ use super::{
 };
 use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
-use reqwest::{Response, StatusCode};
+use reqwest::StatusCode;
 use scraper::Html;
 use serde_json::json;
 use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
@@ -1287,7 +1291,7 @@ impl Client {
     pub(super) async fn get_upvotes_and_downvotes_for_post(
         &self,
         post: &Post,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<Count, PostError> {
         let session = self
             .session
             .as_ref()
@@ -1316,9 +1320,17 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        Ok(response)
+        let count = serde_json::from_str::<Count>(&response).context(response)?;
+
+        if count.status != "success" {
+            return Err(PostError::Unexpected(anyhow!("{count:?}")));
+        }
+
+        Ok(count)
     }
 
     pub(super) async fn get_replies_for_post(

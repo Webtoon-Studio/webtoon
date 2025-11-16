@@ -1,6 +1,6 @@
 //! Module containing things related to posts and their posters.
 
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, bail};
 use chrono::{DateTime, Utc};
 use core::fmt;
 use serde_json::json;
@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use crate::{
     platform::webtoons::{
         self, Webtoon,
-        client::api::posts::{Count, Section},
+        client::api::posts::Section,
         errors::{ClientError, PostError, PosterError, ReplyError},
         meta::Scope,
         webtoon::post::id::Id,
@@ -847,17 +847,9 @@ impl Post {
             .get_upvotes_and_downvotes_for_post(self)
             .await?;
 
-        let text = response.text().await?;
-
-        let count = serde_json::from_str::<Count>(&text).context(text)?;
-
-        if count.status != "success" {
-            return Err(PostError::Unexpected(anyhow!("{count:?}")));
-        }
-
         let mut upvotes = 0;
         let mut downvotes = 0;
-        for emotion in count.result.emotions {
+        for emotion in response.result.emotions {
             if emotion.emotion_id == "like" {
                 upvotes = emotion.count;
             } else {
