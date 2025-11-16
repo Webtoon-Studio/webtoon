@@ -5,9 +5,6 @@ mod api;
 // TODO: Is this the best spot for this to be exported?
 pub use api::user_info::UserInfo;
 
-#[cfg(feature = "rss")]
-use rss::Channel;
-
 use crate::{
     platform::webtoons::{
         client::api::{
@@ -1048,7 +1045,7 @@ impl Client {
     pub(super) async fn get_rss_for_webtoon(
         &self,
         webtoon: &Webtoon,
-    ) -> Result<Channel, WebtoonError> {
+    ) -> Result<rss::Channel, WebtoonError> {
         let id = webtoon.id;
         let language = webtoon.language;
         let slug = &webtoon.slug;
