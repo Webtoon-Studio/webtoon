@@ -1,7 +1,7 @@
 //! Represents an abstraction for a Webtoon on `webtoons.com`.
 
 pub mod episode;
-mod page;
+mod homepage;
 
 use anyhow::Context;
 use core::fmt;
@@ -16,7 +16,7 @@ use rss::Rss;
 
 use self::{
     episode::{Episode, Episodes, posts::Posts},
-    page::Page,
+    homepage::Page,
 };
 
 use super::Type;
@@ -209,7 +209,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.title().to_string())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let title = page.title().to_owned();
             *self.page.write() = Some(page);
             Ok(title)
@@ -241,7 +241,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.creators().to_vec())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let creators = page.creators().to_vec();
             *self.page.write() = Some(page);
             Ok(creators)
@@ -274,7 +274,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.genres().to_vec())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let genres = page.genres().to_vec();
             *self.page.write() = Some(page);
             Ok(genres)
@@ -303,7 +303,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.summary().to_owned())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let summary = page.summary().to_owned();
             *self.page.write() = Some(page);
             Ok(summary)
@@ -356,7 +356,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.views())
         } else {
-            let page = page::scrape(self).await.map_err(|err| match err {
+            let page = homepage::scrape(self).await.map_err(|err| match err {
                 WebtoonError::ClientError(client_error) => EpisodeError::ClientError(client_error),
                 error => EpisodeError::Unexpected(error.into()),
             })?;
@@ -410,7 +410,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.subscribers())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let subscribers = page.subscribers();
             *self.page.write() = Some(page);
             Ok(subscribers)
@@ -446,7 +446,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let thumbnail = page.thumbnail().map(|thumbnail| thumbnail.to_string());
             *self.page.write() = Some(page);
             Ok(thumbnail)
@@ -496,7 +496,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.schedule().cloned())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let release = page.schedule().cloned();
             *self.page.write() = Some(page);
             Ok(release)
@@ -531,7 +531,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.schedule() == Some(&Schedule::Completed))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let is_completed = page.schedule() == Some(&Schedule::Completed);
             *self.page.write() = Some(page);
             Ok(is_completed)
@@ -569,7 +569,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.banner().map(|banner| banner.to_owned()))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let release = page.banner().map(|release| release.to_owned());
             *self.page.write() = Some(page);
             Ok(release)
@@ -631,7 +631,7 @@ impl Webtoon {
             }
             // Fallback to public data
             Ok(_) | Err(ClientError::NoSessionProvided) => {
-                page::episodes(self).await.map_err(|err| match err {
+                homepage::episodes(self).await.map_err(|err| match err {
                     WebtoonError::ClientError(client_error) => {
                         EpisodeError::ClientError(client_error)
                     }
@@ -728,7 +728,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn first_episode(&self) -> Result<Episode, WebtoonError> {
-        page::first_episode(self).await
+        homepage::first_episode(self).await
     }
 
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
