@@ -848,14 +848,12 @@ impl Client {
         lang: Language,
         page: u16,
         sort: Sort,
-    ) -> Result<Response, ClientError> {
+    ) -> Result<String, ClientError> {
         let url = format!(
             "https://www.webtoons.com/{lang}/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
         );
 
-        let response = self.http.get(&url).retry().send().await?;
-
-        Ok(response)
+        Ok(self.http.get(&url).retry().send().await?.text().await?)
     }
 
     pub(super) async fn get_creator_page(

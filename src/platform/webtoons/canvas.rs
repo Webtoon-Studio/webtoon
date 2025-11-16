@@ -56,12 +56,7 @@ pub(super) async fn scrape(
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
-        let response = match client.get_canvas_page(language, page, sort).await {
-            Ok(response) => response,
-            Err(err) => return Err(CanvasError::ClientError(err)),
-        };
-
-        let document = response.text().await?;
+        let document = client.get_canvas_page(language, page, sort).await?;
 
         let html = Html::parse_document(&document);
 
