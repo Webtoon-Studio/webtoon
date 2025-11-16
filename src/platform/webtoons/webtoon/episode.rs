@@ -4,7 +4,6 @@ use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use image::{GenericImageView, ImageFormat, RgbaImage};
 use parking_lot::RwLock;
-use posts::Post;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde_json::json;
@@ -15,10 +14,10 @@ use std::{hash::Hash, str::FromStr};
 use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
-pub mod posts;
-use self::posts::Posts;
+use super::posts::Posts;
 
 use super::Webtoon;
+use crate::platform::webtoons::webtoon::posts::Post;
 use crate::platform::webtoons::{
     client::{
         Client,
@@ -1445,7 +1444,7 @@ impl Episode {
 
     /// Returns `true` id episode exists, `false` if not. Returns `PostError` if there was an error.
     pub(super) async fn exists(&self) -> Result<bool, PostError> {
-        posts::check_episode_exists(self).await
+        super::posts::check_episode_exists(self).await
     }
 }
 

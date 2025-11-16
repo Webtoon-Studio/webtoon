@@ -17,8 +17,8 @@ use super::{
     },
     meta::Scope,
     originals::{self},
-    webtoon::episode::{
-        Episode,
+    webtoon::{
+        episode::Episode,
         posts::{Post, Reaction},
     },
 };

@@ -1,7 +1,9 @@
 //! Represents an abstraction for a Webtoon on `webtoons.com`.
 
-pub mod episode;
 mod homepage;
+
+pub mod episode;
+pub mod posts;
 
 use anyhow::Context;
 use core::fmt;
@@ -15,8 +17,9 @@ pub mod rss;
 use rss::Rss;
 
 use self::{
-    episode::{Episode, Episodes, posts::Posts},
+    episode::{Episode, Episodes},
     homepage::Page,
+    posts::Posts,
 };
 
 use super::Type;
