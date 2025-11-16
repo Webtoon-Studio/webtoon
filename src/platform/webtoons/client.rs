@@ -1,10 +1,13 @@
 //! Represents a client abstraction for `webtoons.com`.
 
-pub mod api;
+pub(super) mod api;
 
-use crate::stdx::http::{DEFAULT_USER_AGENT, IRetry};
+use crate::{
+    platform::webtoons::webtoon::post::id::Id,
+    stdx::http::{DEFAULT_USER_AGENT, IRetry},
+};
 
-use api::{posts::id::Id, search::Item};
+use api::search::Item;
 
 use super::{
     Language, Type, Webtoon,

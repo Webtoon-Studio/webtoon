@@ -8,9 +8,10 @@ use regex::Regex;
 use scraper::{Html, Selector};
 use serde_json::json;
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
-use std::{hash::Hash, str::FromStr};
 use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
@@ -18,12 +19,11 @@ use super::post::Posts;
 
 use super::Webtoon;
 use crate::platform::webtoons::webtoon::post::Post;
+use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
     client::{
-        Client,
-        api::dashboard::episodes::DashboardStatus,
-        api::likes::Likes,
-        api::posts::{PostsResult, id::Id},
+        Client, api::dashboard::episodes::DashboardStatus, api::likes::Likes,
+        api::posts::PostsResult,
     },
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,
