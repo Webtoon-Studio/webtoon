@@ -1013,7 +1013,7 @@ impl Client {
             .text()
             .await?;
 
-        DashboardEpisode::parse(&response)
+        api::dashboard::episodes::parse(&response)
     }
 
     pub(super) async fn get_stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, ClientError> {

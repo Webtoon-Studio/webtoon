@@ -5,6 +5,23 @@ use std::hash::Hash;
 
 use crate::platform::webtoons::{dashboard::episodes::DashboardStatus, errors::EpisodeError};
 
+pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
+    for line in html.lines().rev() {
+        let trimmed = line.trim_start();
+
+        if trimmed.starts_with("dashboardEpisodeList") {
+            return Ok(
+                serde_json::from_str::<Vec<DashboardEpisode>>(&clean(trimmed))
+                    .with_context(|| trimmed.to_string())?,
+            );
+        }
+    }
+
+    Err(EpisodeError::Unexpected(anyhow!(
+        "failed to find `dashboardEpisodeList` as the start of any line:\n\n{html}"
+    )))
+}
+
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 pub struct DashboardEpisode {
     #[serde(alias = "episode")]
@@ -38,23 +55,6 @@ pub struct DashboardEpisode {
 
     #[serde(alias = "commentActive")]
     pub comment_exposure: bool,
-}
-
-impl DashboardEpisode {
-    pub fn parse(html: &str) -> Result<Vec<Self>, EpisodeError> {
-        for line in html.lines().rev() {
-            let trimmed = line.trim_start();
-
-            if trimmed.starts_with("dashboardEpisodeList") {
-                return Ok(serde_json::from_str::<Vec<Self>>(&clean(trimmed))
-                    .with_context(|| trimmed.to_string())?);
-            }
-        }
-
-        Err(EpisodeError::Unexpected(anyhow!(
-            "failed to find `dashboardEpisodeList` as the start of any line:\n\n{html}"
-        )))
-    }
 }
 
 impl Hash for DashboardEpisode {
