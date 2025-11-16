@@ -1262,8 +1262,6 @@ impl Client {
     pub(super) async fn get_if_episode_exists(
         &self,
         episode: &Episode,
-        cursor: Option<Id>,
-        stride: u8,
     ) -> Result<bool, ClientError> {
         let session = self
             .session
@@ -1280,10 +1278,8 @@ impl Client {
 
         let episode = episode.number;
 
-        let cursor = cursor.map_or_else(String::new, |id| id.to_string());
-
         let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
+            "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize=1&cursor=&withCursor=true"
         );
 
         let response = self

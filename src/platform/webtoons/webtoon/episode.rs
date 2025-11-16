@@ -1358,10 +1358,7 @@ impl Episode {
 
     /// Returns `true` id episode exists, `false` if not. Returns `PostError` if there was an error.
     pub(super) async fn exists(&self) -> Result<bool, ClientError> {
-        self.webtoon
-            .client
-            .get_if_episode_exists(self, None, 1)
-            .await
+        self.webtoon.client.get_if_episode_exists(self).await
     }
 }
 
