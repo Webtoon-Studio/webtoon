@@ -14,7 +14,7 @@ use crate::{
             api_token::ApiToken,
             dashboard::episodes::DashboardEpisode,
             likes::RawLikesResponse,
-            posts::{Count, RawPostResponse},
+            posts::{Count, PinRepresentaion, RawPostResponse},
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
@@ -1218,6 +1218,7 @@ impl Client {
         episode: &Episode,
         cursor: Option<Id>,
         stride: u8,
+        pin_represention: PinRepresentaion,
     ) -> Result<RawPostResponse, ClientError> {
         let session = self
             .session
@@ -1231,14 +1232,18 @@ impl Client {
         };
 
         let webtoon = episode.webtoon.id;
-
         let episode = episode.number;
-
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
-        );
+        let url = match pin_represention {
+            PinRepresentaion::None => format!(
+                "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
+            ),
+            // Adds `is_top/isPinned` info for posts.
+            PinRepresentaion::Distinct => format!(
+                "https://www.webtoons.com/p/api/community/v1/page/{scope}_{webtoon}_{episode}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
+            ),
+        };
 
         let response = self
             .http

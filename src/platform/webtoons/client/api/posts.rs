@@ -255,3 +255,8 @@ pub struct CountResult {
     pub content_id: Id,
     pub emotions: Vec<Emotions>,
 }
+
+pub enum PinRepresentaion {
+    None,
+    Distinct,
+}

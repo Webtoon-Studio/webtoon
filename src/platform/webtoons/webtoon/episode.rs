@@ -18,11 +18,12 @@ use url::Url;
 use super::post::Posts;
 
 use super::Webtoon;
+use crate::platform::webtoons::client::api::posts::PinRepresentaion;
 use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
-    client::{Client, api::posts::RawPostResponse},
+    client::Client,
     errors::{ClientError, DownloadError, EpisodeError, PostError},
     meta::Scope,
 };
@@ -544,7 +545,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1)
+            .get_posts_for_episode(self, None, 1, PinRepresentaion::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -591,22 +592,22 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100)
+            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
 
-        // Add first posts
+        // Add first posts.
         for post in response.result.posts {
             posts.insert(Post::try_from((self, post))?);
         }
 
-        // Get rest if any
+        // Get any remaining.
         while let Some(cursor) = next {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
                 .await?;
 
             for post in response.result.posts {
@@ -616,35 +617,14 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
-        // This extra step to the other API is a one off to get only the top comment info attached to
-        // the top 3 posts.
-        let page_id = format!(
-            "{}_{}_{}",
-            self.webtoon.scope.as_single_letter(),
-            self.webtoon.id,
-            self.number
-        );
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
-        );
-
+        // Get is_top/isPinned info.
         let response = self
             .webtoon
             .client
-            .http
-            .get(url)
-            .header("Service-Ticket-Id", "epicom")
-            .send()
-            .await
-            .map_err(|err| ClientError::Unexpected(err.into()))?
-            .text()
+            .get_posts_for_episode(self, None, 100, PinRepresentaion::Distinct)
             .await?;
 
-        let api = serde_json::from_str::<RawPostResponse>(&response).context(response)?;
-
-        for post in api.result.tops {
+        for post in response.result.tops {
             posts.replace(Post::try_from((self, post))?);
         }
 
@@ -667,6 +647,9 @@ impl Episode {
     ///
     /// - **Publish Order**:
     ///   - The order in which posts are published may not be respected, as the posts are fetched and processed in batches that may appear out of order.
+    ///
+    /// - **`is_top` Info**:
+    ///   - This information will only be added at the very end of iteration. Previous posts info might not have correct `is_top` status, due to the nature of how webtoons' API's work.
     ///
     /// # Example
     ///
@@ -691,42 +674,10 @@ impl Episode {
     /// # }
     /// ```
     pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
-        // Adds `is_top/isPinned` info. The previous API loses this info but is easier to work with so
-        // This extra step to the other API is a one off to get only the top comment info attached to
-        // the top 3 posts.
-        let page_id = format!(
-            "{}_{}_{}",
-            self.webtoon.scope.as_single_letter(),
-            self.webtoon.id,
-            self.number
-        );
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v1/page/{page_id}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
-        );
-
         let response = self
             .webtoon
             .client
-            .http
-            .get(url)
-            .header("Service-Ticket-Id", "epicom")
-            .send()
-            .await
-            .map_err(|err| ClientError::Unexpected(err.into()))?
-            .text()
-            .await?;
-
-        let api = serde_json::from_str::<RawPostResponse>(&response).context(response)?;
-
-        for post in api.result.tops {
-            closure(Post::try_from((self, post))?).await;
-        }
-
-        let response = self
-            .webtoon
-            .client
-            .get_posts_for_episode(self, None, 100)
+            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -741,7 +692,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
                 .await?;
 
             for post in response.result.posts {
@@ -749,6 +700,24 @@ impl Episode {
             }
 
             next = response.result.pagination.next;
+        }
+
+        // Gets `is_top/isPinned` info.
+        //
+        // NOTE: This is after the regular posts as more often than not, if using
+        // a collection, user will use a HashSet::replace, which would update
+        // the previously gotten posts with the pinned info.
+        //
+        // If user is directly inserting into database, the data should also be
+        // updated accordingly.
+        let response = self
+            .webtoon
+            .client
+            .get_posts_for_episode(self, None, 1, PinRepresentaion::Distinct)
+            .await?;
+
+        for post in response.result.tops {
+            closure(Post::try_from((self, post))?).await;
         }
 
         Ok(())
@@ -801,7 +770,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100)
+            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -822,7 +791,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
                 .await?;
 
             for post in response.result.posts {
@@ -890,7 +859,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100)
+            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -911,7 +880,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
                 .await?;
 
             for post in response.result.posts {
