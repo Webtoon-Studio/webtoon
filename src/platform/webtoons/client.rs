@@ -3,11 +3,9 @@
 pub(super) mod api;
 
 use crate::{
-    platform::webtoons::webtoon::post::id::Id,
+    platform::webtoons::{search::Item, webtoon::post::id::Id},
     stdx::http::{DEFAULT_USER_AGENT, IRetry},
 };
-
-use api::search::Item;
 
 use super::{
     Language, Type, Webtoon,
