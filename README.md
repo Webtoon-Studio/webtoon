@@ -99,5 +99,8 @@ async fn main() -> Result<(), Error> {
 For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
 
 ## Features
+In an effort to reduce compile times, dependency trees, and binary sizes, there are some pieces of functionality that are locked behind features.
 
 - `rss`: Enables the ability to get the RSS feed data for a `webtoons.com`.
+- `naver`: Enables the ability to interact with `comic.naver.com`.
+- `download`: Enables the ability to download episodes, either as a single image or as multiple images.

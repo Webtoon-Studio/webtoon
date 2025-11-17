@@ -21,27 +21,38 @@ all-features = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# currently using `Mutex`, `sleep`, and `Semaphore`.
-tokio = { version = "1", features = ["sync", "time", "fs"] }
+# Currently using `Mutex`, `sleep`, and `Semaphore`.
+# When `feature = "download"` in enabled, it also uses `fs`.
+tokio = { version = "1", features = ["sync", "time"] }
 futures = "0.3"
+
+url = "2"
+# Used when the session needs to be sent in a URL
+urlencoding = "2"
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
-anyhow = "1"
-thiserror = "2"
-scraper = "0.24"
-# used for getting the url from the css of the thumbnail and the season numbers from the title
+
+# Used for getting the URL from the CSS of the thumbnail and the season numbers from the title
 regex = "1"
+
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
-html-escape = "0.2"
-url = "2"
-# used when the session needs to be sent in a url
-urlencoding = "2"
-parking_lot = "0.12"
-fastrand = "2"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg"]}
 
-# feature = `rss`
+chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
+
+scraper = "0.24"
+html-escape = "0.2"
+
+parking_lot = "0.12"
+
+fastrand = "2"
+
+anyhow = "1"
+thiserror = "2"
+
+# feature = `download`
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"], optional = true}
+
+# `feature = "rss"` and `feature = "naver"`
 rss = { version = "2", optional = true }
 
 [dev-dependencies]
@@ -51,6 +62,11 @@ tokio = { version = "1", features = ["full"] }
 [features]
 default = []
 rss = ["dep:rss"]
+download = ["dep:image", "tokio/fs"]
+# `image` is needed as currently the only way to get the size of the episodes is
+# to download the panels and then convert them to an image and use the metadata
+# to get the sizes.
+naver = ["dep:image"]
 
 # `webtoons.com`
 [[example]]
@@ -89,28 +105,35 @@ path = "examples/webtoons/posts.rs"
 [[example]]
 name = "webtoons-download"
 path = "examples/webtoons/download.rs"
+required-features = ["download"]
 
 # `comic.naver.com`
 [[example]]
 name = "naver-webtoon"
 path = "examples/naver/webtoon.rs"
+required-features = ["naver"]
 
 [[example]]
 name = "naver-episodes"
 path = "examples/naver/episodes.rs"
+required-features = ["naver"]
 
 [[example]]
 name = "naver-episode"
 path = "examples/naver/episode.rs"
+required-features = ["naver"]
 
 [[example]]
 name = "naver-posts"
 path = "examples/naver/posts.rs"
+required-features = ["naver"]
 
 [[example]]
 name = "naver-download"
 path = "examples/naver/download.rs"
+required-features = ["naver", "download"]
 
 [[example]]
 name = "naver-creator"
 path = "examples/naver/creator.rs"
+required-features = ["naver"]

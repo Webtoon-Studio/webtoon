@@ -16,6 +16,8 @@ pub enum Error {
     EpisodeError(#[from] EpisodeError),
     #[error(transparent)]
     PostError(#[from] PostError),
+
+    #[cfg(feature = "download")]
     #[error(transparent)]
     DownloadError(#[from] DownloadError),
 }
@@ -110,6 +112,7 @@ impl From<reqwest::Error> for PostError {
     }
 }
 
+#[cfg(feature = "download")]
 #[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Error)]
@@ -122,6 +125,7 @@ pub enum DownloadError {
     Unexpected(#[from] anyhow::Error),
 }
 
+#[cfg(feature = "download")]
 impl From<reqwest::Error> for DownloadError {
     fn from(error: reqwest::Error) -> Self {
         Self::ClientError(ClientError::from(error))
