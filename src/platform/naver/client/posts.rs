@@ -260,7 +260,7 @@ pub struct CountResult {
 }
 
 pub mod id {
-    use serde_with::{DeserializeFromStr, SerializeDisplay};
+    use serde::{Deserialize, Serialize};
     use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
     use thiserror::Error;
 
@@ -339,10 +339,12 @@ pub mod id {
     /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
     ///   were posted earlier than those with higher values.
     /// - The ID must have non-zero values for both the post and reply components, ensuring that each comment and reply is uniquely identifiable.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, DeserializeFromStr, SerializeDisplay)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+    #[serde(try_from = "String")]
+    #[serde(into = "String")]
     pub struct Id {
         tag: u32,
-        scope: &'static str,
+        scope: Scope,
         webtoon: u32,
         episode: u16,
         post: Base36,
@@ -395,10 +397,9 @@ pub mod id {
                 });
             }
 
-            // trick to get a static str from a runtime value
             let scope = match page_id_parts[0] {
-                "webtoon" => "webtoon",
-                "challenge" => "challenge",
+                "webtoon" => Scope::Webtoon,
+                "challenge" => Scope::Challenge,
                 _ => unreachable!("a webtoon can only be either an original or canvas"),
             };
 
@@ -534,6 +535,37 @@ pub mod id {
         }
     }
 
+    impl From<Id> for String {
+        fn from(val: Id) -> Self {
+            val.to_string()
+        }
+    }
+
+    impl TryFrom<String> for Id {
+        type Error = ParseIdError;
+
+        fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+            Self::from_str(&value)
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+    enum Scope {
+        Webtoon,
+        Challenge,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let word = match self {
+                Self::Webtoon => "webtoon",
+                Self::Challenge => "challenge",
+            };
+
+            write!(f, "{word}")
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use super::*;
@@ -542,7 +574,7 @@ pub mod id {
         fn should_be_equal_str() {
             let id = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(109),
@@ -553,7 +585,7 @@ pub mod id {
 
             let id = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(109),
@@ -567,7 +599,7 @@ pub mod id {
         fn should_be_not_equal_str() {
             let id = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(31),
@@ -582,7 +614,7 @@ pub mod id {
         fn should_be_ordered() {
             let forty_nine = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(49),
@@ -591,7 +623,7 @@ pub mod id {
 
             let fifty = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(50),
@@ -600,7 +632,7 @@ pub mod id {
 
             let fifty_with_reply = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(50),
@@ -643,7 +675,7 @@ pub mod id {
         fn should_turn_post_id_to_string() {
             let id = Id {
                 tag: 0,
-                scope: "webtoon",
+                scope: Scope::Webtoon,
                 webtoon: 840593,
                 episode: 1,
                 post: Base36::new(109),
@@ -660,7 +692,7 @@ pub mod id {
         fn should_turn_reply_id_to_string() {
             let id = Id {
                 tag: 0,
-                scope: "challenge",
+                scope: Scope::Challenge,
                 webtoon: 840593,
                 episode: 161,
                 post: Base36::new(35),
@@ -677,7 +709,7 @@ pub mod id {
         fn should_parse_post_id() {
             let id = Id::from_str("KW-comic_webtoon:0-webtoon_840593_1-z").unwrap();
 
-            pretty_assertions::assert_eq!(id.scope, "webtoon");
+            pretty_assertions::assert_eq!(id.scope, Scope::Webtoon);
             pretty_assertions::assert_eq!(id.webtoon, 840593);
             pretty_assertions::assert_eq!(id.episode, 1);
             pretty_assertions::assert_eq!(id.post, 35);
@@ -689,7 +721,7 @@ pub mod id {
             {
                 let id = Id::from_str("KW-comic_webtoon:0-challenge_840593_1-z-z").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, "challenge");
+                pretty_assertions::assert_eq!(id.scope, Scope::Challenge);
                 pretty_assertions::assert_eq!(id.webtoon, 840593);
                 pretty_assertions::assert_eq!(id.episode, 1);
                 pretty_assertions::assert_eq!(id.post, 35);
@@ -698,7 +730,7 @@ pub mod id {
             {
                 let id = Id::from_str("KW-comic_webtoon:0-challenge_840593_1-z-z").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, "challenge");
+                pretty_assertions::assert_eq!(id.scope, Scope::Challenge);
                 pretty_assertions::assert_eq!(id.webtoon, 840593);
                 pretty_assertions::assert_eq!(id.episode, 1);
                 pretty_assertions::assert_eq!(id.post, 35);

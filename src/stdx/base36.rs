@@ -1,9 +1,10 @@
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::{fmt::Display, num::ParseIntError, ops::Add, str::FromStr};
 
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Ord, DeserializeFromStr, SerializeDisplay, Clone, Copy, Hash,
-)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy, Hash)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub struct Base36(u32);
 
 impl Base36 {
@@ -65,6 +66,20 @@ impl Display for Base36 {
         }
 
         Ok(())
+    }
+}
+
+impl TryFrom<String> for Base36 {
+    type Error = ParseIntError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
+    }
+}
+
+impl From<Base36> for String {
+    fn from(val: Base36) -> Self {
+        val.to_string()
     }
 }
 
