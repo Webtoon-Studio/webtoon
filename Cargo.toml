@@ -32,6 +32,7 @@ scraper = "0.24"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# TODO: refactor to use `try_from = "String"` so that we can remove this
 serde_with = "3"
 chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
 html-escape = "0.2"

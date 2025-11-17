@@ -1,5 +1,8 @@
 //! An abstraction for the `webtoons.com` website.
 
+mod dashboard;
+mod search;
+
 pub mod client;
 pub mod creator;
 pub mod errors;

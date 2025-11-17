@@ -1,11 +1,12 @@
 //! Represents an abstraction for a Webtoon on `webtoons.com`.
 
-mod dashboard;
+mod homepage;
+
 pub mod episode;
-mod page;
+pub mod post;
 
 use anyhow::Context;
-use core::fmt;
+use core::fmt::{self, Debug};
 use parking_lot::RwLock;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -16,8 +17,9 @@ pub mod rss;
 use rss::Rss;
 
 use self::{
-    episode::{Episode, Episodes, posts::Posts},
-    page::Page,
+    episode::{Episode, Episodes},
+    homepage::Page,
+    post::Posts,
 };
 
 use super::Type;
@@ -47,16 +49,23 @@ pub struct Webtoon {
     pub(super) page: Arc<RwLock<Option<Page>>>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Webtoon {
+impl Debug for Webtoon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            client: _,
+            id,
+            language,
+            scope,
+            slug,
+            page,
+        } = self;
+
         f.debug_struct("Webtoon")
-            // omitting `client`
-            .field("id", &self.id)
-            .field("language", &self.language)
-            .field("scope", &self.scope)
-            .field("slug", &self.slug)
-            .field("page", &self.page)
+            .field("id", id)
+            .field("language", language)
+            .field("scope", scope)
+            .field("slug", slug)
+            .field("page", page)
             .finish()
     }
 }
@@ -210,7 +219,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.title().to_string())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let title = page.title().to_owned();
             *self.page.write() = Some(page);
             Ok(title)
@@ -242,7 +251,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.creators().to_vec())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let creators = page.creators().to_vec();
             *self.page.write() = Some(page);
             Ok(creators)
@@ -275,7 +284,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.genres().to_vec())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let genres = page.genres().to_vec();
             *self.page.write() = Some(page);
             Ok(genres)
@@ -304,7 +313,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.summary().to_owned())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let summary = page.summary().to_owned();
             *self.page.write() = Some(page);
             Ok(summary)
@@ -341,7 +350,7 @@ impl Webtoon {
     pub async fn views(&self) -> Result<u64, EpisodeError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let views = dashboard::episodes::scrape(self)
+                let views = super::dashboard::episodes::scrape(self)
                     .await?
                     .into_iter()
                     .filter_map(|episode| episode.views.map(u64::from))
@@ -357,7 +366,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.views())
         } else {
-            let page = page::scrape(self).await.map_err(|err| match err {
+            let page = homepage::scrape(self).await.map_err(|err| match err {
                 WebtoonError::ClientError(client_error) => EpisodeError::ClientError(client_error),
                 error => EpisodeError::Unexpected(error.into()),
             })?;
@@ -398,7 +407,9 @@ impl Webtoon {
     pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
         match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let subscribers = dashboard::stats::scrape(self).await?.subscribers;
+                let subscribers = super::dashboard::statistics::scrape(self)
+                    .await?
+                    .subscribers;
                 return Ok(subscribers);
             }
             // Fallback to public data
@@ -409,7 +420,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.subscribers())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let subscribers = page.subscribers();
             *self.page.write() = Some(page);
             Ok(subscribers)
@@ -445,7 +456,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let thumbnail = page.thumbnail().map(|thumbnail| thumbnail.to_string());
             *self.page.write() = Some(page);
             Ok(thumbnail)
@@ -495,7 +506,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.schedule().cloned())
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let release = page.schedule().cloned();
             *self.page.write() = Some(page);
             Ok(release)
@@ -530,7 +541,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.schedule() == Some(&Schedule::Completed))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let is_completed = page.schedule() == Some(&Schedule::Completed);
             *self.page.write() = Some(page);
             Ok(is_completed)
@@ -568,7 +579,7 @@ impl Webtoon {
         if let Some(page) = &*self.page.read() {
             Ok(page.banner().map(|banner| banner.to_owned()))
         } else {
-            let page = page::scrape(self).await?;
+            let page = homepage::scrape(self).await?;
             let release = page.banner().map(|release| release.to_owned());
             *self.page.write() = Some(page);
             Ok(release)
@@ -626,11 +637,11 @@ impl Webtoon {
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
         let episodes = match self.client.get_user_info_for_webtoon(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                self::dashboard::episodes::scrape(self).await?
+                super::dashboard::episodes::scrape(self).await?
             }
             // Fallback to public data
             Ok(_) | Err(ClientError::NoSessionProvided) => {
-                page::episodes(self).await.map_err(|err| match err {
+                homepage::episodes(self).await.map_err(|err| match err {
                     WebtoonError::ClientError(client_error) => {
                         EpisodeError::ClientError(client_error)
                     }
@@ -689,10 +700,7 @@ impl Webtoon {
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
         let episode = Episode::new(self, number);
 
-        if !episode.exists().await.map_err(|err| match err {
-            PostError::ClientError(client_error) => EpisodeError::ClientError(client_error),
-            error => EpisodeError::Unexpected(error.into()),
-        })? {
+        if !episode.exists().await? {
             return Ok(None);
         }
 
@@ -727,7 +735,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn first_episode(&self) -> Result<Episode, WebtoonError> {
-        page::first_episode(self).await
+        homepage::first_episode(self).await
     }
 
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.

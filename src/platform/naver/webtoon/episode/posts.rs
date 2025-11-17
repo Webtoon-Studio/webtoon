@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use core::fmt;
+use core::fmt::{self, Debug};
 use std::{cmp::Ordering, collections::HashSet, hash::Hash};
 
 use crate::{
@@ -157,20 +157,33 @@ pub struct Post {
     pub(crate) poster: Poster,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Post {
+impl Debug for Post {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            episode: _,
+            id,
+            parent_id,
+            body,
+            upvotes,
+            downvotes,
+            replies,
+            is_top,
+            is_deleted,
+            posted,
+            poster,
+        } = self;
+
         f.debug_struct("Post")
-            // omitting `episode`
-            .field("id", &self.id)
-            .field("parent_id", &self.parent_id)
-            .field("body", &self.body)
-            .field("upvotes", &self.upvotes)
-            .field("downvotes", &self.downvotes)
-            .field("replies", &self.replies)
-            .field("is_top", &self.is_top)
-            .field("posted", &self.posted)
-            .field("poster", &self.poster)
+            .field("id", id)
+            .field("parent_id", parent_id)
+            .field("body", body)
+            .field("upvotes", upvotes)
+            .field("downvotes", downvotes)
+            .field("replies", replies)
+            .field("is_top", is_top)
+            .field("is_deleted", is_deleted)
+            .field("posted", posted)
+            .field("poster", poster)
             .finish()
     }
 }
@@ -689,15 +702,25 @@ pub struct Poster {
     pub(crate) is_creator: bool,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Poster {
+impl Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            webtoon: _,
+            episode,
+            post_id,
+            cuid,
+            username,
+            profile,
+            is_creator,
+        } = self;
+
         f.debug_struct("Poster")
-            // omitting `webtoon`
-            .field("cuid", &self.cuid)
-            .field("username", &self.username)
-            .field("profile", &self.profile)
-            .field("is_creator", &self.is_creator)
+            .field("episode", episode)
+            .field("post_id", post_id)
+            .field("cuid", cuid)
+            .field("username", username)
+            .field("profile", profile)
+            .field("is_creator", is_creator)
             .finish()
     }
 }

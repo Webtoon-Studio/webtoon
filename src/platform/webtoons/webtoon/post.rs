@@ -1,15 +1,23 @@
 //! Module containing things related to posts and their posters.
 
-use anyhow::{Context, anyhow, bail};
 use chrono::{DateTime, Utc};
-use core::fmt;
+use core::fmt::{self, Debug};
 use serde_json::json;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
-// Id will now be in `episode::posts` documentation
-pub use crate::platform::webtoons::client::posts::Id;
+use crate::{
+    platform::webtoons::{
+        Webtoon,
+        errors::{ClientError, PostError, PosterError, ReplyError},
+        meta::Scope,
+        webtoon::post::id::Id,
+    },
+    private::Sealed,
+};
+
+use super::Episode;
 
 //Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
 
@@ -117,18 +125,6 @@ pub use crate::platform::webtoons::client::posts::Id;
 // }
 // contentSubType can also be "CHALLENGE"
 
-use crate::{
-    platform::webtoons::{
-        self, Webtoon,
-        client::posts::{Count, PostsResult, Section},
-        errors::{ClientError, PostError, PosterError, ReplyError},
-        meta::Scope,
-    },
-    private::Sealed,
-};
-
-use super::Episode;
-
 /// Represents a collection of posts.
 ///
 /// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`].
@@ -230,21 +226,33 @@ pub struct Post {
     pub(crate) poster: Poster,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Post {
+impl Debug for Post {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            episode: _,
+            id,
+            parent_id,
+            body,
+            upvotes,
+            downvotes,
+            replies,
+            is_top,
+            is_deleted,
+            posted,
+            poster,
+        } = self;
+
         f.debug_struct("Post")
-            // omitting `episode`
-            .field("id", &self.id)
-            .field("parent_id", &self.parent_id)
-            .field("body", &self.body)
-            .field("upvotes", &self.upvotes)
-            .field("downvotes", &self.downvotes)
-            .field("replies", &self.replies)
-            .field("is_top", &self.is_top)
-            .field("is_deleted", &self.is_deleted)
-            .field("posted", &self.posted)
-            .field("poster", &self.poster)
+            .field("id", id)
+            .field("parent_id", parent_id)
+            .field("body", body)
+            .field("upvotes", upvotes)
+            .field("downvotes", downvotes)
+            .field("replies", replies)
+            .field("is_top", is_top)
+            .field("is_deleted", is_deleted)
+            .field("posted", posted)
+            .field("poster", poster)
             .finish()
     }
 }
@@ -849,17 +857,9 @@ impl Post {
             .get_upvotes_and_downvotes_for_post(self)
             .await?;
 
-        let text = response.text().await?;
-
-        let count = serde_json::from_str::<Count>(&text).context(text)?;
-
-        if count.status != "success" {
-            return Err(PostError::Unexpected(anyhow!("{count:?}")));
-        }
-
         let mut upvotes = 0;
         let mut downvotes = 0;
-        for emotion in count.result.emotions {
+        for emotion in response.result.emotions {
             if emotion.emotion_id == "like" {
                 upvotes = emotion.count;
             } else {
@@ -886,7 +886,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::episode::posts::{Replies, Posts}};
+    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::post::{Replies, Posts}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1013,156 +1013,14 @@ impl Post {
     }
 }
 
-impl TryFrom<(&Episode, webtoons::client::posts::Post)> for Post {
-    type Error = anyhow::Error;
-
-    #[allow(clippy::too_many_lines)]
-    fn try_from(
-        (episode, post): (&Episode, webtoons::client::posts::Post),
-    ) -> Result<Self, Self::Error> {
-        let mut did_like: bool = false;
-        let mut did_dislike: bool = false;
-
-        let upvotes = post
-            .reactions
-            .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
-            .emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "like")
-            .map(|likes| {
-                did_like = likes.reacted;
-                likes.count
-            })
-            .unwrap_or_default();
-
-        let downvotes = post
-            .reactions
-            .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
-            .emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "dislike")
-            .map(|dislikes| {
-                did_dislike = dislikes.reacted;
-                dislikes.count
-            })
-            .unwrap_or_default();
-
-        // The way webtoons keeps track of a like or dislike guarantees(?) they are mutually exclusive.
-        let reaction = if did_like {
-            Reaction::Upvote
-        } else if did_dislike {
-            Reaction::Downvote
-        } else {
-            // Defaults to `None` if no session was available for use.
-            Reaction::None
-        };
-
-        let is_deleted = post.status == "DELETE";
-        let is_spoiler = post.settings.spoiler_filter == "ON";
-        let mut super_like: Option<u32> = None;
-
-        // Only Webtoon flare can have multiple.
-        // Super likes might be able to exist along with other flare?
-        let flare = if post.section_group.sections.len() > 1 {
-            let mut webtoons = Vec::new();
-            for section in post.section_group.sections {
-                match section {
-                    Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                        webtoons.push(webtoon);
-                    }
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                    }
-                    _ => {
-                        bail!(
-                            "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
-                        );
-                    }
-                }
-            }
-            Some(Flare::Webtoons(webtoons))
-        } else {
-            match post.section_group.sections.first() {
-                Some(section) => match section {
-                    Section::Giphy { data, .. } => {
-                        Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())))
-                    }
-                    Section::Sticker { data, .. } => {
-                        let sticker = Sticker::from_str(&data.sticker_id)
-                            .context("Failed to parse sticker id")?;
-                        Some(Flare::Sticker(sticker))
-                    }
-                    Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                        Some(Flare::Webtoons(vec![webtoon]))
-                    }
-                    // Ignore super likes
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                        None
-                    }
-                },
-                None => None,
-            }
-        };
-
-        Ok(Post {
-            episode: episode.clone(),
-            id: post.id,
-            parent_id: post.root_id,
-            body: Body {
-                contents: Arc::from(post.body),
-                flare,
-                is_spoiler,
-            },
-            upvotes,
-            downvotes,
-            replies: post.child_post_count,
-            is_top: post.is_pinned,
-            is_deleted,
-            posted: DateTime::from_timestamp_millis(post.created_at).with_context(|| {
-                format!(
-                    "`{}` is not a valid unix millisecond timestamp",
-                    post.created_at
-                )
-            })?,
-            poster: Poster {
-                webtoon: episode.webtoon.clone(),
-                episode: episode.number,
-                post_id: post.id,
-                cuid: Arc::from(post.created_by.cuid),
-                profile: Arc::from(post.created_by.profile_url),
-                username: Arc::from(post.created_by.name),
-                is_current_session_user: post.created_by.is_page_owner,
-                is_current_webtoon_creator: post.created_by.is_page_owner,
-                is_creator: post.created_by.is_creator,
-                is_blocked: post.created_by.restriction.is_write_post_restricted,
-                reaction: Arc::new(RwLock::new(reaction)),
-                super_like,
-            },
-        })
-    }
-}
-
 /// Represents the body of a post, including its content and whether it is marked as a spoiler.
 ///
 /// The body contains the text content of the post, and a flag indicating whether the post contains spoilers.
 #[derive(Debug, Clone)]
 pub struct Body {
-    contents: Arc<str>,
-    is_spoiler: bool,
-    flare: Option<Flare>,
+    pub(crate) contents: Arc<str>,
+    pub(crate) is_spoiler: bool,
+    pub(crate) flare: Option<Flare>,
 }
 
 impl Body {
@@ -1356,9 +1214,9 @@ impl Giphy {
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Poster {
-    webtoon: Webtoon,
-    episode: u16,
-    post_id: Id,
+    pub(crate) webtoon: Webtoon,
+    pub(crate) episode: u16,
+    pub(crate) post_id: Id,
     pub(crate) cuid: Arc<str>,
     pub(crate) profile: Arc<str>,
     pub(crate) username: Arc<str>,
@@ -1370,24 +1228,35 @@ pub struct Poster {
     pub(crate) super_like: Option<u32>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
-impl fmt::Debug for Poster {
+impl Debug for Poster {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            webtoon: _,
+            episode,
+            post_id,
+            cuid,
+            profile,
+            username,
+            is_creator,
+            is_blocked,
+            is_current_session_user,
+            is_current_webtoon_creator,
+            reaction,
+            super_like,
+        } = self;
+
         f.debug_struct("Poster")
-            // omitting `webtoon`
-            .field("episode", &self.episode)
-            .field("cuid", &self.cuid)
-            .field("profile", &self.profile)
-            .field("username", &self.username)
-            .field("is_creator", &self.is_creator)
-            .field("is_blocked", &self.is_blocked)
-            .field("is_current_session_user", &self.is_current_session_user)
-            .field(
-                "is_current_webtoon_creator",
-                &self.is_current_webtoon_creator,
-            )
-            .field("reaction", &self.reaction)
-            .field("super_likes", &self.super_like)
+            .field("episode", episode)
+            .field("post_id", post_id)
+            .field("cuid", cuid)
+            .field("profile", profile)
+            .field("username", username)
+            .field("is_creator", is_creator)
+            .field("is_blocked", is_blocked)
+            .field("is_current_session_user", is_current_session_user)
+            .field("is_current_webtoon_creator", is_current_webtoon_creator)
+            .field("reaction", reaction)
+            .field("super_likes", super_like)
             .finish()
     }
 }
@@ -1582,18 +1451,9 @@ pub enum Reaction {
     None,
 }
 
-pub(super) async fn check_episode_exists(episode: &Episode) -> Result<bool, PostError> {
-    let response = episode
-        .webtoon
-        .client
-        .get_posts_for_episode(episode, None, 1)
-        .await?;
-
-    if response.status() == 404 {
-        Ok(false)
-    } else {
-        Ok(true)
-    }
+pub(crate) enum PinRepresentation {
+    None,
+    Distinct,
 }
 
 impl IntoIterator for Posts {
@@ -1647,16 +1507,12 @@ impl Replies for Posts {
             .webtoon
             .client
             .get_replies_for_post(post, None, 100)
-            .await?
-            .text()
             .await?;
 
-        let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-        let mut next: Option<Id> = api.result.pagination.next;
+        let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first replies
-        for reply in api.result.posts {
+        for reply in response.result.posts {
             replies.insert(Post::try_from((&post.episode, reply))?);
         }
 
@@ -1667,17 +1523,13 @@ impl Replies for Posts {
                 .webtoon
                 .client
                 .get_replies_for_post(post, Some(cursor), 100)
-                .await?
-                .text()
                 .await?;
 
-            let api = serde_json::from_str::<PostsResult>(&response).context(response)?;
-
-            for reply in api.result.posts {
+            for reply in response.result.posts {
                 replies.replace(Post::try_from((&post.episode, reply))?);
             }
 
-            next = api.result.pagination.next;
+            next = response.result.pagination.next;
         }
 
         let mut replies = Posts {
@@ -1687,5 +1539,465 @@ impl Replies for Posts {
         replies.sort_by_oldest();
 
         Ok(replies)
+    }
+}
+
+pub(crate) mod id {
+    use serde::{Deserialize, Serialize};
+    use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
+    use thiserror::Error;
+
+    use crate::{platform::webtoons::meta::ParseLetterError, stdx::base36::Base36};
+
+    type Result<T, E = ParseIdError> = core::result::Result<T, E>;
+
+    /// Represents possible errors when parsing a posts id.
+    #[non_exhaustive]
+    #[derive(Error, Debug)]
+    pub enum ParseIdError {
+        /// Error for an invalid id format.
+        #[error("failed to parse `{id}` into `Id`: {context}")]
+        InvalidFormat { id: String, context: String },
+        #[error("failed to parse `{id}` into `Id`: {error}")]
+        InvalidTypeLetter { id: String, error: ParseLetterError },
+        #[error("failed to parse `{id}` into `Id`: {error}")]
+        ParseNumber { id: String, error: ParseIntError },
+    }
+
+    /// Represents a unique identifier for a post or comment on a Webtoon episode.
+    ///
+    /// The `Id` struct follows a specific format to uniquely identify a post or a reply in a Webtoon episode's comment
+    /// section. The format contains multiple components, each representing a different aspect of the Webtoon, episode,
+    /// post, and any potential reply. It also provides information about the chronological order of the comments.
+    ///
+    /// ### Structure:
+    ///
+    /// The format of the ID follows this pattern:
+    /// `GW-epicom:0-w_95_1-1d-z`
+    ///
+    /// - **`GW-epicom`**:
+    ///   This prefix can be ignored and seems to serve as a namespace. `epicom` stands for "episode comment."
+    ///
+    /// - **`0`**:
+    ///   This is an unknown tag. Its purpose remains unclear, but it is preserved in the ID structure for compatibility.
+    ///
+    /// - **`w` / `c`**:
+    ///   This denotes whether the Webtoon is an **Original** (`w`) or **Canvas** (`c`).
+    ///
+    /// - **`95`**:
+    ///   Represents the Webtoon ID. This value is unique to the Webtoon series.
+    ///
+    /// - **`1`**:
+    ///   Represents the episode number within the Webtoon series.
+    ///
+    /// - **`1d`**:
+    ///   A unique identifier for the specific post. It is encoded in **Base36** (using characters `0-9` and `a-z`).
+    ///   This value indicates the chronological order of the post within the episode's comments section. Posts and replies cannot have a value of `0`.
+    ///
+    /// - **`z`**:
+    ///   Represents a reply to a post. If this component is missing, the ID refers to a top-level post. If present, it indicates the reply to a specific post, also encoded in **Base36**.
+    ///
+    /// ### Fields:
+    ///
+    /// - `tag`:
+    ///   An unknown field that is part of the ID structure but its exact purpose is not fully understood. It is included for completeness.
+    ///
+    /// - `scope`:
+    ///   A string representing whether the Webtoon is an **Original** or **Canvas** series (`w` or `c`).
+    ///
+    /// - `webtoon`:
+    ///   The unique ID for the Webtoon series.
+    ///
+    /// - `episode`:
+    ///   The episode number within the Webtoon series.
+    ///
+    /// - `post`:
+    ///   The **Base36**-encoded identifier for the specific post.
+    ///
+    /// - `reply`:
+    ///   An optional **Base36**-encoded identifier for a reply to the post. If `None`, the ID refers to a top-level comment.
+    ///
+    /// ### Notes:
+    ///
+    /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
+    ///   were posted earlier than those with higher values.
+    /// - The ID must have non-zero values for both the post and reply components, ensuring that each comment and reply is uniquely identifiable.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+    #[serde(try_from = "String")]
+    #[serde(into = "String")]
+    pub struct Id {
+        tag: u32,
+        scope: Scope,
+        webtoon: u32,
+        episode: u16,
+        post: Base36,
+        reply: Option<Base36>,
+    }
+
+    impl FromStr for Id {
+        type Err = ParseIdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            // split `GW-epicom:0-w_95_1-1d-z` to GW-epicom` and `0-w_95_1-1d-z`
+            let id = s
+                .split(':')
+                // get `0-w_95_1-1d-z`
+                .next_back()
+                .ok_or_else(|| ParseIdError::InvalidFormat {
+                    id: s.to_owned(),
+                    context: "there was no right-hand part after splitting on `:`".to_string(),
+                })?;
+
+            // split `0-w_95_1-1d-z` to `0` `w_95_1` `1d` `z`
+            let parts: Vec<&str> = id.split('-').collect();
+
+            if parts.len() < 3 {
+                return Err(ParseIdError::InvalidFormat {
+                    id: s.to_owned(),
+                    context: format!(
+                        "splitting on `-` should yield at least 3 parts, but only yielded {}",
+                        parts.len()
+                    ),
+                });
+            }
+
+            let tag: u32 = parts[0].parse().map_err(|err| ParseIdError::ParseNumber {
+                id: s.to_owned(),
+                error: err,
+            })?;
+
+            let page_id = parts[1];
+            // split `w_95_1` to `w` `95` `1`
+            let page_id_parts: Vec<&str> = page_id.split('_').collect();
+
+            if page_id_parts.len() != 3 {
+                return Err(ParseIdError::InvalidFormat {
+                    id: s.to_owned(),
+                    context: format!(
+                        r#"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but {page_id} only has {} parts"#,
+                        page_id_parts.len()
+                    ),
+                });
+            }
+
+            // trick to get a static str from a runtime value
+            let scope = match page_id_parts[0] {
+                "w" => Scope::W,
+                "c" => Scope::C,
+                _ => unreachable!("a webtoon can only be either an original or canvas"),
+            };
+
+            // parse `95` to u32
+            let webtoon = page_id_parts[1]
+                .parse()
+                .map_err(|err| ParseIdError::ParseNumber {
+                    id: s.to_owned(),
+                    error: err,
+                })?;
+
+            // parse `1` to u16
+            let episode = page_id_parts[2]
+                .parse()
+                .map_err(|err| ParseIdError::ParseNumber {
+                    id: s.to_owned(),
+                    error: err,
+                })?;
+
+            // parse `1d` to `Base36`
+            let post = parts[2].parse().map_err(|err| ParseIdError::ParseNumber {
+                id: s.to_owned(),
+                error: err,
+            })?;
+
+            // if exists parse `z` to `Base36`
+            let reply: Option<Base36> = if parts.len() == 4 {
+                Some(parts[3].parse().map_err(|err| ParseIdError::ParseNumber {
+                    id: s.to_owned(),
+                    error: err,
+                })?)
+            } else {
+                None
+            };
+
+            let id = Self {
+                tag,
+                scope,
+                webtoon,
+                episode,
+                post,
+                reply,
+            };
+
+            Ok(id)
+        }
+    }
+
+    impl Display for Id {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(reply) = &self.reply {
+                write!(
+                    f,
+                    "GW-epicom:{}-{}_{}_{}-{}-{reply}",
+                    self.tag, self.scope, self.webtoon, self.episode, self.post,
+                )
+            } else {
+                write!(
+                    f,
+                    "GW-epicom:{}-{}_{}_{}-{}",
+                    self.tag, self.scope, self.webtoon, self.episode, self.post
+                )
+            }
+        }
+    }
+
+    impl<'a> PartialEq<&'a str> for Id {
+        fn eq(&self, other: &&'a str) -> bool {
+            Self::from_str(other).map(|id| *self == id).unwrap_or(false)
+        }
+    }
+
+    impl PartialEq<String> for Id {
+        fn eq(&self, other: &String) -> bool {
+            Self::from_str(other).map(|id| *self == id).unwrap_or(false)
+        }
+    }
+
+    impl Ord for Id {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            match self.post.cmp(&other.post) {
+                Ordering::Less => Ordering::Less,
+                Ordering::Greater => Ordering::Greater,
+                Ordering::Equal => {
+                    match (self.reply, other.reply) {
+                        // Both are replies to the same direct post so a direct compare is easy
+                        (Some(reply), Some(other)) => reply.cmp(&other),
+
+                        // If there is no reply number for the first one, it must be a direct post, so if there is any
+                        // id that has a reply with a matching post number, it must always be Greater and therefore
+                        // `self` must be `Less` than the reply.
+                        (None, Some(_)) => Ordering::Less,
+
+                        // Inverse of the above: If there is a reply for the first one, and the Rhs is None(a direct post)
+                        // it must always be greater than the direct post.
+                        (Some(_), None) => Ordering::Greater,
+
+                        // Same direct post
+                        (None, None) => Ordering::Equal,
+                    }
+                }
+            }
+        }
+    }
+
+    impl PartialOrd for Id {
+        #[allow(
+            clippy::non_canonical_partial_ord_impl,
+            reason = "`Id` ordering is only meaningful for the same webtoon on the same episode"
+        )]
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            // If not a post on the same webtoons' episode then return `None`.
+            // Cannot add `self.tag != other.tag` as its still unknown how this number increments, but given that the other
+            // checks are enough to know if the post is on the same weboon and the same episode it should be fine.
+            if self.scope != other.scope
+                || self.webtoon != other.webtoon
+                || self.episode != other.episode
+            {
+                return None;
+            }
+
+            Some(self.cmp(other))
+        }
+    }
+
+    impl<'a> PartialOrd<&'a str> for Id {
+        fn partial_cmp(&self, other: &&'a str) -> Option<std::cmp::Ordering> {
+            let Ok(other) = Self::from_str(other) else {
+                return None;
+            };
+
+            self.partial_cmp(&other)
+        }
+    }
+
+    impl From<Id> for String {
+        fn from(val: Id) -> Self {
+            val.to_string()
+        }
+    }
+
+    impl TryFrom<String> for Id {
+        type Error = ParseIdError;
+
+        fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+            Self::from_str(&value)
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+    enum Scope {
+        W,
+        C,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let letter = match self {
+                Self::W => "w",
+                Self::C => "c",
+            };
+
+            write!(f, "{letter}")
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+
+        #[test]
+        fn should_be_equal_str() {
+            let id = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(49),
+                reply: None,
+            };
+
+            let id_with_reply = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(49),
+                reply: Some(Base36::new(1)),
+            };
+
+            // 1d == 49
+            pretty_assertions::assert_eq!(id, "GW-epicom:0-w_95_1-1d");
+            pretty_assertions::assert_eq!(id_with_reply, "GW-epicom:0-w_95_1-1d-1");
+        }
+
+        #[test]
+        fn should_be_not_equal_str() {
+            let id = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(49),
+                reply: None,
+            };
+
+            pretty_assertions::assert_ne!(id, "GW-epicom:0-w_95_2-1d");
+            pretty_assertions::assert_ne!(id, "GW-epicom:0-w_95_1-1d-1");
+        }
+
+        #[test]
+        fn should_be_ordered() {
+            let forty_nine = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(49),
+                reply: None,
+            };
+
+            let fifty = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(50),
+                reply: None,
+            };
+
+            let fifty_with_reply = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(50),
+                reply: Some(Base36::new(1)),
+            };
+
+            assert!(fifty > forty_nine);
+            assert!(forty_nine < fifty);
+
+            // Different webtoons cannot be compared
+            assert!(fifty.partial_cmp(&"GW-epicom:0-w_96_1-1d").is_none());
+            assert!(fifty.partial_cmp(&"GW-epicom:0-w_96_1-1d-1").is_none());
+
+            // Different episodes cannot be compared
+            assert!(fifty.partial_cmp(&"GW-epicom:0-w_95_2-1d").is_none());
+            assert!(fifty.partial_cmp(&"GW-epicom:0-w_95_2-1d-1").is_none());
+
+            assert!(fifty > "GW-epicom:0-w_95_1-1d");
+            assert!(forty_nine < "GW-epicom:0-w_95_1-1d-1");
+            assert!(fifty_with_reply > fifty);
+        }
+
+        #[test]
+        fn should_turn_post_id_to_string() {
+            let id = Id {
+                tag: 0,
+                scope: Scope::W,
+                webtoon: 95,
+                episode: 1,
+                post: Base36::new(49),
+                reply: None,
+            };
+
+            pretty_assertions::assert_str_eq!("GW-epicom:0-w_95_1-1d", id.to_string());
+        }
+
+        #[test]
+        fn should_turn_reply_id_to_string() {
+            let id = Id {
+                tag: 0,
+                scope: Scope::C,
+                webtoon: 656_579,
+                episode: 161,
+                post: Base36::new(35),
+                reply: Some(Base36::new(35)),
+            };
+
+            pretty_assertions::assert_str_eq!("GW-epicom:0-c_656579_161-z-z", id.to_string());
+        }
+
+        #[test]
+        fn should_parse_post_id() {
+            let id = Id::from_str("GW-epicom:0-w_95_1-1d").unwrap();
+
+            pretty_assertions::assert_eq!(id.scope, Scope::W);
+            pretty_assertions::assert_eq!(id.webtoon, 95);
+            pretty_assertions::assert_eq!(id.episode, 1);
+            pretty_assertions::assert_eq!(id.post, 49);
+            pretty_assertions::assert_eq!(id.reply, None);
+        }
+
+        #[test]
+        fn should_parse_reply_id() {
+            {
+                let id = Id::from_str("GW-epicom:0-w_95_1-1d-z").unwrap();
+
+                pretty_assertions::assert_eq!(id.scope, Scope::W);
+                pretty_assertions::assert_eq!(id.webtoon, 95);
+                pretty_assertions::assert_eq!(id.episode, 1);
+                pretty_assertions::assert_eq!(id.post, 49);
+                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(35)));
+            }
+            {
+                let id = Id::from_str("GW-epicom:0-c_656579_161-13-1").unwrap();
+
+                pretty_assertions::assert_eq!(id.scope, Scope::C);
+                pretty_assertions::assert_eq!(id.webtoon, 656_579);
+                pretty_assertions::assert_eq!(id.episode, 161);
+                pretty_assertions::assert_eq!(id.post, 39);
+                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(1)));
+            }
+        }
     }
 }

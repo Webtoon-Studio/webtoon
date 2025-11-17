@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub struct Likes {
+pub struct RawLikesResponse {
     #[serde(alias = "contents")]
     pub result: Contents,
 }

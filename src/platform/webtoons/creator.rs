@@ -46,23 +46,30 @@ pub struct Creator {
     pub(super) username: String,
     // Originals authors might not have a profile: Korean, Chinese, German, and French
     pub(super) profile: Option<String>,
-    pub(super) page: Arc<RwLock<Option<Page>>>,
+    pub(super) homepage: Arc<RwLock<Option<Homepage>>>,
 }
 
-#[allow(clippy::missing_fields_in_debug)]
 impl Debug for Creator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            client: _,
+            language,
+            username,
+            profile,
+            homepage,
+        } = self;
+
         f.debug_struct("Creator")
-            // omitting `client`
-            .field("language", &self.language)
-            .field("username", &self.username)
-            .field("profile", &self.profile)
+            .field("language", language)
+            .field("username", username)
+            .field("profile", profile)
+            .field("homepage", homepage)
             .finish()
     }
 }
 
 #[derive(Debug)]
-pub(super) struct Page {
+pub(super) struct Homepage {
     pub username: String,
     pub followers: u32,
     pub id: String,
@@ -143,23 +150,23 @@ impl Creator {
     /// # }
     /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.id.clone()))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.id.clone()))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let followers = page.as_ref().map(|page| page.id.clone());
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let followers = homepage.as_ref().map(|homepage| homepage.id.clone());
+            *self.homepage.write() = homepage;
             Ok(followers)
         }
     }
 
     /// Returns the number of followers for the `Creator`.
     ///
-    /// Will return `None` if profile page is not a supported language:
+    /// Will return `None` if profile homepage is not a supported language:
     /// - French
     /// - German
     /// - Korean
@@ -182,16 +189,16 @@ impl Creator {
     /// # }
     /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.followers))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.followers))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let followers = page.as_ref().map(|page| page.followers);
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let followers = homepage.as_ref().map(|page| page.followers);
+            *self.homepage.write() = homepage;
             Ok(followers)
         }
     }
@@ -260,12 +267,12 @@ impl Creator {
         {
             response
         } else {
-            let page = page(self.language, profile, &self.client).await?;
-            let profile = page
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let profile = homepage
                 .as_ref()
-                .map(|page| page.id.clone())
-                .context("failed to find creator profile property on creator page html")?;
-            *self.page.write() = page;
+                .map(|homepage| homepage.id.clone())
+                .context("failed to find creator profile property on creator homepage html")?;
+            *self.homepage.write() = homepage;
 
             let url = format!(
                 "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
@@ -323,41 +330,31 @@ impl Creator {
     /// # }
     /// ```
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Some(page) = &*self.page.read() {
-            Ok(Some(page.has_patreon))
+        if let Some(homepage) = &*self.homepage.read() {
+            Ok(Some(homepage.has_patreon))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
-            let page = page(self.language, profile, &self.client).await?;
-            let has_patreon = page.as_ref().map(|page| page.has_patreon);
-            *self.page.write() = page;
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
+            *self.homepage.write() = homepage;
             Ok(has_patreon)
         }
     }
 }
 
-pub(super) async fn page(
+pub(super) async fn homepage(
     language: Language,
     profile: &str,
     client: &Client,
-) -> Result<Option<Page>, CreatorError> {
-    let response = client.get_creator_page(language, profile).await?;
-
-    if response.status() == 404 {
+) -> Result<Option<Homepage>, CreatorError> {
+    let Some(html) = client.get_creator_page(language, profile).await? else {
         return Ok(None);
-    }
+    };
 
-    if response.status() == 400 {
-        return Err(CreatorError::DisabledByCreator);
-    }
-
-    let document = response.text().await?;
-
-    let html = Html::parse_document(&document);
-
-    Ok(Some(Page {
+    Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
         has_patreon: has_patreon(&html),
@@ -369,20 +366,19 @@ fn username(html: &Html) -> Result<String, CreatorError> {
     let selector = Selector::parse("h3").expect("`h3` should be a valid selector");
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(class) = element.value().attr("class") {
-            if class.starts_with("HomeProfile_nickname") {
-                return Ok(element
-                    .text()
-                    .next()
-                    .context("username element was empty")?
-                    .to_string());
-            }
+        if let Some(class) = element.value().attr("class")
+            && class.starts_with("HomeProfile_nickname")
+        {
+            return Ok(element
+                .text()
+                .next()
+                .context("username element was empty")?
+                .to_string());
         }
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator username on creator page"
+        "failed to find creator username on creator homepage"
     )))
 }
 
@@ -393,26 +389,25 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
     let mut encountered_class = false;
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(class) = element.value().attr("class") {
-            if class.starts_with("CreatorBriefMetric_count") {
-                if encountered_class {
-                    return Ok(element
-                        .text()
-                        .next()
-                        .context("follower count element was empty")?
-                        .replace(',', "")
-                        .parse()
-                        .context("follower count was not a number")?);
-                }
-
-                encountered_class = true;
+        if let Some(class) = element.value().attr("class")
+            && class.starts_with("CreatorBriefMetric_count")
+        {
+            if encountered_class {
+                return Ok(element
+                    .text()
+                    .next()
+                    .context("follower count element was empty")?
+                    .replace(',', "")
+                    .parse()
+                    .context("follower count was not a number")?);
             }
+
+            encountered_class = true;
         }
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator follower count on creator page"
+        "failed to find creator follower count on creator homepage"
     )))
 }
 
@@ -464,7 +459,7 @@ fn id(html: &Html) -> Result<String, CreatorError> {
     }
 
     Err(CreatorError::Unexpected(anyhow!(
-        "failed to find alternate creator profile in creatior page html"
+        "failed to find alternate creator profile in creatior homepage html"
     )))
 }
 
@@ -474,12 +469,11 @@ fn has_patreon(html: &Html) -> bool {
     let mut has_patreon = false;
 
     for element in html.select(&selector) {
-        // TODO: When Rust 2024 comes out with let chains, then switch to that, rather than nested like this.
-        if let Some(alt) = element.value().attr("alt") {
-            if alt == "PATREON" {
-                has_patreon = true;
-                break;
-            }
+        if let Some(alt) = element.value().attr("alt")
+            && alt == "PATREON"
+        {
+            has_patreon = true;
+            break;
         }
     }
 

@@ -1,7 +1,7 @@
 use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 
-use crate::platform::webtoons::{Webtoon, webtoon::WebtoonError};
+use crate::platform::webtoons::{Webtoon, errors::WebtoonError};
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
 pub struct Stats {
@@ -27,21 +27,12 @@ pub struct Previous {
 }
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, WebtoonError> {
-    let response = webtoon
-        .client
-        .get_stats_dashboard(webtoon)
-        .await?
-        .text()
-        .await?;
+    let html = webtoon.client.get_stats_dashboard(webtoon).await?;
 
-    let html = Html::parse_document(&response);
-
-    let dashboard = Stats {
+    Ok(Stats {
         subscribers: subscribers(&html)?,
         ..Default::default()
-    };
-
-    Ok(dashboard)
+    })
 }
 
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
