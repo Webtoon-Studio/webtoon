@@ -173,7 +173,7 @@ pub struct Episode {
     pub(crate) length: Arc<RwLock<Option<Option<u32>>>>,
     pub(crate) views: Option<u32>,
     pub(crate) thumbnail: Arc<RwLock<Option<Url>>>,
-    pub(crate) note: Arc<RwLock<Option<String>>>,
+    pub(crate) note: Arc<RwLock<Option<Option<String>>>>,
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
     pub(crate) panels: Arc<RwLock<Option<Vec<Panel>>>>,
@@ -340,18 +340,13 @@ impl Episode {
     /// ```
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
         if let Some(note) = &*self.note.read() {
-            Ok(Some(note.to_string()))
+            Ok(note.clone())
         } else {
             self.scrape().await?;
-
-            let note = self
-                .note
-                .read()
-                .as_deref()
-                .map(|note| note.to_string())
-                .context("note should have been scraped with the page scrape")?;
-
-            Ok(Some(note))
+            match self.note.read().as_ref() {
+                Some(Some(note)) => Ok(Some(note.clone())),
+                None | Some(None) => Ok(None),
+            }
         }
     }
 
@@ -1347,7 +1342,7 @@ impl Episode {
 
         let note = note(&html) //
             .context("Episode note failed to be parsed")?;
-        *self.note.write() = note;
+        *self.note.write() = Some(note);
 
         let panels =
             panels(&html, self.number).context("Episode panel urls failed to be parsed")?;
