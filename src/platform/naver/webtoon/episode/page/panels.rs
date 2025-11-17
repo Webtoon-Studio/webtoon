@@ -1,14 +1,12 @@
-use crate::platform::naver::{Client, errors::DownloadError, webtoon::episode::EpisodeError};
+use crate::platform::naver::{Client, webtoon::episode::EpisodeError};
 use anyhow::Context;
-use image::{GenericImageView, ImageFormat, RgbaImage};
 use scraper::{Html, Selector};
-use std::path::Path;
-use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
 /// Represents a single panel for an episode.
 ///
 /// This type is not constructed directly, but gotten via [`Episode::panels()`](crate::platform::naver::webtoon::episode::Episode::panels()).
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Panel {
     pub(crate) url: Url,
@@ -98,6 +96,7 @@ pub(super) fn from_html(html: &Html, episode: u16) -> Result<Vec<Panel>, Episode
 /// Represents all the downloaded panels for an episode.
 ///
 /// This type is not constructed directly, but gotten via [`Episode::download()`](crate::platform::naver::webtoon::episode::Episode::download()).
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Panels {
     pub(crate) images: Vec<Panel>,
@@ -105,6 +104,14 @@ pub struct Panels {
     pub(crate) width: u32,
 }
 
+#[cfg(feature = "download")]
+use crate::platform::naver::errors::DownloadError;
+#[cfg(feature = "download")]
+use image::{GenericImageView, ImageFormat, RgbaImage};
+#[cfg(feature = "download")]
+use tokio::{fs::File, io::AsyncWriteExt};
+
+#[cfg(feature = "download")]
 impl Panels {
     /// Saves all the panels of an episode as a single, long image file in `png` format.
     ///
@@ -135,7 +142,7 @@ impl Panels {
     /// ```
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
-        P: AsRef<Path> + Send,
+        P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
 
@@ -201,7 +208,7 @@ impl Panels {
     /// ```
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where
-        P: AsRef<Path> + Send,
+        P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
 

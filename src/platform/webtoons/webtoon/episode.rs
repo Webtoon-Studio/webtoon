@@ -2,17 +2,14 @@
 
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
-use image::{GenericImageView, ImageFormat, RgbaImage};
 use parking_lot::RwLock;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde_json::json;
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
 use super::post::{PinRepresentation, Posts};
@@ -23,7 +20,7 @@ use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
     client::Client,
-    errors::{ClientError, DownloadError, EpisodeError, PostError},
+    errors::{ClientError, EpisodeError, PostError},
     meta::Scope,
 };
 
@@ -1588,6 +1585,8 @@ fn is_audio_reader(html: &Html) -> bool {
 /// Represents a single panel for an episode.
 ///
 /// This type is not constructed directly, but gotten via [`Episode::panels()`](Episode::panels()).
+// Not all fields are used with the base feature set.
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Panel {
     url: Url,
@@ -1739,6 +1738,8 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
 /// # Ok(())
 /// # }
 /// ```
+// Not all fields are used with the base feature set.
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Panels {
     images: Vec<Panel>,
@@ -1773,7 +1774,17 @@ impl Panels {
     pub fn count(&self) -> usize {
         self.images.len()
     }
+}
 
+#[cfg(feature = "download")]
+use crate::platform::webtoons::errors::DownloadError;
+#[cfg(feature = "download")]
+use image::{GenericImageView, ImageFormat, RgbaImage};
+#[cfg(feature = "download")]
+use tokio::io::AsyncWriteExt;
+
+#[cfg(feature = "download")]
+impl Panels {
     /// Saves all the panels of an episode as a single long image file in PNG format.
     ///
     /// # Behavior
@@ -1805,7 +1816,7 @@ impl Panels {
     /// ```
     pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
     where
-        P: AsRef<Path> + Send,
+        P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
 
@@ -1818,7 +1829,7 @@ impl Panels {
 
         let path = path.join(episode.to_string()).with_extension(ext);
 
-        File::create(&path)
+        tokio::fs::File::create(&path)
             .await
             .context("failed to create download file")?;
 
@@ -1878,7 +1889,7 @@ impl Panels {
     /// ```
     pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
     where
-        P: AsRef<Path> + Send,
+        P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
 
@@ -1888,7 +1899,7 @@ impl Panels {
             let name = format!("{}-{}", panel.episode, panel.number);
             let path = path.join(name).with_extension(&panel.ext);
 
-            let mut file = File::create(&path)
+            let mut file = tokio::fs::File::create(&path)
                 .await
                 .context("failed to create download file")?;
 
