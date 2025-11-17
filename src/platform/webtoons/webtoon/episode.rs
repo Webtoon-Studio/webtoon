@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::{fs::File, io::AsyncWriteExt};
 use url::Url;
 
-use super::post::{PinRepresentaion, Posts};
+use super::post::{PinRepresentation, Posts};
 
 use super::Webtoon;
 use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
@@ -544,7 +544,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentaion::None)
+            .get_posts_for_episode(self, None, 1, PinRepresentation::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -591,7 +591,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
+            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -606,7 +606,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -620,7 +620,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentaion::Distinct)
+            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
@@ -676,7 +676,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
+            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -691,7 +691,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -712,7 +712,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentaion::Distinct)
+            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
@@ -769,7 +769,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
+            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -790,7 +790,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -858,7 +858,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentaion::None)
+            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -879,7 +879,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentaion::None)
+                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {

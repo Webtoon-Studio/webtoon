@@ -17,7 +17,7 @@ use crate::{
         },
         errors::EpisodeError,
         search::Item,
-        webtoon::post::{PinRepresentaion, id::Id},
+        webtoon::post::{PinRepresentation, id::Id},
     },
     stdx::http::{DEFAULT_USER_AGENT, IRetry},
 };
@@ -1215,7 +1215,7 @@ impl Client {
         episode: &Episode,
         cursor: Option<Id>,
         stride: u8,
-        pin_represention: PinRepresentaion,
+        pin_representation: PinRepresentation,
     ) -> Result<RawPostResponse, ClientError> {
         let session = self
             .session
@@ -1232,12 +1232,12 @@ impl Client {
         let episode = episode.number;
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
-        let url = match pin_represention {
-            PinRepresentaion::None => format!(
+        let url = match pin_representation {
+            PinRepresentation::None => format!(
                 "https://www.webtoons.com/p/api/community/v2/posts?pageId={scope}_{webtoon}_{episode}&pinRepresentation=none&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=true"
             ),
             // Adds `is_top/isPinned` info for posts.
-            PinRepresentaion::Distinct => format!(
+            PinRepresentation::Distinct => format!(
                 "https://www.webtoons.com/p/api/community/v1/page/{scope}_{webtoon}_{episode}/posts/search?pinRepresentation=distinct&prevSize=0&nextSize=1"
             ),
         };

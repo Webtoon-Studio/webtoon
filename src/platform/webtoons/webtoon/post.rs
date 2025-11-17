@@ -1451,7 +1451,7 @@ pub enum Reaction {
     None,
 }
 
-pub(crate) enum PinRepresentaion {
+pub(crate) enum PinRepresentation {
     None,
     Distinct,
 }
