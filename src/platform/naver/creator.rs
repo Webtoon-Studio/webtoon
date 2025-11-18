@@ -285,10 +285,10 @@ fn username(html: &Html) -> Result<String, CreatorError> {
     let selector = Selector::parse(r#"head>meta[name="author"]"#) //
         .expect(r#"`head>meta[name="author"]` should be a valid selector"#);
 
-    if let Some(element) = html.select(&selector).next() {
-        if let Some(text) = element.value().attr("content") {
-            return Ok(text.to_string());
-        }
+    if let Some(element) = html.select(&selector).next()
+        && let Some(text) = element.value().attr("content")
+    {
+        return Ok(text.to_string());
     }
 
     Err(CreatorError::Unexpected(anyhow!(
@@ -300,13 +300,13 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
     let selector = Selector::parse("button>span") //
         .expect("`button>span` should be a valid selector");
 
-    if let Some(element) = html.select(&selector).nth(1) {
-        if let Some(text) = element.text().nth(1) {
-            return text
-                .replace(',', "")
-                .parse()
-                .map_err(|err: ParseIntError| CreatorError::Unexpected(err.into()));
-        }
+    if let Some(element) = html.select(&selector).nth(1)
+        && let Some(text) = element.text().nth(1)
+    {
+        return text
+            .replace(',', "")
+            .parse()
+            .map_err(|err: ParseIntError| CreatorError::Unexpected(err.into()));
     }
 
     Err(CreatorError::Unexpected(anyhow!(
@@ -318,45 +318,45 @@ fn id(html: &Html) -> Result<String, CreatorError> {
     let selector = Selector::parse("script").expect("`script` should be a valid selector");
 
     for element in html.select(&selector) {
-        if let Some(inner) = element.text().next() {
-            if let Some(idx) = inner.find("creatorId") {
-                let mut quotes = 0;
+        if let Some(inner) = element.text().next()
+            && let Some(idx) = inner.find("creatorId")
+        {
+            let mut quotes = 0;
 
-                // EXAMPLE: `creatorId\":\"n5z4d\"`
-                let bytes = &inner.as_bytes()[idx..];
+            // EXAMPLE: `creatorId\":\"n5z4d\"`
+            let bytes = &inner.as_bytes()[idx..];
 
-                let mut start = 0;
-                let mut idx = 0;
+            let mut start = 0;
+            let mut idx = 0;
 
-                let mut found_start = false;
+            let mut found_start = false;
 
-                loop {
-                    if bytes[idx] == b'"' {
-                        quotes += 1;
-                    }
-
-                    if quotes == 2 && !found_start {
-                        // `creatorId\":\"n5z4d\"`
-                        //           idx ^
-                        // Advance beyond quote:
-                        //
-                        // `creatorId\":\"n5z4d\"`
-                        //          start ^
-                        start = idx + 1;
-                        found_start = true;
-                    }
-
-                    if quotes == 3 {
-                        // `creatorId\":\"n5z4d\"`
-                        //          start ^     ^ idx
-                        return Ok(std::str::from_utf8(&bytes[start..idx])
-                            .expect("parsed creator id should be valid utf-8")
-                            .trim_end_matches('\\')
-                            .to_string());
-                    }
-
-                    idx += 1;
+            loop {
+                if bytes[idx] == b'"' {
+                    quotes += 1;
                 }
+
+                if quotes == 2 && !found_start {
+                    // `creatorId\":\"n5z4d\"`
+                    //           idx ^
+                    // Advance beyond quote:
+                    //
+                    // `creatorId\":\"n5z4d\"`
+                    //          start ^
+                    start = idx + 1;
+                    found_start = true;
+                }
+
+                if quotes == 3 {
+                    // `creatorId\":\"n5z4d\"`
+                    //          start ^     ^ idx
+                    return Ok(std::str::from_utf8(&bytes[start..idx])
+                        .expect("parsed creator id should be valid utf-8")
+                        .trim_end_matches('\\')
+                        .to_string());
+                }
+
+                idx += 1;
             }
         }
     }
