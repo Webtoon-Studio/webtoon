@@ -34,7 +34,7 @@ Supported:
 
 ### Installation
 
-MSRV: `1.85.0`
+MSRV: `1.88.0`
 
 To use this library, add `webtoon` to your `Cargo.toml`:
 
