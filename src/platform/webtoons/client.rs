@@ -15,7 +15,7 @@ use crate::{
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
-        errors::EpisodeError,
+        errors::{EpisodeError, Invariant, invariant},
         search::Item,
         webtoon::post::{PinRepresentation, id::Id},
     },
@@ -631,37 +631,44 @@ impl Client {
 
         let response = self.http.get(&url).retry().send().await?;
 
-        // Webtoon doesn't exist
+        // Webtoon doesn't exist or is not public.
         if response.status() == 404 {
             return Ok(None);
         }
 
-        let mut segments = response
-            .url()
-            .path_segments()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon url should have segments separated by `/`; this url did not.",
-            ))?;
+        let url = response.url();
 
-        let segment = segments
+        let mut segments = url.path_segments().invariant(
+            format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
+        )?;
+
+        let lang = segments
             .next()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon URL was found to have segments, but for some reason failed to extract that first segment, which should be a language code: e.g `en`",
-            ))?;
+            .invariant("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
 
-        let language = Language::from_str(segment)
-            .context("Failed to parse return URL segment into `Language` enum")?;
+        let language = match Language::from_str(lang) {
+            Ok(langauge) => langauge,
+            Err(err) => invariant!(
+                "first segement of the `webtoons.com` returned url provided an unexpected language: {err}"
+            ),
+        };
 
-        let segment = segments.next().ok_or(
-                WebtoonError::InvalidUrl("Url was found to have segments, but didn't have a second segment, representing the scope of the webtoon.")
-            )?;
+        let scope = segments
+            .next()
+            .invariant("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
 
-        let scope = Scope::from_str(segment) //
-            .context("Failed to parse URL scope path to a `Scope`")?;
+        let scope = match Scope::from_str(scope) {
+            Ok(scope) => scope,
+            Err(err) => {
+                invariant!(
+                    "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
+                )
+            }
+        };
 
         let slug = segments
             .next()
-            .ok_or( WebtoonError::InvalidUrl( "Url was found to have segments, but didn't have a third segment, representing the slug name of the Webtoon."))?
+            .invariant("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
             .to_string();
 
         let webtoon = Webtoon {

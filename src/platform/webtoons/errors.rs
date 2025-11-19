@@ -64,6 +64,9 @@ pub enum WebtoonError {
     MalformedUrl(#[from] url::ParseError),
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
+
+    #[error(transparent)]
+    Internal(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for WebtoonError {
@@ -239,5 +242,111 @@ pub enum DownloadError {
 impl From<reqwest::Error> for DownloadError {
     fn from(error: reqwest::Error) -> Self {
         Self::ClientError(ClientError::from(error))
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("internal invariant violated: {0}")]
+pub struct InternalInvariant(String);
+
+impl From<String> for InternalInvariant {
+    fn from(msg: String) -> Self {
+        Self(msg)
+    }
+}
+
+macro_rules! invariant {
+    ($msg:literal $(, $args:expr)* ) => {{
+        return Err($crate::platform::webtoons::errors::InternalInvariant::from( format!($msg $(, $args)*)).into());
+    }};
+    ($err:expr) => {{
+        return Err($crate::platform::webtoons::errors::InternalInvariant::from( format!("{}", $err)).into());
+    }};
+    ($cond:expr, $msg:literal $(, $args:expr)* ) => {{
+        if !$cond {
+        return Err($crate::platform::webtoons::errors::InternalInvariant::from( format!("`{}`, {}", stringify!($cond), format!($msg $(, $args)*))).into());
+        }
+    }};
+}
+
+pub(crate) use invariant;
+
+pub(crate) trait Invariant<T> {
+    type Output;
+
+    fn invariant(self, msg: impl Into<String>) -> Self::Output;
+    // fn with_invariant(self, msg: impl FnOnce() -> String) -> Self::Output;
+}
+
+impl<T> Invariant<T> for Option<T> {
+    type Output = Result<T, InternalInvariant>;
+
+    fn invariant(self, msg: impl Into<String>) -> Self::Output {
+        self.ok_or_else(|| InternalInvariant(msg.into()))
+    }
+
+    // fn with_invariant(self, msg: impl FnOnce() -> String) -> Self::Output {
+    //     self.ok_or_else(|| InternalInvariant(msg()))
+    // }
+}
+
+impl<T, E> Invariant<T> for Result<T, E> {
+    type Output = Result<T, InternalInvariant>;
+
+    fn invariant(self, msg: impl Into<String>) -> Self::Output {
+        self.map_err(|_| InternalInvariant(msg.into()))
+    }
+
+    // fn with_invariant(self, msg: impl FnOnce() -> String) -> Self::Output {
+    //     self.map_err(|_| InternalInvariant(msg()))
+    // }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore = "this should only be manually verified"]
+    fn should_bail_with_message() -> Result<(), InternalInvariant> {
+        invariant!("failed to uphold assumption");
+    }
+
+    #[test]
+    #[ignore = "this should only be manually verified"]
+    fn should_bail_on_condition_fail_with_message() -> Result<(), InternalInvariant> {
+        let panels: Vec<()> = vec![];
+        invariant!(
+            !panels.is_empty(),
+            "episode panels should not be empty, but was {}",
+            panels.len()
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "this should only be manually verified"]
+    fn should_have_format_args() -> Result<(), InternalInvariant> {
+        let arg = "foo";
+        invariant!("failed to uphold assumption with {arg} and {}", "bar");
+    }
+
+    #[test]
+    #[ignore = "this should only be manually verified"]
+    fn should_error_with_internal_invariant() -> Result<(), InternalInvariant> {
+        let err: Option<()> = None;
+        err.invariant("failed to find `a.img` html tag on webtoon homepage")?;
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "this should only be manually verified"]
+    fn should_error_with_internal_invariant2() -> Result<(), InternalInvariant> {
+        let webtoon = "Test";
+        let err: Option<()> = None;
+        err.invariant(format!(
+            "failed to find `a.img` html tag on webtoon homepage for `{webtoon}`"
+        ))?;
+        Ok(())
     }
 }
