@@ -83,6 +83,7 @@ async fn webtoon_canvas() -> Result<(), Error> {
     )?;
 
     let _title = webtoon.title().await.unwrap();
+    let _creators = webtoon.creators().await.unwrap();
     let _thumbnail = webtoon.thumbnail().await.unwrap();
     let _banner = webtoon.banner().await.unwrap();
     let _lang = webtoon.language();

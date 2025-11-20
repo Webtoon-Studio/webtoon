@@ -119,6 +119,20 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
 }
 
 fn published(date: &str, language: Language) -> DateTime<Utc> {
+    // TODO:
+    // let raw = raw.trim();
+    // let cleaned = format!("{raw} 02:00:00 +0000");
+
+    // let fmt = match lang {
+    //     Language::En => "%b %e, %Y %T %z",
+    //     Language::Zh => "%Y年%m月%d日 %T %z",
+    //     _ => unimplemented!(),
+    // };
+
+    // Ok(DateTime::parse_from_str(&cleaned, fmt)
+    //     .map_err(|_| WebtoonError::InvalidDate(raw.to_string()))?
+    //     .into())
+
     match language {
         Language::En => {
             // EX: Tuesday, 10 Sep 2024 16:40:23 GMT

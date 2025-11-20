@@ -2,9 +2,12 @@
 
 use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
+use futures::future;
 use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
+
+use crate::platform::webtoons::errors::{Invariant, invariant};
 
 use super::{Client, Language, Webtoon, errors::CreatorError};
 
@@ -283,22 +286,28 @@ impl Creator {
                 .get(url)
                 .send()
                 .await?
+                // TODO: Move `api::Response` and return to client like the other stuff has been.
                 .json::<api::Response>()
                 .await?
         };
 
         let webtoons =
-            futures::future::try_join_all(response.result.titles.iter().map(|webtoon| async {
+            future::try_join_all(response.result.titles.iter().map(|webtoon| async {
                 let id = webtoon
                     .id
                     .parse::<u32>()
-                    .context("failed to parse webtoon id to number")?;
+                    .invariant("`webtoons.com` creator homepage webtoons API should return valid id's which can be parsed into a `u32`")?;
 
                 let r#type = webtoon.r#type.parse()?;
 
-                Webtoon::new_with_client(id, r#type, &self.client).await
-            }))
-            .await?;
+                let webtoon = match Webtoon::new_with_client(id, r#type, &self.client).await {
+                    Ok(Some(webtoon)) => webtoon,
+                    Ok(None) => invariant!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
+                    Err(err) => return Err(err.into()),
+                };
+
+                Ok::<_, CreatorError>(webtoon)
+            })).await?;
 
         Ok(Some(webtoons))
     }

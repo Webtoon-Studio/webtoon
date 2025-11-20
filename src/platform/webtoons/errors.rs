@@ -27,6 +27,10 @@ pub enum Error {
     #[error(transparent)]
     PosterError(#[from] PosterError),
 
+    // TODO: Should be no need to support this return.
+    #[error(transparent)]
+    InvalidWebtoonUrl(#[from] InvalidWebtoonUrl),
+
     #[cfg(feature = "download")]
     #[error(transparent)]
     DownloadError(#[from] DownloadError),
@@ -41,37 +45,50 @@ pub enum ClientError {
     #[error("Provided session is invalid or expired")]
     InvalidSession,
     #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
+    RequestError(#[from] RequestError),
+    #[error(transparent)]
+    InternalInvariant(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for ClientError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::Unexpected(anyhow::Error::from(error))
+    fn from(err: reqwest::Error) -> Self {
+        Self::RequestError(RequestError(err))
     }
 }
 
 #[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Error)]
+#[error(transparent)]
+pub struct RequestError(#[from] reqwest::Error);
+
+#[allow(missing_docs)]
+#[derive(Debug, Error)]
 pub enum WebtoonError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
-    #[error("{0}")]
-    InvalidUrl(&'static str),
-    #[error("No genre was found for webtoon")]
-    NoGenre,
-    #[error(transparent)]
-    MalformedUrl(#[from] url::ParseError),
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-
     #[error(transparent)]
     Internal(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for WebtoonError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
+    }
+}
+
+/// Represents an invalid `webtoons.com` Webtoon homepage URL.
+///
+/// Given how exact the format is, and the unlikely nature of something actionable
+/// being done, this error is merely a message carrier that says what expectations
+/// were violated.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub struct InvalidWebtoonUrl(String);
+
+impl InvalidWebtoonUrl {
+    pub(crate) fn new(msg: impl Into<String>) -> Self {
+        Self(msg.into())
     }
 }
 
@@ -89,11 +106,22 @@ pub enum CreatorError {
     Unexpected(#[from] anyhow::Error),
     #[error("Profile page exists, but was disabled by creator")]
     DisabledByCreator,
+    #[error(transparent)]
+    Internal(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for CreatorError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
+    }
+}
+
+impl From<WebtoonError> for CreatorError {
+    fn from(error: WebtoonError) -> Self {
+        match error {
+            WebtoonError::ClientError(err) => Self::ClientError(err),
+            WebtoonError::Internal(err) => Self::Internal(err),
+        }
     }
 }
 
@@ -114,8 +142,8 @@ pub enum EpisodeError {
 }
 
 impl From<reqwest::Error> for EpisodeError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -132,8 +160,8 @@ pub enum PostError {
 }
 
 impl From<reqwest::Error> for PostError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -150,8 +178,8 @@ pub enum ReplyError {
 }
 
 impl From<reqwest::Error> for ReplyError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -170,8 +198,8 @@ pub enum PosterError {
 }
 
 impl From<reqwest::Error> for PosterError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -183,11 +211,13 @@ pub enum OriginalsError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
+    #[error(transparent)]
+    Internal(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for OriginalsError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -199,11 +229,14 @@ pub enum CanvasError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
+
+    #[error(transparent)]
+    Internal(#[from] InternalInvariant),
 }
 
 impl From<reqwest::Error> for CanvasError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::Unexpected(anyhow::Error::from(error)))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -220,8 +253,8 @@ pub enum SearchError {
 }
 
 impl From<reqwest::Error> for SearchError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::from(error))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
@@ -240,11 +273,26 @@ pub enum DownloadError {
 
 #[cfg(feature = "download")]
 impl From<reqwest::Error> for DownloadError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ClientError(ClientError::from(error))
+    fn from(err: reqwest::Error) -> Self {
+        Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
 }
 
+/// Represents internal invariants that were violated.
+///
+/// If this is returned, this is considered a bug that must be fixed!
+///
+/// This error is not actionable by library user, and must be fixed via internal
+/// code changes! Please open an issue!
+///
+/// # Use
+///
+/// The rule of thumb for this error is that it is only used when interacting
+/// with the platform, as opposed to input data that might be passed to the library.
+///
+/// In an effort to maintain correctness in the library, liberal use of pre and
+/// post checks are used to make sure any changes that happen underneath the
+/// library are caught and fixed as soon as possible.
 #[derive(Debug, Error)]
 #[error("internal invariant violated: {0}")]
 pub struct InternalInvariant(String);

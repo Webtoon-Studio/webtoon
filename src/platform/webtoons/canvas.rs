@@ -23,12 +23,14 @@ use anyhow::{Context, Result, anyhow};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
+use crate::platform::webtoons::errors::invariant;
+
 use super::{Client, Language, Webtoon, errors::CanvasError};
 
 pub(super) async fn scrape(
     client: &Client,
     language: Language,
-    pages: impl RangeBounds<u16> + Send,
+    pages: impl RangeBounds<u16>,
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
     // NOTE: currently all languages are the same
@@ -47,6 +49,7 @@ pub(super) async fn scrape(
         std::ops::Bound::Unbounded => 100,
     };
 
+    // TODO: See if this is possible `10..1`.
     if start > end {
         return Err(CanvasError::Unexpected(anyhow!(
             "range start was greater than range end",
@@ -63,7 +66,14 @@ pub(super) async fn scrape(
                 .attr("href")
                 .context("`href` is missing, `a` tag should always have one")?;
 
-            webtoons.push(Webtoon::from_url_with_client(href, client)?);
+            let webtoon = match Webtoon::from_url_with_client(href, client) {
+                Ok(webtoon) => webtoon,
+                Err(err) => invariant!(
+                    "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}"
+                ),
+            };
+
+            webtoons.push(webtoon);
         }
     }
 

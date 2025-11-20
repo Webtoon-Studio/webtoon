@@ -5,7 +5,6 @@ mod homepage;
 pub mod episode;
 pub mod post;
 
-use anyhow::Context;
 use core::fmt::{self, Debug};
 use parking_lot::RwLock;
 use std::str::FromStr;
@@ -15,6 +14,11 @@ use std::sync::Arc;
 pub mod rss;
 #[cfg(feature = "rss")]
 use rss::Rss;
+
+use crate::{
+    platform::webtoons::errors::{InvalidWebtoonUrl, Invariant, invariant},
+    stdx::http::IRetry,
+};
 
 use self::{
     episode::{Episode, Episodes},
@@ -999,7 +1003,7 @@ impl Webtoon {
         id: u32,
         r#type: Type,
         client: &Client,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Option<Self>, WebtoonError> {
         let url = format!(
             "https://www.webtoons.com/*/{}/*/list?title_no={id}",
             match r#type {
@@ -1008,41 +1012,46 @@ impl Webtoon {
             }
         );
 
-        let response = client.http.get(&url).send().await?;
+        let response = client.http.get(&url).retry().send().await?;
 
-        // Webtoon doesn't exist
+        // Webtoon doesn't exist or is not public.
         if response.status() == 404 {
-            anyhow::bail!(
-                "Webtoon should always exist when using `new_with_client` which is designed for internal use only."
-            );
+            return Ok(None);
         }
 
-        let mut segments = response
-            .url()
-            .path_segments()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon url should have segments separated by `/`; this url did not.",
-            ))?;
+        let url = response.url();
 
-        let segment = segments
+        let mut segments = url.path_segments().invariant(
+            format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
+        )?;
+
+        let lang = segments
             .next()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon URL was found to have segments, but for some reason failed to extract that first segment, which should be a language code: e.g `en`",
-            ))?;
+            .invariant("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
 
-        let language = Language::from_str(segment)
-            .context("Failed to parse return URL segment into `Language` enum")?;
+        let language = match Language::from_str(lang) {
+            Ok(langauge) => langauge,
+            Err(err) => invariant!(
+                "first segement of the `webtoons.com` returned url provided an unexpected language: {err}"
+            ),
+        };
 
-        let segment = segments.next().ok_or(
-                WebtoonError::InvalidUrl("Url was found to have segments, but didn't have a second segment, representing the scope of the webtoon.")
-            )?;
+        let scope = segments
+            .next()
+            .invariant("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
 
-        let scope = Scope::from_str(segment) //
-            .context("Failed to parse URL scope path to a `Scope`")?;
+        let scope = match Scope::from_str(scope) {
+            Ok(scope) => scope,
+            Err(err) => {
+                invariant!(
+                    "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
+                )
+            }
+        };
 
         let slug = segments
             .next()
-            .ok_or( WebtoonError::InvalidUrl( "Url was found to have segments, but didn't have a third segment, representing the slug name of the Webtoon."))?
+            .invariant("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
             .to_string();
 
         let webtoon = Webtoon {
@@ -1054,48 +1063,90 @@ impl Webtoon {
             page: Arc::new(RwLock::new(None)),
         };
 
-        Ok(webtoon)
+        Ok(Some(webtoon))
     }
 
-    pub(super) fn from_url_with_client(url: &str, client: &Client) -> Result<Self, anyhow::Error> {
-        let url = url::Url::parse(url).map_err(|err| WebtoonError::Unexpected(err.into()))?;
+    pub(super) fn from_url_with_client(
+        url: &str,
+        client: &Client,
+    ) -> Result<Self, InvalidWebtoonUrl> {
+        let Ok(url) = url::Url::parse(url) else {
+            return Err(InvalidWebtoonUrl::new(
+                "failed to parse provided url: not a valid url",
+            ));
+        };
 
         let mut segments = url
-            .path_segments()
-            .context("webtoon url should have segments")?;
+            .path_segments() //
+            .ok_or(InvalidWebtoonUrl::new("a `webtoons.com` Webtoon homepage url should have segments (`/`); this url did not"))?;
 
-        let id = url
-            .query()
-            .context("webtoon url should have a `title_no` query")?
-            .split('=')
-            .nth(1)
-            .context("`title_no` should always have a `=`")?
-            .parse::<u32>()
-            .context("`title_no` query parameter wasn't able to parse into a u32")?;
+        let lang = segments
+            .next()
+            .ok_or(InvalidWebtoonUrl::new("url has path segments, but for some reason failed to extract the first segment, which for a valid `webtoons.com` Webtoon homepage url, should be a language: e.g `en`"))?;
 
-        let language = Language::from_str(
-            segments
-                .next()
-                .context("webtoon url should have a language segment as its first")?,
-        )?;
+        let language = match Language::from_str(lang) {
+            Ok(language) => language,
+            Err(err) => {
+                return Err(InvalidWebtoonUrl::new(format!(
+                    "found an unexpected language in provided `webtoons.com` url: {err}"
+                )));
+            }
+        };
 
-        let scope = Scope::from_str(
-            segments
-                .next()
-                .context("webtoon url should have a scope segment as its second")?,
-        )
-        .with_context(|| format!("id: `{id}` had an unknown genre slug"))?;
+        let segment = segments
+            .next() //
+            .ok_or(InvalidWebtoonUrl::new("provided url didn't have a second segment, representing the scope of a Webtoon in a valid `webtoons.com` homepage url, eg. `canvas`, `fantasy`, etc."))?;
+
+        let scope = match Scope::from_str(segment) {
+            Ok(scope) => scope,
+            Err(err) => {
+                return Err(InvalidWebtoonUrl::new(format!(
+                    "found an unexpected scope in provided `webtoons.com` url: {err}"
+                )));
+            }
+        };
 
         let slug = segments
             .next()
-            .context("webtoon url should have a slug segment as its third")?
-            .to_string();
+            .ok_or( InvalidWebtoonUrl::new( "provided url didn't have a third segment, representing the slug name of a Webtoon in a valid `webtoons.com` homepage url, eg. `tower-of-god`"))?;
 
-        let webtoon = Self {
+        let query = url
+            .query()
+            .ok_or(InvalidWebtoonUrl::new("a valid `webtoons.com` Webtoon homepage url should have a `title_no` query, but provided url didn't have any queries at all"))?;
+
+        let id = match query.split_once('=') {
+            Some(("title_no", "")) => {
+                return Err(InvalidWebtoonUrl::new(
+                    "provided url had a `title_no` query, but nothing was after the `=`",
+                ));
+            }
+
+            // TODO: When if-let arm guards(https://github.com/rust-lang/rust/issues/51114) becomes stable might be able
+            // clean this up more.
+            Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => id
+                .parse::<u32>()
+                .map_err(|_| InvalidWebtoonUrl::new("provided `weboons.com` Webtoon homepage url had a valid `title_no=N` query, but the value was too large to fit in a `u32`"))?,
+
+            Some(("title_no", _)) => return Err(InvalidWebtoonUrl::new("provided url had a `title_no` query, but the value was not a valid digit")),
+
+            Some(_) => {
+                return Err(InvalidWebtoonUrl::new(
+                    "provided `webtoons.com` Webtoon homepage url did not have a `title_no` query",
+                ));
+            }
+
+            None => {
+                return Err(InvalidWebtoonUrl::new(
+                    "`title_no` should always have a `=` separator",
+                ));
+            }
+        };
+
+        let webtoon = Webtoon {
             client: client.clone(),
             language,
             scope,
-            slug: Arc::from(slug),
+            slug: slug.into(),
             id,
             page: Arc::new(RwLock::new(None)),
         };

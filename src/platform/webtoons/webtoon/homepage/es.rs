@@ -34,7 +34,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: super::en::views(html)?,
             subscribers: super::en::subscribers(html)?,
             schedule: None,
-            thumbnail: Some(super::en::canvas_thumbnail(html)?),
+            thumbnail: Some(super::en::thumbnail(html)?),
             banner: Some(super::en::banner(html)?),
             pages: super::en::calculate_total_pages(html)?,
         },

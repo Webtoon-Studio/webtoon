@@ -15,7 +15,7 @@ use crate::{
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
-        errors::{EpisodeError, Invariant, invariant},
+        errors::{EpisodeError, InvalidWebtoonUrl, Invariant, invariant},
         search::Item,
         webtoon::post::{PinRepresentation, id::Id},
     },
@@ -164,7 +164,7 @@ impl ClientBuilder {
             http: self
                 .builder
                 .build()
-                .map_err(|err| ClientError::Unexpected(err.into()))?,
+                .map_err(|err| ClientError::RequestError(err.into()))?,
             session: self.session,
         })
     }
@@ -621,66 +621,7 @@ impl Client {
     /// # }
     /// ```
     pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, WebtoonError> {
-        let url = format!(
-            "https://www.webtoons.com/*/{}/*/list?title_no={id}",
-            match r#type {
-                Type::Original => "*",
-                Type::Canvas => "canvas",
-            }
-        );
-
-        let response = self.http.get(&url).retry().send().await?;
-
-        // Webtoon doesn't exist or is not public.
-        if response.status() == 404 {
-            return Ok(None);
-        }
-
-        let url = response.url();
-
-        let mut segments = url.path_segments().invariant(
-            format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
-        )?;
-
-        let lang = segments
-            .next()
-            .invariant("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
-
-        let language = match Language::from_str(lang) {
-            Ok(langauge) => langauge,
-            Err(err) => invariant!(
-                "first segement of the `webtoons.com` returned url provided an unexpected language: {err}"
-            ),
-        };
-
-        let scope = segments
-            .next()
-            .invariant("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
-
-        let scope = match Scope::from_str(scope) {
-            Ok(scope) => scope,
-            Err(err) => {
-                invariant!(
-                    "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
-                )
-            }
-        };
-
-        let slug = segments
-            .next()
-            .invariant("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
-            .to_string();
-
-        let webtoon = Webtoon {
-            client: self.clone(),
-            id,
-            language,
-            scope,
-            slug: Arc::from(slug),
-            page: Arc::new(RwLock::new(None)),
-        };
-
-        Ok(Some(webtoon))
+        Webtoon::new_with_client(id, r#type, self).await
     }
 
     /// Constructs a [`Webtoon`] from a given `url`.
@@ -708,55 +649,8 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn webtoon_from_url(&self, url: &str) -> Result<Webtoon, WebtoonError> {
-        let url = url::Url::parse(url)?;
-
-        let mut segments = url.path_segments().ok_or(WebtoonError::InvalidUrl(
-            "Webtoon url should have segments separated by `/`; this url did not.",
-        ))?;
-
-        let segment = segments
-            .next()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon URL was found to have segments, but for some reason failed to extract that first segment, which should be a language code: e.g `en`",
-            ))?;
-
-        let language = Language::from_str(segment)
-            .context("Failed to parse URL language code into `Language` enum")?;
-
-        let segment = segments.next().ok_or(
-                WebtoonError::InvalidUrl("Url was found to have segments, but didn't have a second segment, representing the scope of the webtoon.")
-            )?;
-
-        let scope = Scope::from_str(segment) //
-            .context("Failed to parse URL scope path to a `Scope`")?;
-
-        let slug = segments
-            .next()
-            .ok_or( WebtoonError::InvalidUrl( "Url was found to have segments, but didn't have a third segment, representing the slug name of the Webtoon."))?
-            .to_string();
-
-        let id = url
-            .query()
-            .ok_or(WebtoonError::InvalidUrl(
-                "Webtoon URL should have a `title_no` query: failed to find one in provided URL.",
-            ))?
-            .split('=')
-            .nth(1)
-            .context("`title_no` should always have a `=` separator")?
-            .parse::<u32>()
-            .context("`title_no` query parameter wasn't able to parse into a u32")?;
-
-        let webtoon = Webtoon {
-            client: self.clone(),
-            language,
-            scope,
-            slug: Arc::from(slug),
-            id,
-            page: Arc::new(RwLock::new(None)),
-        };
-
-        Ok(webtoon)
+    pub fn webtoon_from_url(&self, url: &str) -> Result<Webtoon, InvalidWebtoonUrl> {
+        Webtoon::from_url_with_client(url, self)
     }
 
     /// Returns a [`UserInfo`] derived from a passed in session.
@@ -785,13 +679,18 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        let user_info: UserInfo = serde_json::from_str(&response.text().await?).map_err(|err| {
-            ClientError::Unexpected(anyhow!("failed to deserialize `userInfo` endpoint: {err}"))
-        })?;
-
-        Ok(user_info)
+        match serde_json::from_str::<UserInfo>(&response) {
+            Ok(user_info) => Ok(user_info),
+            Err(err) => {
+                invariant!(
+                    "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
+                )
+            }
+        }
     }
 
     /// Returns if the `Client` was provided a session.
@@ -1053,6 +952,8 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<rss::Channel, WebtoonError> {
+        use crate::platform::webtoons::errors::invariant;
+
         let id = webtoon.id;
         let language = webtoon.language;
         let slug = &webtoon.slug;
@@ -1066,10 +967,10 @@ impl Client {
 
         let response = self.http.get(url).send().await?.text().await?;
 
-        let channel = rss::Channel::from_str(&response) //
-            .map_err(|err| WebtoonError::Unexpected(err.into()))?;
-
-        Ok(channel)
+        match rss::Channel::from_str(&response) {
+            Ok(channel) => Ok(channel),
+            Err(err) => invariant!("rss feed returned from `webtoons.com` failed to parse: {err}"),
+        }
     }
 
     pub(super) async fn get_episode(
@@ -1127,7 +1028,12 @@ impl Client {
             .text()
             .await?;
 
-        Ok(serde_json::from_str::<RawLikesResponse>(&response).context(response)?)
+        match serde_json::from_str::<RawLikesResponse>(&response) {
+            Ok(response) => Ok(response),
+            Err(err) => invariant!(
+                "failed to deserialize raw likes api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), ClientError> {
@@ -1146,15 +1052,17 @@ impl Client {
 
         let response = self.get_react_token().await?;
 
+        // TODO: there is some logic overlap with `unlike_episode` that could be consolidated in `get_react_token`
         if response.success {
             let token = response
                 .result
                 .guest_token
-                .context("`guestToken` should be some if `success` is true")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
+
             let timestamp = response
                 .result
                 .timestamp
-                .context("`timestamp` should be some if `success` is true")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
 
             let language = episode.webtoon.language;
 
@@ -1193,12 +1101,12 @@ impl Client {
             let token = response
                 .result
                 .guest_token
-                .context("`guestToken` should be some if `success` is true")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
 
             let timestamp = response
                 .result
                 .timestamp
-                .context("`timestamp` should be some if `success` is true")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
 
             let language = episode.webtoon.language;
 
@@ -1260,7 +1168,12 @@ impl Client {
             .text()
             .await?;
 
-        Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
+        match serde_json::from_str::<RawPostResponse>(&response) {
+            Ok(response) => Ok(response),
+            Err(err) => invariant!(
+                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 
     pub(super) async fn check_if_episode_exists(
@@ -1374,7 +1287,12 @@ impl Client {
             .text()
             .await?;
 
-        Ok(serde_json::from_str::<RawPostResponse>(&response).context(response)?)
+        match serde_json::from_str::<RawPostResponse>(&response) {
+            Ok(response) => Ok(response),
+            Err(err) => invariant!(
+                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 
     pub(super) async fn post_reply(
@@ -1530,13 +1448,16 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        let text = response.text().await?;
-
-        let title_user_info = serde_json::from_str(&text).context(text)?;
-
-        Ok(title_user_info)
+        match serde_json::from_str::<WebtoonUserInfo>(&response) {
+            Ok(response) => Ok(response),
+            Err(err) => invariant!(
+                "failed to deserialize webtoon user info api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 
     async fn get_react_token(&self) -> Result<ReactToken, ClientError> {
@@ -1555,13 +1476,16 @@ impl Client {
             .header("Referer", "https://www.webtoons.com")
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        let text = response.text().await?;
-
-        let api_token = serde_json::from_str::<ReactToken>(&text).context(text)?;
-
-        Ok(api_token)
+        match serde_json::from_str::<ReactToken>(&response) {
+            Ok(token) => Ok(token),
+            Err(err) => invariant!(
+                "failed to deserialize react token api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 
     pub(super) async fn get_api_token(&self) -> Result<String, ClientError> {
@@ -1579,13 +1503,16 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
+            .await?
+            .text()
             .await?;
 
-        let text = response.text().await?;
-
-        let api_token = serde_json::from_str::<ApiToken>(&text).context(text)?;
-
-        Ok(api_token.result.token)
+        match serde_json::from_str::<ApiToken>(&response) {
+            Ok(response) => Ok(response.result.token),
+            Err(err) => invariant!(
+                "failed to deserialize api token api response from `webtoons.com` response: {err}\n\n{response}"
+            ),
+        }
     }
 }
 
