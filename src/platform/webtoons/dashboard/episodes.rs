@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     platform::webtoons::{
-        errors::EpisodeError,
+        error::EpisodeError,
         webtoon::{
             Webtoon,
             episode::{self, AdStatus, Episode},

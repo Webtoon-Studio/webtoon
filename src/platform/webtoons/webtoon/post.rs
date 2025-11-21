@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use crate::{
     platform::webtoons::{
         Webtoon,
-        errors::{BlockUserError, ClientError, PostError, ReplyError},
+        error::{BlockUserError, ClientError, PostError, ReplyError},
         meta::Scope,
         webtoon::post::id::Id,
     },

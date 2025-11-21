@@ -1,7 +1,7 @@
 use tokio::io::AsyncWriteExt;
 use webtoon::platform::webtoons::{
     Client, Type,
-    errors::{BlockUserError, Error},
+    error::{BlockUserError, Error},
     webtoon::post::Posts,
 };
 

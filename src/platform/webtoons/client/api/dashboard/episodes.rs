@@ -3,7 +3,7 @@ use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-use crate::platform::webtoons::{dashboard::episodes::DashboardStatus, errors::EpisodeError};
+use crate::platform::webtoons::{dashboard::episodes::DashboardStatus, error::EpisodeError};
 
 pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
     // PERF: Creating new string during cleaning

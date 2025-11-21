@@ -16,7 +16,7 @@ pub mod rss;
 use rss::Rss;
 
 use crate::{
-    platform::webtoons::errors::InvalidWebtoonUrl,
+    platform::webtoons::error::InvalidWebtoonUrl,
     stdx::{
         error::{Invariant, invariant},
         http::IRetry,
@@ -30,7 +30,7 @@ use self::{
 };
 
 use super::Type;
-use super::errors::{ClientError, EpisodeError, PostError, WebtoonError};
+use super::error::{ClientError, EpisodeError, PostError, WebtoonError};
 use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};

@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{Client, Language, errors::Error};
+use webtoon::platform::webtoons::{Client, Language, error::Error};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {

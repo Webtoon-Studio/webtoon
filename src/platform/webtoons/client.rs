@@ -15,7 +15,7 @@ use crate::{
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
-        errors::{EpisodeError, InvalidWebtoonUrl},
+        error::{EpisodeError, InvalidWebtoonUrl},
         search::Item,
         webtoon::post::{PinRepresentation, id::Id},
     },
@@ -29,7 +29,7 @@ use super::{
     Language, Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
-    errors::{
+    error::{
         CanvasError, ClientError, CreatorError, OriginalsError, PostError, SearchError,
         WebtoonError,
     },

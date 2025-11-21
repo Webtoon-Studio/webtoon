@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::stdx::error::{Invariant, invariant};
 
-use super::{Client, Language, Webtoon, errors::OriginalsError};
+use super::{Client, Language, Webtoon, error::OriginalsError};
 
 pub(super) async fn scrape(
     client: &Client,

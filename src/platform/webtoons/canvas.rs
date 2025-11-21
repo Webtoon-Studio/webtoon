@@ -25,7 +25,7 @@ use std::{fmt::Display, ops::RangeBounds};
 
 use crate::stdx::error::invariant;
 
-use super::{Client, Language, Webtoon, errors::CanvasError};
+use super::{Client, Language, Webtoon, error::CanvasError};
 
 pub(super) async fn scrape(
     client: &Client,

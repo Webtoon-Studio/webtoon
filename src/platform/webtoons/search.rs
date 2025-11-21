@@ -1,4 +1,4 @@
-use crate::platform::webtoons::{Client, Type, Webtoon, errors::WebtoonError};
+use crate::platform::webtoons::{Client, Type, Webtoon, error::WebtoonError};
 
 /// Represents a single item in the search result.
 pub struct Item {

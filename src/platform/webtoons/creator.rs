@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::stdx::error::{Invariant, invariant};
 
-use super::{Client, Language, Webtoon, errors::CreatorError};
+use super::{Client, Language, Webtoon, error::CreatorError};
 
 /// Represents a creator of a `Webtoon`.
 ///

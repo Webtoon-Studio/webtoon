@@ -1,7 +1,7 @@
 use scraper::{Html, Selector};
 
 use crate::{
-    platform::webtoons::{Webtoon, errors::WebtoonError},
+    platform::webtoons::{Webtoon, error::WebtoonError},
     stdx::error::{Invariant, invariant},
 };
 

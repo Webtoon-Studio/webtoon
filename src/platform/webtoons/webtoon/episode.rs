@@ -20,7 +20,7 @@ use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
     client::Client,
-    errors::{ClientError, EpisodeError, PostError},
+    error::{ClientError, EpisodeError, PostError},
     meta::Scope,
 };
 
@@ -1777,7 +1777,7 @@ impl Panels {
 }
 
 #[cfg(feature = "download")]
-use crate::platform::webtoons::errors::DownloadError;
+use crate::platform::webtoons::error::DownloadError;
 #[cfg(feature = "download")]
 use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
