@@ -41,7 +41,10 @@ use anyhow::{Context, anyhow};
 use parking_lot::RwLock;
 use scraper::Html;
 use serde_json::json;
-use std::{collections::HashMap, ops::RangeBounds, str::FromStr, sync::Arc};
+use std::{collections::HashMap, ops::RangeBounds, sync::Arc};
+
+#[cfg(feature = "rss")]
+use std::str::FromStr;
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///

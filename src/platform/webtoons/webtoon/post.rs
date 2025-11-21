@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use crate::{
     platform::webtoons::{
         Webtoon,
-        errors::{ClientError, PostError, PosterError, ReplyError},
+        errors::{BlockUserError, ClientError, PostError, ReplyError},
         meta::Scope,
         webtoon::post::id::Id,
     },
@@ -1353,7 +1353,7 @@ impl Poster {
     /// [`PosterError::InvalidPermissions`] will be returned.
     ///
     /// If attempting to block self, [`PosterError::BlockSelf`] will be returned.
-    pub async fn block(&self) -> Result<(), PosterError> {
+    pub async fn block(&self) -> Result<(), BlockUserError> {
         let user = self
             .webtoon
             .client
@@ -1362,11 +1362,11 @@ impl Poster {
 
         // Check first as blocking can only be done on a webtoon that user is creator of.
         if !user.is_webtoon_creator() {
-            return Err(PosterError::InvalidPermissions);
+            return Err(BlockUserError::InvalidPermissions);
         }
 
         if self.is_current_session_user {
-            return Err(PosterError::BlockSelf);
+            return Err(BlockUserError::BlockSelf);
         }
 
         // Return early if already blocked

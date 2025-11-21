@@ -2,6 +2,95 @@
 
 use thiserror::Error;
 
+mod _inner {
+    use error_set::error_set;
+    error_set! {
+        Mud := {
+            #[cfg(feature = "download")]
+            IoError(std::io::Error),
+        }
+        || Base
+        || OriginalsError
+        || CanvasError
+        || SearchError
+        || CreatorError
+        || WebtoonError
+        || EpisodeError
+        || PostError
+        || DeleteError
+        || ReplyError
+        || BlockUserError
+        || ClientError
+        || SessionError
+
+        OriginalsError := Base || ClientError
+
+        CanvasError := Base || ClientError
+
+        SearchError := Base || ClientError || WebtoonError
+
+        CreatorError := {
+            // TODO: Add specific languages to function docs: `Language::Zh`, `Language::De`, and `Language::Fr`
+            #[display("`webtoons.com` does not support creator profiles for this language")]
+            UnsupportedLanguage,
+            #[display("profile page disabled by creator")]
+            DisabledByCreator,
+        } || Base || ClientError
+
+        WebtoonError := Base || ClientError
+
+        EpisodeError := {
+            // TODO: missing, or deleted? I think we can figure out if an episode has at all existed.
+            // Could be disabled or deleted. Could also be a draft? Have to confirm behavior.
+            #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
+            NotViewable,
+        } || Base || ClientError || SessionError
+
+        PostError := {
+            // TODO: This variant might be subsumed through other errors
+            #[display("insufficient permissions (not creator or poster)")]
+            InvalidPermissions,
+        } || Base || ClientError || SessionError
+
+        DeleteError := {
+            #[display("insufficient permissions (not creator or poster)")]
+            InvalidPermissions,
+        } || Base || ClientError || SessionError
+
+        ReplyError := {
+            #[display("cannot reply to a deleted post")]
+            DeletedPost,
+        } || Base || ClientError || SessionError
+
+        BlockUserError := {
+            #[display("cannot block self on own webtoon")]
+            BlockSelf,
+            #[display("insufficient permissions (not creator)")]
+            NotCreator,
+        } || Base || ClientError || SessionError
+
+        DownloadError := {
+            IoError(std::io::Error),
+        } || Base || ClientError
+
+        ClientError := {
+            RequestFailed(super::RequestError),
+            // TODO: Some way to encode that a `RequestBuilder` failed to clone: request could not be cloned.
+        }
+
+        SessionError := {
+            #[display("session not provided")]
+            NotProvided,
+            #[display("session invalid or expired")]
+            Invalid,
+        }
+
+        Base := {
+            Internal(super::Internal),
+        }
+    }
+}
+
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
 pub enum Error {
@@ -24,7 +113,7 @@ pub enum Error {
     #[error(transparent)]
     ReplyError(#[from] ReplyError),
     #[error(transparent)]
-    PosterError(#[from] PosterError),
+    PosterError(#[from] BlockUserError),
 
     // TODO: Should be no need to support this return.
     #[error(transparent)]
@@ -178,7 +267,7 @@ impl From<reqwest::Error> for ReplyError {
 
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
-pub enum PosterError {
+pub enum BlockUserError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
     #[error("Not creator of webtoon")]
@@ -189,7 +278,7 @@ pub enum PosterError {
     Unexpected(#[from] anyhow::Error),
 }
 
-impl From<reqwest::Error> for PosterError {
+impl From<reqwest::Error> for BlockUserError {
     fn from(err: reqwest::Error) -> Self {
         Self::ClientError(ClientError::RequestError(RequestError(err)))
     }
@@ -284,6 +373,8 @@ impl From<reqwest::Error> for DownloadError {
 #[derive(Debug, Error)]
 #[error("internal invariant violated: {0}")]
 pub struct InternalInvariant(String);
+
+type Internal = InternalInvariant;
 
 impl From<String> for InternalInvariant {
     fn from(msg: String) -> Self {
