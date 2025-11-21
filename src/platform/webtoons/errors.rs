@@ -3,7 +3,6 @@
 use thiserror::Error;
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
@@ -37,7 +36,6 @@ pub enum Error {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ClientError {
     #[error("No session was provided")]
@@ -57,7 +55,6 @@ impl From<reqwest::Error> for ClientError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct RequestError(#[from] reqwest::Error);
@@ -93,7 +90,6 @@ impl InvalidWebtoonUrl {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum CreatorError {
     #[error(transparent)]
@@ -126,7 +122,6 @@ impl From<WebtoonError> for CreatorError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum EpisodeError {
     #[error(transparent)]
@@ -148,7 +143,6 @@ impl From<reqwest::Error> for EpisodeError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum PostError {
     #[error(transparent)]
@@ -166,7 +160,6 @@ impl From<reqwest::Error> for PostError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ReplyError {
     #[error(transparent)]
@@ -184,7 +177,6 @@ impl From<reqwest::Error> for ReplyError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum PosterError {
     #[error(transparent)]
@@ -204,7 +196,6 @@ impl From<reqwest::Error> for PosterError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum OriginalsError {
     #[error(transparent)]
@@ -222,7 +213,6 @@ impl From<reqwest::Error> for OriginalsError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum CanvasError {
     #[error(transparent)]
@@ -241,7 +231,6 @@ impl From<reqwest::Error> for CanvasError {
 }
 
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum SearchError {
     #[error(transparent)]
@@ -260,7 +249,6 @@ impl From<reqwest::Error> for SearchError {
 
 #[cfg(feature = "download")]
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum DownloadError {
     #[error(transparent)]
