@@ -15,11 +15,14 @@ use crate::{
             react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
-        errors::{EpisodeError, InvalidWebtoonUrl, Invariant, invariant},
+        errors::{EpisodeError, InvalidWebtoonUrl},
         search::Item,
         webtoon::post::{PinRepresentation, id::Id},
     },
-    stdx::http::{DEFAULT_USER_AGENT, IRetry},
+    stdx::{
+        error::{Invariant, invariant},
+        http::{DEFAULT_USER_AGENT, IRetry},
+    },
 };
 
 use super::{
@@ -955,8 +958,6 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<rss::Channel, WebtoonError> {
-        use crate::platform::webtoons::errors::invariant;
-
         let id = webtoon.id;
         let language = webtoon.language;
         let slug = &webtoon.slug;

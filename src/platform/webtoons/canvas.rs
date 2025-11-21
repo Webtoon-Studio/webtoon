@@ -23,7 +23,7 @@ use anyhow::{Context, Result, anyhow};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
-use crate::platform::webtoons::errors::invariant;
+use crate::stdx::error::invariant;
 
 use super::{Client, Language, Webtoon, errors::CanvasError};
 

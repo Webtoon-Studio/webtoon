@@ -7,7 +7,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::platform::webtoons::errors::{Invariant, invariant};
+use crate::stdx::error::{Invariant, invariant};
 
 use super::{Client, Language, Webtoon, errors::OriginalsError};
 

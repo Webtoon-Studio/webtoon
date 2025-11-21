@@ -10,12 +10,14 @@ use scraper::Selector;
 use std::time::Duration;
 use url::Url;
 
-use crate::platform::webtoons::{
-    Webtoon,
-    creator::Creator,
-    errors::invariant,
-    meta::{Genre, Language},
-    originals::Schedule,
+use crate::{
+    platform::webtoons::{
+        Webtoon,
+        creator::Creator,
+        meta::{Genre, Language},
+        originals::Schedule,
+    },
+    stdx::error::invariant,
 };
 
 use super::{WebtoonError, episode::Episode};

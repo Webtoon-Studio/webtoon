@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use crate::platform::webtoons::errors::{Invariant, invariant};
+use crate::stdx::error::{Invariant, invariant};
 
 use super::{Client, Language, Webtoon, errors::CreatorError};
 

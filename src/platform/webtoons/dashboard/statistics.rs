@@ -1,8 +1,8 @@
 use scraper::{Html, Selector};
 
-use crate::platform::webtoons::{
-    Webtoon,
-    errors::{Invariant, WebtoonError, invariant},
+use crate::{
+    platform::webtoons::{Webtoon, errors::WebtoonError},
+    stdx::error::{Invariant, invariant},
 };
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]

@@ -8,12 +8,14 @@ use crate::{
     platform::webtoons::{
         Client, Language, Webtoon,
         creator::Creator,
-        errors::{Invariant, invariant},
         meta::{Genre, Scope},
         originals::Schedule,
         webtoon::{WebtoonError, episode::Episode},
     },
-    stdx::math::MathExt,
+    stdx::{
+        error::{Invariant, invariant},
+        math::MathExt,
+    },
 };
 
 use super::{

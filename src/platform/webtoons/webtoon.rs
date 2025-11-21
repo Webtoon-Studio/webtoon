@@ -16,8 +16,11 @@ pub mod rss;
 use rss::Rss;
 
 use crate::{
-    platform::webtoons::errors::{InvalidWebtoonUrl, Invariant, invariant},
-    stdx::http::IRetry,
+    platform::webtoons::errors::InvalidWebtoonUrl,
+    stdx::{
+        error::{Invariant, invariant},
+        http::IRetry,
+    },
 };
 
 use self::{
