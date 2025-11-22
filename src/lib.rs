@@ -38,14 +38,17 @@
     clippy::todo,
     clippy::unimplemented,
     clippy::manual_ok_or,
-    clippy::manual_unwrap_or
+    clippy::manual_unwrap_or,
+    clippy::indexing_slicing
 )]
 #![allow(
     clippy::option_if_let_else,
     clippy::missing_const_for_fn,
     clippy::cargo_common_metadata,
     clippy::multiple_crate_versions,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::redundant_closure
 )]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]

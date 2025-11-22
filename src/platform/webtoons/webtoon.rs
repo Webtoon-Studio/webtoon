@@ -81,7 +81,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client, Language};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client, Language};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -108,7 +108,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -133,7 +133,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -159,7 +159,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -183,7 +183,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -207,7 +207,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -238,7 +238,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -272,7 +272,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, meta::Genre, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, meta::Genre, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -307,7 +307,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -347,7 +347,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -403,7 +403,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -448,7 +448,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -489,7 +489,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, originals::Schedule, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, originals::Schedule, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -538,7 +538,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -581,7 +581,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Type, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -640,7 +640,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -698,7 +698,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -736,7 +736,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -770,7 +770,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -810,7 +810,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -861,7 +861,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -892,7 +892,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
@@ -929,7 +929,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
@@ -980,7 +980,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
@@ -1078,7 +1078,7 @@ impl Webtoon {
             .invariant("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
             .to_string();
 
-        let webtoon = Webtoon {
+        let webtoon = Self {
             client: client.clone(),
             id,
             language,
@@ -1102,11 +1102,11 @@ impl Webtoon {
 
         let mut segments = url
             .path_segments() //
-            .ok_or(InvalidWebtoonUrl::new("a `webtoons.com` Webtoon homepage url should have segments (`/`); this url did not"))?;
+            .ok_or_else(|| InvalidWebtoonUrl::new("a `webtoons.com` Webtoon homepage url should have segments (`/`); this url did not"))?;
 
         let lang = segments
             .next()
-            .ok_or(InvalidWebtoonUrl::new("url has path segments, but for some reason failed to extract the first segment, which for a valid `webtoons.com` Webtoon homepage url, should be a language: e.g `en`"))?;
+            .ok_or_else(|| InvalidWebtoonUrl::new("url has path segments, but for some reason failed to extract the first segment, which for a valid `webtoons.com` Webtoon homepage url, should be a language: e.g `en`"))?;
 
         let language = match Language::from_str(lang) {
             Ok(language) => language,
@@ -1119,7 +1119,7 @@ impl Webtoon {
 
         let segment = segments
             .next() //
-            .ok_or(InvalidWebtoonUrl::new("provided url didn't have a second segment, representing the scope of a Webtoon in a valid `webtoons.com` homepage url, eg. `canvas`, `fantasy`, etc."))?;
+            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a second segment, representing the scope of a Webtoon in a valid `webtoons.com` homepage url, eg. `canvas`, `fantasy`, etc."))?;
 
         let scope = match Scope::from_str(segment) {
             Ok(scope) => scope,
@@ -1132,11 +1132,11 @@ impl Webtoon {
 
         let slug = segments
             .next()
-            .ok_or( InvalidWebtoonUrl::new( "provided url didn't have a third segment, representing the slug name of a Webtoon in a valid `webtoons.com` homepage url, eg. `tower-of-god`"))?;
+            .ok_or_else( || InvalidWebtoonUrl::new( "provided url didn't have a third segment, representing the slug name of a Webtoon in a valid `webtoons.com` homepage url, eg. `tower-of-god`"))?;
 
         let query = url
             .query()
-            .ok_or(InvalidWebtoonUrl::new("a valid `webtoons.com` Webtoon homepage url should have a `title_no` query, but provided url didn't have any queries at all"))?;
+            .ok_or_else(|| InvalidWebtoonUrl::new("a valid `webtoons.com` Webtoon homepage url should have a `title_no` query, but provided url didn't have any queries at all"))?;
 
         let id = match query.split_once('=') {
             Some(("title_no", "")) => {
@@ -1149,7 +1149,7 @@ impl Webtoon {
             // clean this up more.
             Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => id
                 .parse::<u32>()
-                .map_err(|_| InvalidWebtoonUrl::new("provided `weboons.com` Webtoon homepage url had a valid `title_no=N` query, but the value was too large to fit in a `u32`"))?,
+                .map_err(|_err | InvalidWebtoonUrl::new("provided `weboons.com` Webtoon homepage url had a valid `title_no=N` query, but the value was too large to fit in a `u32`"))?,
 
             Some(("title_no", _)) => return Err(InvalidWebtoonUrl::new("provided url had a `title_no` query, but the value was not a valid digit")),
 
@@ -1166,7 +1166,7 @@ impl Webtoon {
             }
         };
 
-        let webtoon = Webtoon {
+        let webtoon = Self {
             client: client.clone(),
             language,
             scope,
@@ -1181,6 +1181,8 @@ impl Webtoon {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use pretty_assertions::assert_eq;
 
     use super::*;

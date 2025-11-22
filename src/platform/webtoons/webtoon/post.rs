@@ -136,11 +136,13 @@ pub struct Posts {
 
 impl Posts {
     /// Returns the first post, or `None` if it is empty.
+    #[must_use]
     pub fn first(&self) -> Option<&Post> {
         self.posts.first()
     }
 
     /// Returns the last post, or `None` if it is empty.
+    #[must_use]
     pub fn last(&self) -> Option<&Post> {
         self.posts.last()
     }
@@ -264,7 +266,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -284,6 +286,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn poster(&self) -> &Poster {
         &self.poster
     }
@@ -299,7 +302,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -318,6 +321,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn id(&self) -> Id {
         self.id
     }
@@ -330,7 +334,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -349,6 +353,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn parent_id(&self) -> Id {
         self.parent_id
     }
@@ -360,7 +365,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -379,6 +384,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn body(&self) -> &Body {
         &self.body
     }
@@ -388,7 +394,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -407,6 +413,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn upvotes(&self) -> u32 {
         self.upvotes
     }
@@ -416,7 +423,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -435,6 +442,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn downvotes(&self) -> u32 {
         self.downvotes
     }
@@ -444,7 +452,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -463,6 +471,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn is_comment(&self) -> bool {
         self.id == self.parent_id
     }
@@ -472,7 +481,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -491,6 +500,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn is_reply(&self) -> bool {
         self.id != self.parent_id
     }
@@ -500,7 +510,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -534,7 +544,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -553,6 +563,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn is_deleted(&self) -> bool {
         self.is_deleted
     }
@@ -562,7 +573,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -581,6 +592,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn episode(&self) -> u16 {
         self.episode.number()
     }
@@ -590,7 +602,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -621,7 +633,7 @@ impl Post {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -684,7 +696,7 @@ impl Post {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -747,7 +759,7 @@ impl Post {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -828,7 +840,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -892,7 +904,7 @@ impl Post {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type, webtoon::post::{Replies, Posts}};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type, webtoon::post::{Replies, Posts}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -933,7 +945,7 @@ impl Post {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -977,7 +989,7 @@ impl Post {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1032,6 +1044,7 @@ pub struct Body {
 
 impl Body {
     /// Returns contents of the post body.
+    #[must_use]
     pub fn contents(&self) -> &str {
         &self.contents
     }
@@ -1039,11 +1052,13 @@ impl Body {
     /// Returns the optional [`Flare`] a post can have.
     ///
     /// This can be a list of Webtoons, a single sticker, or a single giphy gif.
+    #[must_use]
     pub fn flare(&self) -> Option<&Flare> {
         self.flare.as_ref()
     }
 
     /// Returns whether this post was marked as a spoiler.
+    #[must_use]
     pub fn is_spoiler(&self) -> bool {
         self.is_spoiler
     }
@@ -1075,6 +1090,7 @@ impl Sticker {
     /// Returns the sticker's pack id as a String.
     ///
     /// Example: "`wt_001`"
+    #[must_use]
     pub fn pack_id(&self) -> String {
         format!("{}_{:03}", self.pack, self.pack_number)
     }
@@ -1082,6 +1098,7 @@ impl Sticker {
     /// Returns the sticker's id as a String.
     ///
     /// Example: "`wt_001-v2-1`" (version is optional: "`wt_001-1`")
+    #[must_use]
     pub fn id(&self) -> String {
         match self.version {
             Some(version) => {
@@ -1164,7 +1181,7 @@ impl FromStr for Sticker {
                     }
                 };
             }
-        };
+        }
 
         if let Some(part) = parts.next() {
             id = match part.parse::<u16>() {
@@ -1178,7 +1195,7 @@ impl FromStr for Sticker {
             };
         }
 
-        let sticker = Sticker {
+        let sticker = Self {
             pack: pack.to_string(),
             pack_number,
             version,
@@ -1197,21 +1214,25 @@ pub struct Giphy {
 
 impl Giphy {
     /// Make a new Giphy from a Giphy id.
+    #[must_use]
     pub fn new(id: String) -> Self {
         Self { id }
     }
 
     /// Returns the Giphy id.
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
     /// Returns a thumbnail quality URL for the GIF.
+    #[must_use]
     pub fn thumbnail(&self) -> String {
         format!("https://media2.giphy.com/media/{}/giphy_s.gif", self.id)
     }
 
     /// Returns a render quality URL for the GIF.
+    #[must_use]
     pub fn render(&self) -> String {
         format!("https://media1.giphy.com/media/{}/giphy.gif", self.id)
     }
@@ -1288,7 +1309,7 @@ impl Poster {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1324,6 +1345,7 @@ impl Poster {
     /// Returns if current session user is creator of post.
     ///
     /// If there is no session provided, this is always `false`.
+    #[must_use]
     pub fn is_current_session_user(&self) -> bool {
         self.is_current_session_user
     }
@@ -1332,16 +1354,19 @@ impl Poster {
     ///
     /// This doesn't mean they are the creator of the current webtoon, just that they are a creator, though it could be of the current webtoon.
     /// For that info use [`Poster::is_current_webtoon_creator`].
+    #[must_use]
     pub fn is_creator(&self) -> bool {
         self.is_creator
     }
 
     /// Returns if the session user is the creator of the current webtoon.
+    #[must_use]
     pub fn is_current_webtoon_creator(&self) -> bool {
         self.is_current_webtoon_creator
     }
 
     /// Returns if the poster left a super like for the posts' episode.
+    #[must_use]
     pub fn did_super_like_episode(&self) -> bool {
         self.super_like.is_some()
     }
@@ -1350,6 +1375,7 @@ impl Poster {
     ///
     /// Will return `None` if the poster didn't super like the episode, otherwise
     /// returns `Some` with the amount they did.
+    #[must_use]
     pub fn super_like(&self) -> Option<u32> {
         self.super_like
     }
@@ -1503,7 +1529,7 @@ impl Replies for Posts {
     async fn replies(post: &Post) -> Result<Self, PostsError> {
         // No need to make a network request when there ar no replies to fetch.
         if post.replies == 0 {
-            return Ok(Posts { posts: Vec::new() });
+            return Ok(Self { posts: Vec::new() });
         }
         #[allow(
             clippy::mutable_key_type,
@@ -1541,7 +1567,7 @@ impl Replies for Posts {
             next = response.result.pagination.next;
         }
 
-        let mut replies = Posts {
+        let mut replies = Self {
             posts: replies.into_iter().collect(),
         };
 
@@ -1645,85 +1671,181 @@ pub(crate) mod id {
     impl FromStr for Id {
         type Err = ParseIdError;
 
-        fn from_str(s: &str) -> Result<Self> {
-            // split `GW-epicom:0-w_95_1-1d-z` to GW-epicom` and `0-w_95_1-1d-z`
-            let id = s
-                .split(':')
-                // get `0-w_95_1-1d-z`
-                .next_back()
+        #[allow(clippy::too_many_lines)]
+        fn from_str(str: &str) -> Result<Self> {
+            // In some instances a string can be prefixed like `1:3595:`. We only
+            // care about the part after, so if we encounter multiple `:`, we trim
+            // the prefix off.
+            //
+            // NOTE: Its still unknown what this prefix means.
+            let g = str.chars().position(|ch| ch == 'G').ok_or_else(|| {
+                ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context:
+                        "a `G` should always exist within a posts id, even if it just that it starts with `GW`"
+                            .to_string(),
+                }
+            })?;
+
+            // Split `GW-epicom:0-w_95_1-1d-z` to `GW-epicom` and `0-w_95_1-1d-z`.
+            let mut halves = str
+                // In slice so that we always start with `GW-epicom`.
+                .get(g..)
                 .ok_or_else(|| ParseIdError::InvalidFormat {
-                    id: s.to_owned(),
-                    context: "there was no right-hand part after splitting on `:`".to_string(),
-                })?;
+                    id: str.to_owned(),
+                    context: "`G` in `GW-epicom` index was out of bounds, when it should never be"
+                        .to_string(),
+                })?
+                .split(':');
+
+            // Check that the id starts with `GW-epicom`, as this is the only known prefix.
+            if let Some(prefix) = halves.next()
+                && prefix != "GW-epicom"
+            {
+                return Err(ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: format!(
+                        "splitting on `:` for an id should have a prefix of `GW-epicom` but had, `{prefix}`",
+                    ),
+                });
+            }
+
+            // get `0-w_95_1-1d-z`
+            let id = halves.next().ok_or_else(|| ParseIdError::InvalidFormat {
+                id: str.to_owned(),
+                context: "there was no right-hand part after splitting on `:`".to_string(),
+            })?;
+
+            if id.is_empty() {
+                return Err(ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: "split on `:` resulted in expected `GW-epicom` prefix, but there was nothing to the right of it, resulting in an empty id".to_string(),
+                });
+            }
 
             // split `0-w_95_1-1d-z` to `0` `w_95_1` `1d` `z`
-            let parts: Vec<&str> = id.split('-').collect();
+            let mut parts = id.split('-');
 
-            if parts.len() < 3 {
+            let Some(first) = parts.next() else {
                 return Err(ParseIdError::InvalidFormat {
-                    id: s.to_owned(),
-                    context: format!(
-                        "splitting on `-` should yield at least 3 parts, but only yielded {}",
-                        parts.len()
-                    ),
+                    id: str.to_owned(),
+                    context: "splitting on `-` should yield at least 3 parts, but trying to get the first(tag) element resulted on `None`".to_string(),
                 });
-            }
-
-            let tag: u32 = parts[0].parse().map_err(|err| ParseIdError::ParseNumber {
-                id: s.to_owned(),
-                error: err,
-            })?;
-
-            let page_id = parts[1];
-            // split `w_95_1` to `w` `95` `1`
-            let page_id_parts: Vec<&str> = page_id.split('_').collect();
-
-            if page_id_parts.len() != 3 {
-                return Err(ParseIdError::InvalidFormat {
-                    id: s.to_owned(),
-                    context: format!(
-                        r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` only has {} parts",
-                        page_id_parts.len()
-                    ),
-                });
-            }
-
-            let scope = match page_id_parts[0] {
-                "w" => Scope::W,
-                "c" => Scope::C,
-                _ => unreachable!("a webtoon can only be either an original or canvas"),
             };
 
-            // parse `95` to u32
-            let webtoon = page_id_parts[1]
-                .parse()
-                .map_err(|err| ParseIdError::ParseNumber {
-                    id: s.to_owned(),
-                    error: err,
-                })?;
-
-            // parse `1` to u16
-            let episode = page_id_parts[2]
-                .parse()
-                .map_err(|err| ParseIdError::ParseNumber {
-                    id: s.to_owned(),
-                    error: err,
-                })?;
-
-            // parse `1d` to `Base36`
-            let post = parts[2].parse().map_err(|err| ParseIdError::ParseNumber {
-                id: s.to_owned(),
+            let tag: u32 = first.parse().map_err(|err| ParseIdError::ParseNumber {
+                id: str.to_owned(),
                 error: err,
             })?;
 
-            // if exists parse `z` to `Base36`
-            let reply: Option<Base36> = if parts.len() == 4 {
-                Some(parts[3].parse().map_err(|err| ParseIdError::ParseNumber {
-                    id: s.to_owned(),
+            let Some(page_id) = parts.next() else {
+                return Err(ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: "splitting on `-` should yield at least 3 parts, but trying to get the second(page id) element resulted on `None`".to_string(),
+                });
+            };
+
+            // split `w_95_1` to `w` `95` `1`
+            let mut page_id_parts = page_id.split('_');
+
+            let scope = match page_id_parts.next() {
+                Some("w") => Scope::W,
+                Some("c") => Scope::C,
+                Some(s) => {
+                    return Err(ParseIdError::InvalidFormat {
+                        id: str.to_owned(),
+                        context: format!(
+                            r"page id should only have a scope of either `w` or `c`, but found: {s}",
+                        ),
+                    });
+                }
+                None => {
+                    return Err(ParseIdError::InvalidFormat {
+                        id: str.to_owned(),
+                        context: format!(
+                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a scope as the first element",
+                        ),
+                    });
+                }
+            };
+
+            // parse `95` to `u32`
+            let webtoon = match page_id_parts.next() {
+                Some(webtoon) => {
+                    webtoon
+                        .parse::<u32>()
+                        .map_err(|err| ParseIdError::ParseNumber {
+                            id: str.to_owned(),
+                            error: err,
+                        })?
+                }
+                None => {
+                    return Err(ParseIdError::InvalidFormat {
+                        id: str.to_owned(),
+                        context: format!(
+                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a webtoon id as the second element",
+                        ),
+                    });
+                }
+            };
+
+            // parse `1` to u16
+            let episode = match page_id_parts.next() {
+                Some(episode) => {
+                    episode
+                        .parse::<u16>()
+                        .map_err(|err| ParseIdError::ParseNumber {
+                            id: str.to_owned(),
+                            error: err,
+                        })?
+                }
+                None => {
+                    return Err(ParseIdError::InvalidFormat {
+                        id: str.to_owned(),
+                        context: format!(
+                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a episode number as the third element",
+                        ),
+                    });
+                }
+            };
+
+            if let Some(unknown) = page_id_parts.next() {
+                return Err(ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: format!(
+                        r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but found `{unknown}` as part of `{page_id}`, after the expected end",
+                    ),
+                });
+            }
+
+            let Some(second) = parts.next() else {
+                return Err(ParseIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: "splitting on `-` should yield at least 3 parts, but trying to get the second(post number) element resulted on `None`".to_string(),
+                });
+            };
+
+            // parse `1d` to `Base36`
+            let post = second
+                .parse::<Base36>()
+                .map_err(|err| ParseIdError::ParseNumber {
+                    id: str.to_owned(),
                     error: err,
-                })?)
-            } else {
-                None
+                })?;
+
+            // if exists parse `z` to `Base36`
+            let reply = match parts.next() {
+                Some(reply) => {
+                    Some(
+                        reply
+                            .parse::<Base36>()
+                            .map_err(|err| ParseIdError::ParseNumber {
+                                id: str.to_owned(),
+                                error: err,
+                            })?,
+                    )
+                }
+                None => None,
             };
 
             let id = Self {
@@ -1779,12 +1901,12 @@ pub(crate) mod id {
                         // Both are replies to the same direct post so a direct compare is easy
                         (Some(reply), Some(other)) => reply.cmp(&other),
 
-                        // If there is no reply number for the first one, it must be a direct post, so if there is any
-                        // id that has a reply with a matching post number, it must always be Greater and therefore
+                        // If there is no reply number for the first one, it must be a direct post. If there is any
+                        // id that has a reply with a matching post number, it must always be `Greater`, and therefore
                         // `self` must be `Less` than the reply.
                         (None, Some(_)) => Ordering::Less,
 
-                        // Inverse of the above: If there is a reply for the first one, and the Rhs is None(a direct post)
+                        // Inverse of the above: If there is a reply for the first one, and the `Rhs` is None(a direct post)
                         // it must always be greater than the direct post.
                         (Some(_), None) => Ordering::Greater,
 
@@ -1804,7 +1926,7 @@ pub(crate) mod id {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             // If not a post on the same webtoons' episode then return `None`.
             // Cannot add `self.tag != other.tag` as its still unknown how this number increments, but given that the other
-            // checks are enough to know if the post is on the same weboon and the same episode it should be fine.
+            // checks are enough to know if the post is on the same Webtoon and the same episode it should be fine.
             if self.scope != other.scope
                 || self.webtoon != other.webtoon
                 || self.episode != other.episode
@@ -1859,6 +1981,8 @@ pub(crate) mod id {
 
     #[cfg(test)]
     mod test {
+        #![allow(clippy::unwrap_used)]
+
         use super::*;
 
         #[test]
@@ -1998,6 +2122,28 @@ pub(crate) mod id {
             }
             {
                 let id = Id::from_str("GW-epicom:0-c_656579_161-13-1").unwrap();
+
+                pretty_assertions::assert_eq!(id.scope, Scope::C);
+                pretty_assertions::assert_eq!(id.webtoon, 656_579);
+                pretty_assertions::assert_eq!(id.episode, 161);
+                pretty_assertions::assert_eq!(id.post, 39);
+                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(1)));
+            }
+        }
+
+        #[test]
+        fn should_skip_unknown_prefix() {
+            {
+                let id = Id::from_str("`1:1300:GW-epicom:0-w_95_1-1d-z").unwrap();
+
+                pretty_assertions::assert_eq!(id.scope, Scope::W);
+                pretty_assertions::assert_eq!(id.webtoon, 95);
+                pretty_assertions::assert_eq!(id.episode, 1);
+                pretty_assertions::assert_eq!(id.post, 49);
+                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(35)));
+            }
+            {
+                let id = Id::from_str("10:1:GW-epicom:0-c_656579_161-13-1").unwrap();
 
                 pretty_assertions::assert_eq!(id.scope, Scope::C);
                 pretty_assertions::assert_eq!(id.webtoon, 656_579);

@@ -318,12 +318,11 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             Reaction::None
         };
 
-        let posted = match DateTime::from_timestamp_millis(post.created_at) {
-            Some(posted) => posted,
-            None => invariant!(
+        let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
+            invariant!(
                 "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got {}",
                 post.created_at
-            ),
+            );
         };
 
         let is_deleted = post.status == "DELETE";
@@ -340,8 +339,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         let path = data.info.extra.episode_list_path.as_str();
 
                         let url = match url::Url::parse("https://www.webtoons.com")
-                            .expect("`https://www.webtoons.com` should be a valid url")
-                            .join(&path)
+                            .invariant("`https://www.webtoons.com` should be a valid url")?
+                            .join(path)
                         {
                             Ok(url) => url,
                             Err(err) => invariant!(
@@ -386,8 +385,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         let path = data.info.extra.episode_list_path.as_str();
 
                         let url = match url::Url::parse("https://www.webtoons.com")
-                            .expect("`https://www.webtoons.com` should be a valid url")
-                            .join(&path)
+                            .invariant("`https://www.webtoons.com` should be a valid url")?
+                            .join(path)
                         {
                             Ok(url) => url,
                             Err(err) => invariant!(

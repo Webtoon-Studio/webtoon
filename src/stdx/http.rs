@@ -12,6 +12,7 @@ impl Retry {
         let mut wait = fastrand::u64(1..=5);
 
         loop {
+            #[allow(clippy::expect_used, reason = "if `RequestBuilder` fails to clone, it means we are working on streams, which is not the assumption of operation!")]
             let request = self.0.try_clone()
                 .expect("`RequestBuilder` should only fail to clone when working with streams/readers, and we only do standard requests");
 

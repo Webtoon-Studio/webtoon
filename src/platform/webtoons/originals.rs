@@ -17,7 +17,7 @@ pub(super) async fn scrape(
 ) -> Result<Vec<Webtoon>, OriginalsError> {
     // NOTE: Currently all languages follow this pattern
     let selector = Selector::parse("ul.webtoon_list>li>a") //
-        .expect("`ul.webtoon_list>li>a` should be a valid selector");
+        .invariant("`ul.webtoon_list>li>a` should be a valid selector")?;
 
     let days = [
         "monday",
@@ -83,28 +83,20 @@ impl TryFrom<Vec<&str>> for Schedule {
     type Error = ParseScheduleError;
 
     fn try_from(releases: Vec<&str>) -> Result<Self, Self::Error> {
-        if releases.len() == 1 {
-            let release = releases
-                .first()
-                .expect("already checked that there is at least one element");
-
-            if let Ok(weekday) = try_parse_weekday(release) {
-                Ok(weekday)
-            } else if let Ok(completed) = try_parse_completed(release) {
-                Ok(completed)
-            } else if let Ok(daily) = try_parse_daily(release) {
-                Ok(daily)
-            } else {
-                Err(ParseScheduleError((*release).to_string()))
+        match releases.as_slice() {
+            [release] => [try_parse_weekday, try_parse_completed, try_parse_daily]
+                .into_iter()
+                .find_map(|parser| parser(release).ok())
+                .ok_or_else(|| ParseScheduleError((*release).to_string())),
+            // Multiple releases must be weekdays
+            releases => {
+                let mut weekdays = Vec::with_capacity(7);
+                for release in releases {
+                    let weekday = Weekday::from_str(release)?;
+                    weekdays.push(weekday);
+                }
+                Ok(Self::Weekdays(weekdays))
             }
-        } else {
-            // If there is more than one element it means that there are multiple days
-            let mut weekdays = Vec::with_capacity(7);
-            for release in releases {
-                let weekday = Weekday::from_str(release)?;
-                weekdays.push(weekday);
-            }
-            Ok(Self::Weekdays(weekdays))
         }
     }
 }

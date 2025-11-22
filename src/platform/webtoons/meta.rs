@@ -2,10 +2,7 @@
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Display},
-    str::FromStr,
-};
+use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
 /// An error that can occur when parsing a language from a URL path.
@@ -51,22 +48,6 @@ impl FromStr for Language {
             "de" => Ok(Self::De),
             _ => Err(ParseLanguageError(s.to_owned())),
         }
-    }
-}
-
-impl Display for Language {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Self::En => "en",
-            Self::Zh => "zh-hant",
-            Self::Th => "th",
-            Self::Id => "id",
-            Self::Es => "es",
-            Self::Fr => "fr",
-            Self::De => "de",
-        };
-
-        write!(f, "{str}")
     }
 }
 
@@ -119,8 +100,10 @@ impl Language {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     /// An Original webtoon.
+    #[serde(alias = "WEBTOON")]
     Original,
     /// A Canvas webtoon.
+    #[serde(alias = "CHALLENGE")]
     Canvas,
 }
 

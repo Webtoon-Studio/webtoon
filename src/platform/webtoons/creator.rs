@@ -1,13 +1,12 @@
 //! Module containing things related to a creator on `webtoons.com`.
 
-use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
 use futures::future;
 use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use crate::stdx::error::{Invariant, invariant};
+use crate::stdx::error::{InternalInvariant, Invariant, invariant};
 
 use super::{Client, Language, Webtoon, error::CreatorError};
 
@@ -29,7 +28,7 @@ use super::{Client, Language, Webtoon, error::CreatorError};
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+/// # use webtoon::platform::webtoons::{error::Error, Language, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -85,7 +84,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -99,6 +98,7 @@ impl Creator {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn username(&self) -> &str {
         &self.username
     }
@@ -112,7 +112,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -126,6 +126,7 @@ impl Creator {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
@@ -139,7 +140,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -178,7 +179,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -226,7 +227,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -307,7 +308,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -348,13 +349,13 @@ pub(super) async fn homepage(
     Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
-        has_patreon: has_patreon(&html),
+        has_patreon: has_patreon(&html)?,
         id: id(&html)?,
     }))
 }
 
 fn username(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("h3").expect("`h3` should be a valid selector");
+    let selector = Selector::parse("h3").invariant("`h3` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(class) = element.value().attr("class")
@@ -374,7 +375,7 @@ fn username(html: &Html) -> Result<String, CreatorError> {
 }
 
 fn followers(html: &Html) -> Result<u32, CreatorError> {
-    let selector = Selector::parse("span").expect("`span` should be a valid selector");
+    let selector = Selector::parse("span").invariant("`span` should be a valid selector")?;
 
     if let Some(element) = html
         .select(&selector)
@@ -407,70 +408,47 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
 // TODO: explain that the profile provided is not always the one that is needed
 // for operations and that this id can be found on the creator page hmtl in a script tag.
 fn id(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("script").expect("`script` should be a valid selector");
+    let selector = Selector::parse("script").invariant("`script` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(inner) = element.text().next()
             && let Some(idx) = inner.find("creatorId")
         {
-            let mut quotes = 0;
+            let id  = inner
+                .get(idx..)
+                .invariant(
+                    "`find` should point to start of `webtoons.com` creator homepage `creatorId`, so should never be out of bounds",
+                )?
+                // `creatorId\":\"n5z4d\"` -> `\":\"n5z4d\"`
+                .trim_start_matches("creatorId")
+                .chars()
+                // Skips `\":\"` leaving `n5z4d\"`
+                .skip_while(|ch| !ch.is_alphanumeric())
+                // Takes `n5z4d`, stopping on `\` of `\"`, which we don't need.
+                .take_while(|ch| ch.is_ascii_alphanumeric())
+                .collect::<String>();
 
-            // EXAMPLE: `creatorId\":\"n5z4d\"`
-            let bytes = &inner.as_bytes()[idx..];
+            invariant!(
+                !id.is_empty(),
+                "`creatorId` on `webtoons.com` creator homepage should never be empty"
+            );
 
-            let mut start = 0;
-            let mut idx = 0;
-
-            let mut found_start = false;
-
-            loop {
-                if bytes[idx] == b'"' {
-                    quotes += 1;
-                }
-
-                if quotes == 2 && !found_start {
-                    // `creatorId\":\"n5z4d\"`
-                    //           idx ^
-                    // Advance beyond quote:
-                    //
-                    // `creatorId\":\"n5z4d\"`
-                    //          start ^
-                    start = idx + 1;
-                    found_start = true;
-                }
-
-                if quotes == 3 {
-                    // `creatorId\":\"n5z4d\"`
-                    //          start ^     ^ idx
-                    return Ok(std::str::from_utf8(&bytes[start..idx])
-                        .expect("parsed creator id should be valid utf-8")
-                        .trim_end_matches('\\')
-                        .to_string());
-                }
-
-                idx += 1;
-            }
+            return Ok(id);
         }
     }
 
     invariant!(
-        "failed to find `creatorID` in script tag on english `webtoons.com` Creator homepage html"
+        "failed to find `creatorId` in script tag on english `webtoons.com` Creator homepage html"
     )
 }
 
-fn has_patreon(html: &Html) -> bool {
-    let selector = Selector::parse("img").expect("`img` should be a valid selector");
+fn has_patreon(html: &Html) -> Result<bool, InternalInvariant> {
+    let selector = Selector::parse("img").invariant("`img` should be a valid selector")?;
 
-    let mut has_patreon = false;
+    let has_patreon = html
+        .select(&selector)
+        .filter_map(|element| element.value().attr("alt"))
+        .any(|alt| alt == "PATREON");
 
-    for element in html.select(&selector) {
-        if let Some(alt) = element.value().attr("alt")
-            && alt == "PATREON"
-        {
-            has_patreon = true;
-            break;
-        }
-    }
-
-    has_patreon
+    Ok(has_patreon)
 }

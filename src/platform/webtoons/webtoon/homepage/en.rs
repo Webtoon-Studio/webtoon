@@ -58,7 +58,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
 pub(super) fn title(html: &Html) -> Result<String, WebtoonError> {
     // `h1.subj` for originals, `h3.subj` for canvas.
     let selector = Selector::parse(r".subj") //
-        .expect("`.subj` should be a valid selector");
+        .invariant("`.subj` should be a valid selector")?;
 
     // The first occurrence of the element is the desired story's title.
     // The other instances are from recommended stories and are not wanted here.
@@ -129,7 +129,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
     // Canvas
     {
         let selector = Selector::parse(r"a.author") //
-            .expect("`a.author` should be a valid selector");
+            .invariant("`a.author` should be a valid selector")?;
 
         // Canvas creator must have a `webtoons.com` account.
         for selected in html.select(&selector) {
@@ -190,7 +190,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
     // Originals
     {
         let selector = Selector::parse(r"div.author_area") //
-            .expect("`div.author_area` should be a valid selector");
+            .invariant("`div.author_area` should be a valid selector")?;
 
         // Originals creators that have no Webtoon account, or a mix of no accounts and `webtoons.com` accounts.
         if let Some(selected) = html.select(&selector).next() {
@@ -242,7 +242,7 @@ pub(super) fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
     //
     // Doing just `.genre` gets the all instances of the class
     let selector = Selector::parse(r".info>.genre") //
-        .expect("`.info>.genre` should be a valid selector");
+        .invariant("`.info>.genre` should be a valid selector")?;
 
     let mut genres = Vec::with_capacity(2);
 
@@ -273,7 +273,7 @@ pub(super) fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
 
 pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
-        .expect("`em.cnt` should be a valid selector");
+        .invariant("`em.cnt` should be a valid selector")?;
 
     let views = html
         .select(&selector)
@@ -334,7 +334,7 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
 
 pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
-        .expect("`em.cnt` should be a valid selector");
+        .invariant("`em.cnt` should be a valid selector")?;
 
     let subscribers = html
         .select(&selector)
@@ -386,7 +386,7 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 // *ONLY* for Originals.
 pub(super) fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
     let selector = Selector::parse(r"p.day_info") //
-        .expect("`p.day_info` should be a valid selector");
+        .invariant("`p.day_info` should be a valid selector")?;
 
     let mut releases = Vec::new();
 
@@ -432,7 +432,7 @@ pub(super) fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
 
 pub(super) fn summary(html: &Html) -> Result<String, WebtoonError> {
     let selector = Selector::parse(r"p.summary") //
-        .expect("`p.summary` should be a valid selector");
+        .invariant("`p.summary` should be a valid selector")?;
 
     let text = html
         .select(&selector)
@@ -464,7 +464,7 @@ pub(super) fn summary(html: &Html) -> Result<String, WebtoonError> {
 // NOTE: originals had their homepage thumbnails removed, so only canvas has one we can get.
 pub(super) fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
     let selector = Selector::parse(r".thmb>img") //
-        .expect("`.thmb>img` should be a valid selector");
+        .invariant("`.thmb>img` should be a valid selector")?;
 
     let url = html
         .select(&selector)
@@ -481,7 +481,7 @@ pub(super) fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
     thumbnail
         // This host doesn't need a `referer` header to see the image.
         .set_host(Some("swebtoon-phinf.pstatic.net"))
-        .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+        .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
     Ok(thumbnail)
 }
@@ -489,7 +489,7 @@ pub(super) fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
 // NOTE: only Originals have a banner.
 pub(super) fn banner(html: &Html) -> Result<Url, WebtoonError> {
     let selector = Selector::parse(r".thmb>img") //
-        .expect("`.thmb>img` should be a valid selector");
+        .invariant("`.thmb>img` should be a valid selector")?;
 
     let url = html
         .select(&selector)
@@ -507,14 +507,14 @@ pub(super) fn banner(html: &Html) -> Result<Url, WebtoonError> {
     banner
         // This host doesn't need a `referer` header to see the image.
         .set_host(Some("swebtoon-phinf.pstatic.net"))
-        .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+        .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
     Ok(banner)
 }
 
 pub fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     let selector = Selector::parse("li._episodeItem>a>span.tx") //
-        .expect("`li._episodeItem>a>span.tx` should be a valid selector");
+        .invariant("`li._episodeItem>a>span.tx` should be a valid selector")?;
 
     // Counts the episodes listed per page. This is needed as there can be varying
     // amounts: 9 or 10, for example.
@@ -572,7 +572,7 @@ pub(super) fn episode(
 
     Ok(Episode {
         webtoon: webtoon.clone(),
-        season: Cache::new(episode::season(&title)),
+        season: Cache::new(episode::season(&title)?),
         title: Cache::new(title),
         number,
         published: Some(published),
@@ -596,7 +596,7 @@ pub(super) fn episode(
 
 pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, WebtoonError> {
     let selector = Selector::parse("span.subj>span") //
-        .expect("`span.subj>span` should be a valid selector");
+        .invariant("`span.subj>span` should be a valid selector")?;
 
     let title = html
         .select(&selector)
@@ -619,7 +619,7 @@ pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, WebtoonErro
 // get released. For more accurate times, must have a session.
 fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
     let selector = Selector::parse("span.date") //
-        .expect("`span.date` should be a valid selector");
+        .invariant("`span.date` should be a valid selector")?;
 
     let text = episode
         .select(&selector)
@@ -636,7 +636,8 @@ fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
     let date = NaiveDate::parse_from_str(text, "%b %e, %Y")
         .invariant(format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}"))?;
 
-    let time = NaiveTime::from_hms_opt(2, 0, 0).expect("2:00:00 should be a valid `NaiveTime`");
+    let time =
+        NaiveTime::from_hms_opt(2, 0, 0).invariant("2:00:00 should be a valid `NaiveTime`")?;
 
     Ok(DateTime::from_naive_utc_and_offset(
         date.and_time(time),

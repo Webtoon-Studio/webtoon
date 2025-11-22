@@ -12,7 +12,7 @@ use url::Url;
 use super::Webtoon;
 use super::post::{PinRepresentation, Posts};
 use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
-use crate::platform::webtoons::error::{PostsError, RequestError};
+use crate::platform::webtoons::error::{PostsError, RequestError, SessionError};
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
@@ -21,7 +21,7 @@ use crate::platform::webtoons::{
     meta::Scope,
 };
 use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{Invariant, invariant};
+use crate::stdx::error::{InternalInvariant, Invariant, invariant};
 
 /// Represents a collection of episodes.
 ///
@@ -30,7 +30,7 @@ use crate::stdx::error::{Invariant, invariant};
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+/// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -61,7 +61,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -84,7 +84,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -110,12 +110,15 @@ impl Episodes {
     }
 }
 
-impl From<Vec<Episode>> for Episodes {
-    fn from(value: Vec<Episode>) -> Self {
-        Self {
-            count: u16::try_from(value.len()).expect("max episode number should fit within `u16`"),
+impl TryFrom<Vec<Episode>> for Episodes {
+    type Error = InternalInvariant;
+
+    fn try_from(value: Vec<Episode>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            count: u16::try_from(value.len())
+                .invariant("largest episode number on `webtoons.com` should fit within `u16`")?,
             episodes: value,
-        }
+        })
     }
 }
 
@@ -140,7 +143,7 @@ impl IntoIterator for Episodes {
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+/// # use webtoon::platform::webtoons::{error::Error, Client, Type};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -174,7 +177,6 @@ pub struct Episode {
     pub(crate) panels: Cache<Vec<Panel>>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for Episode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
@@ -219,7 +221,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -248,7 +250,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -295,7 +297,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -315,7 +317,7 @@ impl Episode {
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
 
-        let season = self::season(&title);
+        let season = self::season(&title)?;
         self.season.insert(season);
 
         Ok(season)
@@ -328,7 +330,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -370,7 +372,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -420,7 +422,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -460,7 +462,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
@@ -488,7 +490,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -531,7 +533,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -571,7 +573,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -666,7 +668,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -751,7 +753,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -844,7 +846,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -928,7 +930,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -967,7 +969,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1013,7 +1015,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, webtoon::episode::PublishedStatus, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, webtoon::episode::PublishedStatus, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1063,7 +1065,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, webtoon::episode::AdStatus, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, webtoon::episode::AdStatus, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1104,7 +1106,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error, SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1116,8 +1118,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.like().await {
     ///         Ok(_) => println!("Liked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(EpisodeError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1126,7 +1128,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn like(&self) -> Result<(), EpisodeError> {
+    pub async fn like(&self) -> Result<(), SessionError> {
         self.webtoon.client.like_episode(self).await?;
         Ok(())
     }
@@ -1144,7 +1146,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error, EpisodeError, SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1156,8 +1158,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.unlike().await {
     ///         Ok(_) => println!("Uniked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(EpisodeError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1166,7 +1168,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn unlike(&self) -> Result<(), EpisodeError> {
+    pub async fn unlike(&self) -> Result<(), SessionError> {
         self.webtoon.client.unlike_episode(self).await?;
         Ok(())
     }
@@ -1178,7 +1180,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, PostError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error, PostsError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1190,8 +1192,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.post("Loved this episode!", false).await {
     ///         Ok(_) => println!("Left comment on episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(PostError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(PostError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(PostsError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(PostsError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1258,7 +1260,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1364,53 +1366,62 @@ impl Episode {
     }
 }
 
-pub(crate) fn season(title: &str) -> Option<u8> {
+pub(crate) fn season(title: &str) -> Result<Option<u8>, InternalInvariant> {
     // [Season 3]
-    let square_brackets_long =
-        Regex::new(r"\[Season (?P<season>\d+)\]").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\[Season (?P<season>\d+)\]")
+            .invariant("`[Season N]` regex should be valid")?;
 
-    if let Some(capture) = square_brackets_long.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // [S3]
-    let square_brackets_short = Regex::new(r"\[S(?P<season>\d+)\]").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\[S(?P<season>\d+)\]").invariant("`[SN]` regex should be valid")?;
 
-    if let Some(capture) = square_brackets_short.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // (S3)
-    let parens_short = Regex::new(r"\(S(?P<season>\d+)\)").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\(S(?P<season>\d+)\)").invariant("(SN) regex should be valid")?;
 
-    if let Some(capture) = parens_short.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // (Season 3)
-    let parens_long = Regex::new(r"\(Season (?P<season>\d+)\)").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\(Season (?P<season>\d+)\)")
+            .invariant("`(Season N)` regex should be valid")?;
 
-    if let Some(capture) = parens_long.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
-    None
+    Ok(None)
 }
 
 impl Hash for Episode {
@@ -1483,7 +1494,7 @@ impl From<DashboardStatus> for PublishedStatus {
 
 fn title(html: &Html) -> Result<String, EpisodeError> {
     let selector = Selector::parse("div.subj_info>.subj_episode") //
-        .expect("`div.subj_info>.subj_episode` should be a valid selector");
+        .invariant("`div.subj_info>.subj_episode` should be a valid selector")?;
 
     let title = html
         .select(&selector)
@@ -1502,12 +1513,12 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
 }
 
 fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
-    if is_audio_reader(html) {
+    if is_audio_reader(html)? {
         return Ok(None);
     }
 
     let selector = Selector::parse(r"img._images") //
-        .expect("`img._images` should be a valid selector");
+        .invariant("`img._images` should be a valid selector")?;
 
     let mut length = 0;
 
@@ -1543,10 +1554,10 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
                 Some(val) => invariant!(
                     "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
                 ),
-            };
+            }
         }
 
-        length += height
+        length += height;
     }
 
     invariant!(
@@ -1560,7 +1571,7 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
 
 fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
     let selector = Selector::parse(r".creator_note>.author_text") //
-        .expect("`.creator_note>.author_text` should be a valid selector");
+        .invariant("`.creator_note>.author_text` should be a valid selector")?;
 
     let Some(selection) = html.select(&selector).next() else {
         return Ok(None);
@@ -1581,7 +1592,7 @@ fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
 fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
     let selector =
         Selector::parse(r"div.episode_lst>div.episode_cont>ul>li") //
-            .expect(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector");
+            .invariant(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
 
     for li in html.select(&selector) {
         let data_episode_no = match li
@@ -1598,7 +1609,7 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
         }
 
         let selector = Selector::parse("a>span.thmb>img._thumbnailImages")
-            .expect("`a>span.thmb>img._thumbnailImages` should be a valid selector");
+            .invariant("`a>span.thmb>img._thumbnailImages` should be a valid selector")?;
 
         let url = li
             .select(&selector)
@@ -1619,7 +1630,7 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
         thumbnail
             // This host doesn't need a `referer` header to see the image.
             .set_host(Some("swebtoon-phinf.pstatic.net"))
-            .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+            .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
         return Ok(thumbnail);
     }
@@ -1630,12 +1641,12 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
 }
 
 #[inline]
-fn is_audio_reader(html: &Html) -> bool {
+fn is_audio_reader(html: &Html) -> Result<bool, InternalInvariant> {
     let selector = Selector::parse("button#soundControl")
-        .expect("`button#soundControl` should be a valid selector");
+        .invariant("`button#soundControl` should be a valid selector")?;
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
-    html.select(&selector).next().is_some()
+    Ok(html.select(&selector).next().is_some())
 }
 
 /// Represents a single panel for an episode.
@@ -1660,7 +1671,7 @@ impl Panel {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1702,12 +1713,12 @@ impl Panel {
 }
 
 fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
-    if is_audio_reader(html) {
+    if is_audio_reader(html)? {
         return Ok(Vec::new());
     }
 
     let selector = Selector::parse(r"img._images") //
-        .expect("`img._images` should be a valid selector");
+        .invariant("`img._images` should be a valid selector")?;
 
     let mut panels = Vec::new();
 
@@ -1793,7 +1804,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
         };
 
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
-            .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+            .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
         let ext = match url.path().split('.').nth(1) {
             Some(ext) => ext.to_string(),
@@ -1832,7 +1843,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+/// # use webtoon::platform::webtoons::{error::Error, Client, Type};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -1865,7 +1876,7 @@ impl Panels {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1908,7 +1919,7 @@ impl Panels {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1991,7 +2002,7 @@ impl Panels {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();

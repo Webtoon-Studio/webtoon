@@ -44,7 +44,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     {
         let selector = Selector::parse(r".col3>p") //
-            .expect("`.col3>p` should be a valid selector");
+            .invariant("`.col3>p` should be a valid selector")?;
 
         let category = html
         .select(&selector)
@@ -61,7 +61,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     }
 
     let selector = Selector::parse(r".col3>.num") //
-        .expect("`.col3>.num` should be a valid selector");
+        .invariant("`.col3>.num` should be a valid selector")?;
 
     let count = html
         .select(&selector)

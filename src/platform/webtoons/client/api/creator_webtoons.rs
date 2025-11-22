@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::Deserialize;
 
 use crate::platform::webtoons::Type;
@@ -17,6 +19,7 @@ pub struct Result {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Titles {
+    #[serde(deserialize_with = "crate::stdx::serde::u32_from_string")]
     pub id: u32,
     #[serde(rename = "subject")]
     pub title: String,

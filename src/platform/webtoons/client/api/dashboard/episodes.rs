@@ -46,6 +46,7 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
     );
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct DashboardEpisode {
     #[serde(alias = "episode")]
@@ -96,6 +97,7 @@ impl Hash for DashboardEpisode {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Metadata {
     #[serde(alias = "episodeNo")]
@@ -113,7 +115,7 @@ pub struct Metadata {
     #[serde(alias = "likeitCount")]
     pub likes: u32,
 
-    // NOTE: DRAFT episodes dont have a `thumbnailImageUrl` field.
+    // NOTE: DRAFT episodes don't have a `thumbnailImageUrl` field.
     #[serde(alias = "thumbnailImageUrl")]
     pub thumbnail: Option<String>,
 

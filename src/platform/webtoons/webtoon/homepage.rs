@@ -17,7 +17,7 @@ use crate::{
         meta::{Genre, Language},
         originals::Schedule,
     },
-    stdx::error::invariant,
+    stdx::error::{Invariant, invariant},
 };
 
 use super::{WebtoonError, episode::Episode};
@@ -108,7 +108,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .expect("`li._episodeItem` should be a valid selector");
+        .invariant("`li._episodeItem` should be a valid selector")?;
 
     let mut episodes = Vec::with_capacity(pages as usize * 10);
 
@@ -159,7 +159,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .expect("`li._episodeItem` should be a valid selector");
+        .invariant("`li._episodeItem` should be a valid selector")?;
 
     let html = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
 

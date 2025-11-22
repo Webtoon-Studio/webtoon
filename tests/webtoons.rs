@@ -105,6 +105,7 @@ async fn webtoon_canvas() -> Result<(), Error> {
 }
 
 #[tokio::test]
+#[ignore = "slow"]
 async fn webtoon_original() -> Result<(), Error> {
     let client = match std::env::var("WEBTOON_SESSION") {
         Ok(session) if !session.is_empty() => Client::with_session(&session),

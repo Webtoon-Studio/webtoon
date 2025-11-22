@@ -1,4 +1,7 @@
-use crate::platform::webtoons::{Client, Type, Webtoon, error::WebtoonError};
+use crate::{
+    platform::webtoons::{Client, Type, Webtoon, error::WebtoonError},
+    stdx::error::invariant,
+};
 
 /// Represents a single item in the search result.
 pub struct Item {
@@ -49,10 +52,12 @@ impl Item {
     /// This allows the option of quick results with only needed information while allowing one to get an interactable
     /// `Webtoon` later on.
     pub async fn into_webtoon(self) -> Result<Webtoon, WebtoonError> {
-        let webtoon =
-            self.client.webtoon(self.id, self.r#type).await?.expect(
-                "Webtoon info came directly from webtoons.com so should be a valid webtoon",
+        let Some(webtoon) = self.client.webtoon(self.id, self.r#type).await? else {
+            invariant!(
+                "`webtoons.com` search should only return visible, existing series. Getting `None` means the webtoon is private or nonexistent, so it should never appear in search results."
             );
+        };
+
         Ok(webtoon)
     }
 }

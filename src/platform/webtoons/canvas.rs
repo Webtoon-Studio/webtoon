@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```
-//! # use webtoon::platform::webtoons::{ Client, Language, errors::Error, canvas::Sort};
+//! # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
 //! let client = Client::new();
@@ -37,7 +37,7 @@ pub(super) async fn scrape(
 ) -> Result<Vec<Webtoon>, CanvasError> {
     // NOTE: currently all languages are the same
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
-        .expect("`div.challenge_lst>ul>li>a` should be a valid selector");
+        .invariant("`div.challenge_lst>ul>li>a` should be a valid selector")?;
 
     let start = match pages.start_bound() {
         std::ops::Bound::Included(&n) => n.max(1),
