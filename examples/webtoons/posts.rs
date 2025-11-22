@@ -61,7 +61,7 @@ async fn main() -> Result<(), Error> {
             // If has valid session and user has moderating permission(is the creator)
             match post.poster().block().await {
                 Ok(()) => {}
-                Err(BlockUserError::InvalidPermissions) => eprintln!("No moderating permissions!"),
+                Err(BlockUserError::NotCreator) => eprintln!("No moderating permissions!"),
                 Err(BlockUserError::BlockSelf) => eprintln!("Cannot block self!"),
                 Err(err) => eprintln!("{err}"),
             }

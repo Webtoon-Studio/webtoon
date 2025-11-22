@@ -1,18 +1,20 @@
 //! Module representing a webtoons rss feed.
 
 use chrono::{DateTime, Utc};
-use parking_lot::RwLock;
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 use url::Url;
 
-use crate::platform::webtoons::{Language, creator::Creator};
+use crate::{
+    platform::webtoons::{Language, creator::Creator},
+    stdx::cache::Cache,
+};
 
 use super::{
     Webtoon, WebtoonError,
     episode::{Episode, PublishedStatus},
 };
 
-/// Represents the RSS data from the webtoons.com rss feed for the webtoon
+/// Represents the RSS data from the webtoons.com RSS feed for the webtoon
 ///
 /// This is not a spec-compliant representation, but rather one that would make sense from a webtoon.com perspective.
 #[derive(Debug)]
@@ -90,17 +92,18 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
         episodes.push(Episode {
             webtoon: webtoon.clone(),
             number,
-            season: Arc::new(RwLock::new(None)),
-            title: Arc::new(RwLock::new(Some(title))),
+            title: Cache::new(title),
             published: Some(published),
-            length: Arc::new(RwLock::new(None)),
-            thumbnail: Arc::new(RwLock::new(None)),
-            note: Arc::new(RwLock::new(None)),
-            panels: Arc::new(RwLock::new(None)),
-            views: None,
-            ad_status: None,
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.
             published_status: Some(PublishedStatus::Published),
+
+            season: Cache::empty(),
+            length: Cache::empty(),
+            thumbnail: Cache::empty(),
+            note: Cache::empty(),
+            panels: Cache::empty(),
+            views: None,
+            ad_status: None,
         });
     }
 

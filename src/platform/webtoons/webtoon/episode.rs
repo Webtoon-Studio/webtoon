@@ -1,28 +1,27 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
-use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
-use parking_lot::RwLock;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde_json::json;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::str::FromStr;
-use std::sync::Arc;
 use url::Url;
 
-use super::post::{PinRepresentation, Posts};
-
 use super::Webtoon;
+use super::post::{PinRepresentation, Posts};
 use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
+use crate::platform::webtoons::error::{PostsError, RequestError};
 use crate::platform::webtoons::webtoon::post::Post;
 use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
     client::Client,
-    error::{ClientError, EpisodeError, PostError},
+    error::{ClientError, EpisodeError},
     meta::Scope,
 };
+use crate::stdx::cache::{Cache, Store};
+use crate::stdx::error::{Invariant, invariant};
 
 /// Represents a collection of episodes.
 ///
@@ -162,36 +161,49 @@ impl IntoIterator for Episodes {
 pub struct Episode {
     pub(crate) webtoon: Webtoon,
     pub(crate) number: u16,
-    pub(crate) season: Arc<RwLock<Option<u8>>>,
-    pub(crate) title: Arc<RwLock<Option<String>>>,
+    // TODO: Need to store? Should be pretty cheap one title is cached.
+    pub(crate) season: Cache<Option<u8>>,
+    pub(crate) title: Cache<String>,
     pub(crate) published: Option<DateTime<Utc>>,
-    // NOTE: The wrapper Option is to indicate if it has been scraped before, and if so, the inner Option is the actual
-    // value.
-    pub(crate) length: Arc<RwLock<Option<Option<u32>>>>,
+    pub(crate) length: Cache<Option<u32>>,
     pub(crate) views: Option<u32>,
-    pub(crate) thumbnail: Arc<RwLock<Option<Url>>>,
-    pub(crate) note: Arc<RwLock<Option<Option<String>>>>,
+    pub(crate) thumbnail: Cache<Url>,
+    pub(crate) note: Cache<Option<String>>,
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
-    pub(crate) panels: Arc<RwLock<Option<Vec<Panel>>>>,
+    pub(crate) panels: Cache<Vec<Panel>>,
 }
 
 #[expect(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for Episode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            webtoon: _,
+            number,
+            season,
+            title,
+            published,
+            length,
+            views,
+            thumbnail,
+            note,
+            ad_status,
+            published_status,
+            panels,
+        } = self;
+
         f.debug_struct("Episode")
-            // omitting `webtoon`
-            .field("number", &self.number)
-            .field("season", &self.season)
-            .field("title", &self.title)
-            .field("published", &self.published)
-            .field("length", &self.length)
-            .field("views", &self.views)
-            .field("thumbnail", &self.thumbnail)
-            .field("note", &self.note)
-            .field("ad_status", &self.ad_status)
-            .field("published_status", &self.published_status)
-            .field("panels", &self.panels)
+            .field("number", number)
+            .field("season", season)
+            .field("title", title)
+            .field("published", published)
+            .field("length", length)
+            .field("views", views)
+            .field("thumbnail", thumbnail)
+            .field("note", note)
+            .field("ad_status", ad_status)
+            .field("published_status", published_status)
+            .field("panels", panels)
             .finish()
     }
 }
@@ -254,19 +266,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn title(&self) -> Result<String, EpisodeError> {
-        if let Some(title) = &*self.title.read() {
-            Ok(title.clone())
+        if let Store::Value(title) = self.title.get() {
+            Ok(title)
         } else {
             self.scrape().await?;
 
-            let title = self
-                .title
-                .read()
-                .as_deref()
-                .map(|title| title.to_string())
-                .context("title should have been scraped with the page scrape")?;
-
-            Ok(title)
+            match self.title.get() {
+                Store::Value(title) => Ok(title),
+                Store::Empty => invariant!(
+                    "`webtoons.com` episode `title` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -304,8 +314,10 @@ impl Episode {
     /// ```
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
+
         let season = self::season(&title);
-        *self.season.write() = season;
+        self.season.insert(season);
+
         Ok(season)
     }
 
@@ -336,13 +348,16 @@ impl Episode {
     /// # }
     /// ```
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
-        if let Some(note) = &*self.note.read() {
-            Ok(note.clone())
+        if let Store::Value(note) = self.note.get() {
+            Ok(note)
         } else {
             self.scrape().await?;
-            match self.note.read().as_ref() {
-                Some(Some(note)) => Ok(Some(note.clone())),
-                None | Some(None) => Ok(None),
+
+            match self.note.get() {
+                Store::Value(note) => Ok(note),
+                Store::Empty => invariant!(
+                    "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
             }
         }
     }
@@ -373,18 +388,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
-        // TODO: This can be None even when it has scraped before. Might need to make Option<Option<>>?
-        if let Some(length) = *self.length.read() {
+        if let Store::Value(length) = self.length.get() {
             Ok(length)
         } else {
             self.scrape().await?;
 
-            let length = self
-                .length
-                .read()
-                .context("length should have been scraped with the page scrape")?;
-
-            Ok(length)
+            match self.length.get() {
+                Store::Value(length) => Ok(length),
+                Store::Empty => invariant!(
+                    "`webtoons.com` episode `length` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -494,14 +508,17 @@ impl Episode {
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
         let response = self.webtoon.client.get_likes_for_episode(self).await?;
 
-        let contents = response.result.contents.first().context(
-            "`contents` field in likes api didn't have a 0th element and it should always have one",
-        )?;
+        let contents = response //
+            .result
+            .contents
+            .first()
+            .invariant("`contents` field in `webtoons.com` likes api response was empty")?;
 
         let likes = contents
             .reactions
             .first()
             .map(|likes| likes.count)
+            // TODO: Explain why this is fine to default to `0`.
             .unwrap_or_default();
 
         Ok(likes)
@@ -532,7 +549,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostError> {
+    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostsError> {
         let response = self
             .webtoon
             .client
@@ -573,8 +590,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Posts, PostError> {
-        #[allow(
+    pub async fn posts(&self) -> Result<Posts, PostsError> {
+        #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
         )]
@@ -608,7 +625,7 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        // Get is_top/isPinned info.
+        // Get `is_top`/`isPinned` info.
         let response = self
             .webtoon
             .client
@@ -619,10 +636,14 @@ impl Episode {
             posts.replace(Post::try_from((self, post))?);
         }
 
-        let posts: Vec<Post> = posts.into_iter().collect();
-        let mut posts = Posts { posts };
-
-        posts.sort_by_newest();
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
+        };
 
         Ok(posts)
     }
@@ -664,7 +685,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
+    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostsError> {
         let response = self
             .webtoon
             .client
@@ -749,8 +770,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_id(&self, id: &str) -> Result<Posts, PostError> {
-        let id = Id::from_str(id).map_err(|err| PostError::Unexpected(err.into()))?;
+    pub async fn posts_till_id(&self, id: &str) -> Result<Posts, PostsError> {
+        let id = Id::from_str(id)?;
 
         #[allow(
             clippy::mutable_key_type,
@@ -798,11 +819,14 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let mut posts = Posts {
-            posts: posts.into_iter().collect(),
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
         };
-
-        posts.sort_by_newest();
 
         Ok(posts)
     }
@@ -840,8 +864,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_date(&self, date: i64) -> Result<Posts, PostError> {
-        #[allow(
+    pub async fn posts_till_date(&self, date: i64) -> Result<Posts, PostsError> {
+        #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
         )]
@@ -855,7 +879,7 @@ impl Episode {
 
         let mut next: Option<Id> = response.result.pagination.next;
 
-        // Add first posts
+        // Add first posts.
         for post in response.result.posts {
             if post.created_at < date {
                 return Ok(Posts {
@@ -866,7 +890,7 @@ impl Episode {
             posts.insert(Post::try_from((self, post))?);
         }
 
-        // Get rest if any
+        // Get rest if any.
         while let Some(cursor) = next {
             let response = self
                 .webtoon
@@ -887,11 +911,14 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let mut posts = Posts {
-            posts: posts.into_iter().collect(),
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
         };
-
-        posts.sort_by_newest();
 
         Ok(posts)
     }
@@ -921,19 +948,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn panels(&self) -> Result<Vec<Panel>, EpisodeError> {
-        if let Some(panels) = &*self.panels.read() {
-            Ok(panels.to_owned())
+        if let Store::Value(panels) = self.panels.get() {
+            Ok(panels)
         } else {
             self.scrape().await?;
 
-            let panels = self
-                .panels
-                .read()
-                .as_ref()
-                .context("panels should have been scraped with the page scrape")?
-                .to_owned();
-
-            Ok(panels)
+            match self.panels.get() {
+                Store::Value(panels) => Ok(panels),
+                Store::Empty => invariant!(
+                    "`webtoons.com` episode `panels` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -960,19 +985,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
-        if let Some(thumbnail) = &*self.thumbnail.read() {
+        if let Store::Value(thumbnail) = self.thumbnail.get() {
             Ok(thumbnail.to_string())
         } else {
             self.scrape().await?;
 
-            let thumbnail = self
-                .thumbnail
-                .read()
-                .as_ref()
-                .context("thumbnail should have been scraped with the page scrape")?
-                .to_string();
-
-            Ok(thumbnail)
+            match self.thumbnail.get() {
+                Store::Value(thumbnail) => Ok(thumbnail.to_string()),
+                Store::Empty => invariant!(
+                    "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -1177,7 +1200,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), PostError> {
+    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), PostsError> {
+        // TODO: Move logic to `Client`
         let page_id = format!(
             "{}_{}_{}",
             match self.webtoon.scope {
@@ -1221,7 +1245,8 @@ impl Episode {
             .header("Api-Token", token)
             .header("Cookie", format!("NEO_SES={session}"))
             .send()
-            .await?;
+            .await
+            .map_err(RequestError)?;
 
         Ok(())
     }
@@ -1254,18 +1279,9 @@ impl Episode {
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
-        let mut panels = if let Some(panels) = &*self.panels.read() {
-            panels.to_owned()
-        } else {
-            self.scrape().await?;
+        let mut panels = self.panels().await?;
 
-            self.panels
-                .read()
-                .as_ref()
-                .context("panels should have been scraped with the page scrape")?
-                .to_owned()
-        };
-
+        // TODO: Can get rid of this? Think this is the only `sync` dep from tokio being used.
         // PERF: Download N panels at a time. Without this it will be a sequential.
         let semaphore = Semaphore::new(100);
 
@@ -1276,13 +1292,16 @@ impl Episode {
             let semaphore = semaphore
                 .acquire()
                 .await
-                .context("failed to acquire sepmahore when downloading panels")?;
+                .invariant("failed to acquire `Episode::download` sepmahore")?;
 
             panel.download(&self.webtoon.client).await?;
 
             drop(semaphore);
 
             height += panel.height;
+            // NOTE: Not all panels are guaranteed to be the same width. When it
+            // comes to making building up a single image later on, this is needed
+            // to get the max width of all panels and then just fit to that.
             width = width.max(panel.width);
         }
 
@@ -1300,18 +1319,22 @@ impl Episode {
         Self {
             webtoon: webtoon.clone(),
             number,
-            season: Arc::new(RwLock::new(None)),
-            title: Arc::new(RwLock::new(None)),
-            // NOTE: Currently there is no way to get this info from an episodes page.
-            // The only sources are the dashboard episode list data, and the episode list from the webtoons page.
-            // This could be gotten, in theory, with the webtoons page episode data, but caching the episodes
-            // would lead to a large refactor and be slow for when only getting one episodes data.
-            // For now will just return None until a solution can be landed on.
+            season: Cache::empty(),
+            title: Cache::empty(),
+            // NOTE:
+            // Currently there is no way to get this info from an episodes page.
+            //
+            // The only sources are the dashboard episode list data, and the
+            // episode list from the webtoons page. This could be gotten, in
+            // theory, with the webtoons page episode data, but caching the
+            // episodes would lead to a large refactor and be slow for when only
+            // getting one episodes' data. For now, will just return None until
+            // a better solution can be landed on.
             published: None,
-            length: Arc::new(RwLock::new(None)),
-            thumbnail: Arc::new(RwLock::new(None)),
-            note: Arc::new(RwLock::new(None)),
-            panels: Arc::new(RwLock::new(None)),
+            length: Cache::empty(),
+            thumbnail: Cache::empty(),
+            note: Cache::empty(),
+            panels: Cache::empty(),
             views: None,
             ad_status: None,
             published_status: None,
@@ -1326,24 +1349,11 @@ impl Episode {
             .get_episode(&self.webtoon, self.number)
             .await?;
 
-        let title = title(&html).context("Episode title failed to be parsed")?;
-        *self.title.write() = Some(title);
-
-        let thumbnail = thumbnail(&html, self.number) //
-            .context("Episode thumbnail failed to be parsed")?;
-        *self.thumbnail.write() = Some(thumbnail);
-
-        let length = length(&html) //
-            .context("Episode length failed to be parsed")?;
-        *self.length.write() = Some(length);
-
-        let note = note(&html) //
-            .context("Episode note failed to be parsed")?;
-        *self.note.write() = Some(note);
-
-        let panels =
-            panels(&html, self.number).context("Episode panel urls failed to be parsed")?;
-        *self.panels.write() = Some(panels);
+        self.title.insert(title(&html)?);
+        self.thumbnail.insert(thumbnail(&html, self.number)?);
+        self.length.insert(length(&html)?);
+        self.note.insert(note(&html)?);
+        self.panels.insert(panels(&html, self.number)?);
 
         Ok(())
     }
@@ -1476,12 +1486,17 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
         .expect("`div.subj_info>.subj_episode` should be a valid selector");
 
     let title = html
-            .select(&selector)
-            .next()
-            .context("`.subj_episode` is missing: episode page should always contain a title for the episode")?
-            .text()
-            .next()
-            .context("`.subj_episode` was found but no text was present")?;
+        .select(&selector)
+        .next()
+        .invariant("`.subj_episode`(title) is missing on `webtoons.com` episode page")?
+        .text()
+        .next()
+        .invariant("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
+
+    invariant!(
+        !title.is_empty(),
+        "`webtoons.com` episode title on episode page should never be empty"
+    );
 
     Ok(html_escape::decode_html_entities(title).to_string())
 }
@@ -1497,20 +1512,48 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
     let mut length = 0;
 
     for img in html.select(&selector) {
-        length += img
+        let mut float = img
             .value()
             .attr("height")
-            .context("`height` is missing, `img._images` should always have one")?
-            .split('.')
+            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
+            .split('.');
+
+        let height = match float
             .next()
-            .context("`height` attribute should be a float")?
+            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
             .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+             {
+                Ok(height) => height,
+                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+        {
+            match float.next() {
+                Some("0") => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
+                ),
+                None => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+                ),
+            };
+        }
+
+        length += height
     }
 
-    if length == 0 {
-        return Err(EpisodeError::NoPanelsFound);
-    }
+    invariant!(
+        // TODO: see if there are upload limits imposed and add the value here.
+        length > 0,
+        "`webtoons.com` episodes must have at least 1 panel, and therefore have at least 1 pixel in height"
+    );
 
     Ok(Some(length))
 }
@@ -1523,13 +1566,16 @@ fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
         return Ok(None);
     };
 
-    let note = selection
-        .text()
-        .next()
-        .context("`.author_text` was found but no text was present")?
-        .to_owned();
+    let note = selection.text().next().invariant(
+        "`.author_text` on `webtoons.com` episode page was found, but no text was present",
+    )?;
 
-    Ok(Some(note))
+    invariant!(
+        !note.is_empty(),
+        "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
+    );
+
+    Ok(Some(note.to_string()))
 }
 
 fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
@@ -1538,30 +1584,37 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
             .expect(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector");
 
     for li in html.select(&selector) {
-        let data_episode_no = li
+        let data_episode_no = match li
             .attr("data-episode-no")
-            .context("`data-episode-no` is missing, `li` should always have one")?
+            .invariant("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
             .parse::<u16>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+            {
+                Ok(data_episode_no) => data_episode_no,
+                Err(err) => invariant!("`data-episode-no` should always be able to parse into a `u16`: {err}"),
+            };
 
         if data_episode_no != episode {
             continue;
         }
 
-        let img_selection = Selector::parse("a>span.thmb>img._thumbnailImages")
+        let selector = Selector::parse("a>span.thmb>img._thumbnailImages")
             .expect("`a>span.thmb>img._thumbnailImages` should be a valid selector");
 
-        let mut img = li.select(&img_selection);
-
-        let url = img
+        let url = li
+            .select(&selector)
             .next()
-            .context(
-                "`img._thumbnailImages` is missing: episode page page should have at least one",
+            .invariant(
+                "`img._thumbnailImages`(thumbnail) is missing in `webtoons.com` episode page, should have at least one, even if only for the currently viewed episode",
             )?
             .attr("data-url")
-            .context("`data-url` is missing, `img._thumbnailimages` should always have one")?;
+            .invariant("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
 
-        let mut thumbnail = Url::parse(url).map_err(|err| EpisodeError::Unexpected(err.into()))?;
+        let mut thumbnail = match Url::parse(url) {
+            Ok(url) => url,
+            Err(err) => invariant!(
+                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"
+            ),
+        };
 
         thumbnail
             // This host doesn't need a `referer` header to see the image.
@@ -1571,9 +1624,12 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
         return Ok(thumbnail);
     }
 
-    Err(EpisodeError::NoThumbnailFound)
+    invariant!(
+        "`webtoons.com` episode page should always have at least one thumbnail url on it, even if just for the currently viewed episode"
+    );
 }
 
+#[inline]
 fn is_audio_reader(html: &Html) -> bool {
     let selector = Selector::parse("button#soundControl")
         .expect("`button#soundControl` should be a valid selector");
@@ -1599,7 +1655,7 @@ pub struct Panel {
 }
 
 impl Panel {
-    /// Returns the url for the panel.
+    /// Returns the URL for the panel.
     ///
     /// # Example
     ///
@@ -1628,13 +1684,16 @@ impl Panel {
     }
 
     async fn download(&mut self, client: &Client) -> Result<(), EpisodeError> {
+        // TODO: Move to `Client::download_episode`
         let bytes = client
             .http
             .get(self.url.as_str())
             .send()
-            .await?
+            .await
+            .map_err(RequestError)?
             .bytes()
-            .await?;
+            .await
+            .map_err(RequestError)?;
 
         self.bytes = bytes.to_vec();
 
@@ -1653,50 +1712,104 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
     let mut panels = Vec::new();
 
     for (number, img) in html.select(&selector).enumerate() {
-        let height = img
+        let mut float = img
             .value()
             .attr("height")
-            .context("`height` is missing, `img._images` should always have one")?
-            .split('.')
-            .next()
-            .context("`height` attribute should be a float")?
-            .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
+            .split('.');
 
-        let width = img
+        let height = match float
+            .next()
+            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+            .parse::<u32>()
+             {
+                Ok(height) => height,
+                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+        {
+            match float.next() {
+                Some("0") => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
+                ),
+                None => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+                ),
+            };
+        }
+
+        let mut float = img
             .value()
-            .attr("width")
-            .context("`width` is missing, `img._images` should always have one")?
-            .split('.')
-            .next()
-            .context("`width` attribute should be a float")?
-            .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+            .attr("height")
+            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
+            .split('.');
 
-        let url = img
+        let width = match float
+            .next()
+            .invariant("`width` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+            .parse::<u32>()
+             {
+                Ok(width) => width,
+                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+        {
+            match float.next() {
+                Some("0") => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
+                ),
+                None => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+                ),
+            };
+        }
+
+        let data_url = img
             .value()
             .attr("data-url")
-            .context("`data-url` is missing, `img._images` should always have one")?;
+            .invariant("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
-        let mut url = Url::parse(url).map_err(|err| EpisodeError::Unexpected(err.into()))?;
+        let mut url = match Url::parse(data_url) {
+            Ok(url) => url,
+            Err(err) => invariant!(
+                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"
+            ),
+        };
 
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
 
-        let ext = url
-            .path()
-            .split('.')
-            .nth(1)
-            .with_context(|| format!("`{url}` should end in an extension but didn't"))?
-            .to_string();
+        let ext = match url.path().split('.').nth(1) {
+            Some(ext) => ext.to_string(),
+            None => invariant!(
+                "`webtoons.com` episode page panel image urls should end in an extension, got: {url}"
+            ),
+        };
 
         panels.push(Panel {
             url,
 
             episode,
-            // Enumerate starts at 0. +1 so that it starts at one.
+            // Enumerate starts at 0, so add +1 so that it starts at one.
             number: u16::try_from(number + 1)
-                .context("there shouldn't be more than 65,536 panels for an episode")?,
+                // TODO: see if can check actual limits to enforce better.
+                .invariant("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
             height,
             width,
             ext,
@@ -1704,11 +1817,10 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
         });
     }
 
-    if panels.is_empty() {
-        return Err(EpisodeError::Unexpected(anyhow!(
-            "Failed to find a single panel on episode page"
-        )));
-    }
+    invariant!(
+        !panels.is_empty(),
+        "episodes on `webtoons.com` must have at least one panel on its viewer, platform doesnt let you create an episode without at least one"
+    );
 
     Ok(panels)
 }
@@ -1829,9 +1941,7 @@ impl Panels {
 
         let path = path.join(episode.to_string()).with_extension(ext);
 
-        tokio::fs::File::create(&path)
-            .await
-            .context("failed to create download file")?;
+        tokio::fs::File::create(&path).await?;
 
         let mut single = RgbaImage::new(width, height);
 
@@ -1840,8 +1950,12 @@ impl Panels {
         for panel in &self.images {
             let bytes = panel.bytes.as_slice();
 
-            let image = image::load_from_memory(bytes) //
-                .context("failed to load image from memory")?;
+            let image = match image::load_from_memory(bytes) {
+                Ok(image) => image,
+                Err(err) => invariant!(
+                    "`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features: {err}"
+                ),
+            };
 
             for (x, y, pixels) in image.pixels() {
                 single.put_pixel(x, y + offset, pixels);
@@ -1850,12 +1964,20 @@ impl Panels {
             offset += image.height();
         }
 
-        tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
+        match tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
             .await
-            .context("Failed `spawn_blocking`")?
-            .context("Failed to save image to disk")?;
-
-        Ok(())
+        {
+            Ok(ok) => match ok {
+                Ok(()) => Ok(()),
+                Err(image::ImageError::IoError(err)) => Err(DownloadError::IoError(err)),
+                Err(err) => invariant!(
+                    "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
+                ),
+            },
+            Err(err) => invariant!(
+                "failed to join tokio handle trying to save single `webtoons.com` image to disk: {err}"
+            ),
+        }
     }
 
     /// Saves each panel of the episode to disk, naming the resulting files using the format `EPISODE_NUMBER-PANEL_NUMBER`.
@@ -1899,9 +2021,7 @@ impl Panels {
             let name = format!("{}-{}", panel.episode, panel.number);
             let path = path.join(name).with_extension(&panel.ext);
 
-            let mut file = tokio::fs::File::create(&path)
-                .await
-                .context("failed to create download file")?;
+            let mut file = tokio::fs::File::create(&path).await?;
 
             let bytes = panel.bytes.as_slice();
 

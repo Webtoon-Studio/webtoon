@@ -34,7 +34,7 @@ pub struct Canvas {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Data {
-    pub content_id: String,
+    pub content_id: u32,
     pub content_sub_type: String,
     pub extra: Extra,
     pub name: String,

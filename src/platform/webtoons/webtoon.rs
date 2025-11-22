@@ -6,7 +6,6 @@ pub mod episode;
 pub mod post;
 
 use core::fmt::{self, Debug};
-use parking_lot::RwLock;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -15,25 +14,24 @@ pub mod rss;
 #[cfg(feature = "rss")]
 use rss::Rss;
 
-use crate::{
-    platform::webtoons::error::InvalidWebtoonUrl,
-    stdx::{
-        error::{Invariant, invariant},
-        http::IRetry,
-    },
-};
-
 use self::{
     episode::{Episode, Episodes},
     homepage::Page,
     post::Posts,
 };
-
 use super::Type;
-use super::error::{ClientError, EpisodeError, PostError, WebtoonError};
+use super::error::{EpisodeError, WebtoonError};
 use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
+use crate::{
+    platform::webtoons::error::{InvalidWebtoonUrl, PostsError, RequestError, UserInfoError},
+    stdx::{
+        cache::{Cache, Store},
+        error::{Invariant, invariant},
+        http::IRetry,
+    },
+};
 
 /// Represents a Webtoon from `webtoons.com`.
 ///
@@ -53,7 +51,7 @@ pub struct Webtoon {
     /// url slug of the webtoon name: Tower of God -> tower-of-god
     pub(super) slug: Arc<str>,
     /// Cache for data on the Wetboons landing page: title, etc.
-    pub(super) page: Arc<RwLock<Option<Page>>>,
+    pub(super) page: Cache<Page>,
 }
 
 impl Debug for Webtoon {
@@ -223,12 +221,14 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn title(&self) -> Result<String, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.title().to_string())
         } else {
             let page = homepage::scrape(self).await?;
+
             let title = page.title().to_owned();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(title)
         }
     }
@@ -255,12 +255,14 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn creators(&self) -> Result<Vec<Creator>, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.creators().to_vec())
         } else {
             let page = homepage::scrape(self).await?;
+
             let creators = page.creators().to_vec();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(creators)
         }
     }
@@ -288,12 +290,14 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn genres(&self) -> Result<Vec<Genre>, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.genres().to_vec())
         } else {
             let page = homepage::scrape(self).await?;
+
             let genres = page.genres().to_vec();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(genres)
         }
     }
@@ -317,12 +321,14 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn summary(&self) -> Result<String, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.summary().to_owned())
         } else {
             let page = homepage::scrape(self).await?;
+
             let summary = page.summary().to_owned();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(summary)
         }
     }
@@ -366,19 +372,18 @@ impl Webtoon {
                 return Ok(views);
             }
             // Fallback to public data
-            Ok(_) | Err(ClientError::NoSessionProvided) => {}
-            Err(err) => return Err(EpisodeError::ClientError(err)),
+            Ok(_) | Err(UserInfoError::NoSessionProvided) => {}
+            Err(err) => return Err(err.into()),
         }
 
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.views())
         } else {
-            let page = homepage::scrape(self).await.map_err(|err| match err {
-                WebtoonError::ClientError(client_error) => EpisodeError::ClientError(client_error),
-                error => EpisodeError::Unexpected(error.into()),
-            })?;
+            let page = homepage::scrape(self).await?;
+
             let views = page.views();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(views)
         }
     }
@@ -420,16 +425,18 @@ impl Webtoon {
                 return Ok(subscribers);
             }
             // Fallback to public data
-            Ok(_) | Err(ClientError::NoSessionProvided) => {}
-            Err(err) => return Err(WebtoonError::ClientError(err)),
+            Ok(_) | Err(UserInfoError::NoSessionProvided) => {}
+            Err(err) => return Err(err.into()),
         }
 
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.subscribers())
         } else {
             let page = homepage::scrape(self).await?;
+
             let subscribers = page.subscribers();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(subscribers)
         }
     }
@@ -460,12 +467,14 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<Option<String>, WebtoonError> {
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
         } else {
             let page = homepage::scrape(self).await?;
+
             let thumbnail = page.thumbnail().map(|thumbnail| thumbnail.to_string());
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(thumbnail)
         }
     }
@@ -510,12 +519,14 @@ impl Webtoon {
             return Ok(None);
         }
 
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.schedule().cloned())
         } else {
             let page = homepage::scrape(self).await?;
+
             let release = page.schedule().cloned();
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(release)
         }
     }
@@ -545,12 +556,17 @@ impl Webtoon {
             return Ok(false);
         }
 
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.schedule() == Some(&Schedule::Completed))
         } else {
             let page = homepage::scrape(self).await?;
-            let is_completed = page.schedule() == Some(&Schedule::Completed);
-            *self.page.write() = Some(page);
+
+            let is_completed = page
+                .schedule()
+                .is_some_and(|schedule| *schedule == Schedule::Completed);
+
+            self.page.insert(page);
+
             Ok(is_completed)
         }
     }
@@ -583,12 +599,14 @@ impl Webtoon {
             return Ok(None);
         }
 
-        if let Some(page) = &*self.page.read() {
+        if let Store::Value(page) = self.page.get() {
             Ok(page.banner().map(|banner| banner.to_owned()))
         } else {
             let page = homepage::scrape(self).await?;
+
             let release = page.banner().map(|release| release.to_owned());
-            *self.page.write() = Some(page);
+            self.page.insert(page);
+
             Ok(release)
         }
     }
@@ -647,22 +665,14 @@ impl Webtoon {
                 super::dashboard::episodes::scrape(self).await?
             }
             // Fallback to public data
-            Ok(_) | Err(ClientError::NoSessionProvided) => {
-                homepage::episodes(self).await.map_err(|err| match err {
-                    WebtoonError::ClientError(client_error) => {
-                        EpisodeError::ClientError(client_error)
-                    }
-                    error => EpisodeError::Unexpected(error.into()),
-                })?
-            }
-            Err(err) => return Err(EpisodeError::ClientError(err)),
+            Ok(_) | Err(UserInfoError::NoSessionProvided) => homepage::episodes(self).await?,
+            Err(err) => return Err(err.into()),
         };
 
-        Ok(Episodes {
-            count: u16::try_from(episodes.len())
-                .map_err(|err| EpisodeError::Unexpected(err.into()))?,
-            episodes,
-        })
+        let count = u16::try_from(episodes.len())
+            .invariant("all webtoons on `webtoons.com` should never have more than 65,535 episodes; this post-condition should have been caught before this point!")?;
+
+        Ok(Episodes { count, episodes })
     }
 
     /// Constructs an `Episode` if it exists.
@@ -815,21 +825,26 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Posts, PostError> {
-        let mut posts = Vec::new();
+    pub async fn posts(&self) -> Result<Posts, PostsError> {
+        let mut posts = Vec::with_capacity(100);
 
         for number in 1.. {
-            if let Some(episode) = self.episode(number).await.map_err(|err| match err {
-                EpisodeError::ClientError(client_error) => PostError::ClientError(client_error),
-                error => PostError::Unexpected(error.into()),
-            })? {
-                posts.extend_from_slice(episode.posts().await?.as_slice());
-            } else {
-                break;
+            match self.episode(number).await {
+                Ok(Some(episode)) => posts.extend_from_slice(episode.posts().await?.as_slice()),
+                Ok(None) => break,
+                Err(err) => match err {
+                    EpisodeError::RequestFailed(err) => return Err(PostsError::RequestFailed(err)),
+                    EpisodeError::NoSessionProvided => return Err(PostsError::NoSessionProvided),
+                    EpisodeError::InvalidSession => return Err(PostsError::InvalidSession),
+                    EpisodeError::Internal(err) => return Err(err.into()),
+                    EpisodeError::NotViewable => invariant!(
+                        "`NotViewable` for a `webtoons.com` episode means you cannot see the panels through normal means; getting posts has no dependency on viewability"
+                    ),
+                },
             }
         }
 
-        Ok(posts.into())
+        Ok(Posts::from(posts))
     }
 
     /// Retrieves the RSS feed information for the current `Webtoon`.
@@ -1015,7 +1030,13 @@ impl Webtoon {
             }
         );
 
-        let response = client.http.get(&url).retry().send().await?;
+        let response = client
+            .http
+            .get(&url)
+            .retry()
+            .send()
+            .await
+            .map_err(RequestError)?;
 
         // Webtoon doesn't exist or is not public.
         if response.status() == 404 {
@@ -1063,7 +1084,7 @@ impl Webtoon {
             language,
             scope,
             slug: Arc::from(slug),
-            page: Arc::new(RwLock::new(None)),
+            page: Cache::empty(),
         };
 
         Ok(Some(webtoon))
@@ -1151,7 +1172,7 @@ impl Webtoon {
             scope,
             slug: slug.into(),
             id,
-            page: Arc::new(RwLock::new(None)),
+            page: Cache::empty(),
         };
 
         Ok(webtoon)

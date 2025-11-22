@@ -23,7 +23,7 @@ use crate::{
 use super::{WebtoonError, episode::Episode};
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Page {
     title: String,
     creators: Vec<Creator>,
@@ -131,6 +131,21 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
 
         // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    invariant!(
+        !episodes.is_empty(),
+        "public facing webtoons on `webtoons.com` should always have at least one public episode"
+    );
+
+    match u16::try_from(episodes.len()) {
+        Ok(_) => {}
+        Err(err) => {
+            invariant!(
+                "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
+                episodes.len()
+            )
+        }
     }
 
     // NOTE: Consistently return by episode order

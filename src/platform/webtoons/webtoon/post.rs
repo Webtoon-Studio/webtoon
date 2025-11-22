@@ -10,11 +10,12 @@ use tokio::sync::RwLock;
 use crate::{
     platform::webtoons::{
         Webtoon,
-        error::{BlockUserError, ClientError, PostError, ReplyError},
+        error::{BlockUserError, PostError, PostsError, ReplyError, RequestError, SessionError},
         meta::Scope,
         webtoon::post::id::Id,
     },
     private::Sealed,
+    stdx::error::invariant,
 };
 
 use super::Episode;
@@ -767,6 +768,11 @@ impl Post {
     /// # }
     /// ```
     pub async fn unvote(&self) -> Result<(u32, u32), PostError> {
+        let Some(session) = self.episode.webtoon.client.session.as_deref() else {
+            return Err(SessionError::NoSessionProvided.into());
+        };
+
+        // TODO: Move to `Client::upvote_post`
         let page_id = format!(
             "{}_{}_{}",
             match self.episode.webtoon.scope {
@@ -794,15 +800,6 @@ impl Post {
 
         let token = self.episode.webtoon.client.get_api_token().await?;
 
-        let session = self
-            .episode
-            .webtoon
-            .client
-            .session
-            .as_ref()
-            .map(|session| session.to_string())
-            .ok_or(ClientError::NoSessionProvided)?;
-
         self.episode
             .webtoon
             .client
@@ -813,12 +810,14 @@ impl Post {
             .header("Cookie", format!("NEO_SES={session}"))
             .header("Api-Token", token)
             .send()
-            .await?;
+            .await
+            .map_err(RequestError)?;
 
         let mut reaction = self.poster.reaction.write().await;
         *reaction = Reaction::None;
         drop(reaction);
 
+        // Get updated values.
         self.upvotes_and_downvotes().await
     }
 
@@ -859,6 +858,13 @@ impl Post {
 
         let mut upvotes = 0;
         let mut downvotes = 0;
+
+        invariant!(
+            response.result.emotions.len() < 3,
+            "`webtoons.com` post api should only have either upvotes or downvotes, yet had three items: {:?}",
+            response.result.emotions
+        );
+
         for emotion in response.result.emotions {
             if emotion.emotion_id == "like" {
                 upvotes = emotion.count;
@@ -912,7 +918,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn replies<R: Replies>(&self) -> Result<R, PostError> {
+    pub async fn replies<R: Replies>(&self) -> Result<R, PostsError> {
         R::replies(self).await
     }
 
@@ -956,6 +962,7 @@ impl Post {
             .client
             .post_reply(self, body, is_spoiler)
             .await?;
+
         Ok(())
     }
 
@@ -1354,26 +1361,27 @@ impl Poster {
     ///
     /// If attempting to block self, [`PosterError::BlockSelf`] will be returned.
     pub async fn block(&self) -> Result<(), BlockUserError> {
-        let user = self
-            .webtoon
-            .client
-            .get_user_info_for_webtoon(&self.webtoon)
-            .await?;
-
-        // Check first as blocking can only be done on a webtoon that user is creator of.
-        if !user.is_webtoon_creator() {
-            return Err(BlockUserError::InvalidPermissions);
+        // Return early if already blocked.
+        if self.is_blocked {
+            return Ok(());
         }
 
         if self.is_current_session_user {
             return Err(BlockUserError::BlockSelf);
         }
 
-        // Return early if already blocked
-        if self.is_blocked {
-            return Ok(());
+        let user = self
+            .webtoon
+            .client
+            .get_user_info_for_webtoon(&self.webtoon)
+            .await?;
+
+        // Blocking can only be done on a Webtoon that user is creator of.
+        if !user.is_webtoon_creator() {
+            return Err(BlockUserError::NotCreator);
         }
 
+        // TODO: move to Client::block_user
         let page_id = format!(
             "{}_{}_{}",
             match self.webtoon.scope {
@@ -1402,7 +1410,7 @@ impl Poster {
             .client
             .session
             .as_ref()
-            .ok_or(ClientError::NoSessionProvided)?;
+            .ok_or(BlockUserError::NoSessionProvided)?;
 
         self.webtoon
             .client
@@ -1414,7 +1422,8 @@ impl Poster {
             .header("Api-Token", token)
             .json(&payload)
             .send()
-            .await?;
+            .await
+            .map_err(RequestError)?;
 
         Ok(())
     }
@@ -1480,18 +1489,18 @@ impl From<Vec<Post>> for Posts {
 pub trait Replies: Sized + Sealed {
     /// Returns the replies for a post.
     #[allow(async_fn_in_trait, reason = "internal use only")]
-    async fn replies(post: &Post) -> Result<Self, PostError>;
+    async fn replies(post: &Post) -> Result<Self, PostsError>;
 }
 
 impl Replies for u32 {
-    async fn replies(post: &Post) -> Result<Self, PostError> {
+    async fn replies(post: &Post) -> Result<Self, PostsError> {
         Ok(post.replies)
     }
 }
 
 impl Sealed for Posts {}
 impl Replies for Posts {
-    async fn replies(post: &Post) -> Result<Self, PostError> {
+    async fn replies(post: &Post) -> Result<Self, PostsError> {
         // No need to make a network request when there ar no replies to fetch.
         if post.replies == 0 {
             return Ok(Posts { posts: Vec::new() });
@@ -1552,7 +1561,6 @@ pub(crate) mod id {
     type Result<T, E = ParseIdError> = core::result::Result<T, E>;
 
     /// Represents possible errors when parsing a posts id.
-    #[non_exhaustive]
     #[derive(Error, Debug)]
     pub enum ParseIdError {
         /// Error for an invalid id format.
@@ -1674,13 +1682,12 @@ pub(crate) mod id {
                 return Err(ParseIdError::InvalidFormat {
                     id: s.to_owned(),
                     context: format!(
-                        r#"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but {page_id} only has {} parts"#,
+                        r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` only has {} parts",
                         page_id_parts.len()
                     ),
                 });
             }
 
-            // trick to get a static str from a runtime value
             let scope = match page_id_parts[0] {
                 "w" => Scope::W,
                 "c" => Scope::C,

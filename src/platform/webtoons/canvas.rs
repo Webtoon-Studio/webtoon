@@ -19,13 +19,15 @@
 //! # }
 //! ```
 
-use anyhow::{Context, Result, anyhow};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
-use crate::stdx::error::invariant;
+use crate::{
+    platform::webtoons::error::CanvasError,
+    stdx::error::{Invariant, invariant},
+};
 
-use super::{Client, Language, Webtoon, error::CanvasError};
+use super::{Client, Language, Webtoon};
 
 pub(super) async fn scrape(
     client: &Client,
@@ -49,22 +51,15 @@ pub(super) async fn scrape(
         std::ops::Bound::Unbounded => 100,
     };
 
-    // TODO: See if this is possible `10..1`.
-    if start > end {
-        return Err(CanvasError::Unexpected(anyhow!(
-            "range start was greater than range end",
-        )));
-    }
-
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
         let html = client.get_canvas_page(language, page, sort).await?;
 
         for card in html.select(&selector) {
-            let href = card
-                .attr("href")
-                .context("`href` is missing, `a` tag should always have one")?;
+            let href = card.attr("href").invariant(
+                "`href` attribute is missing on `webtoon.com` `Canvas` page, `a` tag should always have one",
+            )?;
 
             let webtoon = match Webtoon::from_url_with_client(href, client) {
                 Ok(webtoon) => webtoon,

@@ -1,5 +1,4 @@
 use chrono::DateTime;
-use parking_lot::RwLock;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -11,13 +10,15 @@ use crate::{
             episode::{self, AdStatus, Episode},
         },
     },
-    stdx::math::MathExt,
+    stdx::{cache::Cache, error::invariant, math::MathExt},
 };
-use std::{collections::HashSet, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashSet, str::FromStr, time::Duration};
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
-    // WARN: There must not be any mutating of episodes while in the HashSet, only inserts.
-    #[allow(clippy::mutable_key_type)]
+    #[expect(
+        clippy::mutable_key_type,
+        reason = "`Episode` has interior mutability, but `Hash` is only on the `number`"
+    )]
     let mut episodes: HashSet<Episode> = HashSet::new();
 
     let dashboard_episodes = webtoon.client.get_episodes_dashboard(webtoon, 1).await?;
@@ -28,21 +29,31 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     let pages = dashboard_episodes[0].metadata.number.in_bucket_of(10);
 
     for episode in dashboard_episodes {
+        let published = match episode
+            .published
+            .map(|timestamp| DateTime::from_timestamp_millis(timestamp))
+        {
+            Some(Some(published)) => Some(published),
+            Some(None) => invariant!(
+                "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
+                episode.published
+            ),
+            None => None,
+        };
+
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,
-            season: Arc::new(RwLock::new(episode::season(&episode.metadata.title))),
-            title: Arc::new(RwLock::new(Some(episode.metadata.title))),
-            published: episode.published.map(|timestamp| {
-                DateTime::from_timestamp_millis(timestamp)
-                    .expect("webtoons should be using proper timestamps")
-            }),
-            length: Arc::new(RwLock::new(None)),
-            thumbnail: Arc::new(RwLock::new(None)),
-            note: Arc::new(RwLock::new(None)),
-            panels: Arc::new(RwLock::new(None)),
+            season: Cache::new(episode::season(&episode.metadata.title)),
+            title: Cache::new(episode.metadata.title),
+            published,
+            length: Cache::empty(),
+            thumbnail: Cache::empty(),
+            note: Cache::empty(),
+            panels: Cache::empty(),
             views: Some(episode.metadata.views),
             ad_status: Some(episode.dashboard_status.ad_status()),
+            // TODO: look into the From impl for this as this might need to be try_from
             published_status: Some(episode.dashboard_status.into()),
         });
     }
@@ -51,27 +62,49 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
         let dashboard_episodes = webtoon.client.get_episodes_dashboard(webtoon, page).await?;
 
         for episode in dashboard_episodes {
+            let published = match episode
+                .published
+                .map(|timestamp| DateTime::from_timestamp_millis(timestamp))
+            {
+                Some(Some(published)) => Some(published),
+                Some(None) => invariant!(
+                    "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
+                    episode.published
+                ),
+                None => None,
+            };
+
             episodes.insert(Episode {
                 webtoon: webtoon.clone(),
                 number: episode.metadata.number,
-                season: Arc::new(RwLock::new(episode::season(&episode.metadata.title))),
-                title: Arc::new(RwLock::new(Some(episode.metadata.title))),
-                published: episode.published.map(|timestamp| {
-                    DateTime::from_timestamp_millis(timestamp)
-                        .expect("webtoons should be using proper timestamps")
-                }),
-                length: Arc::new(RwLock::new(None)),
-                thumbnail: Arc::new(RwLock::new(None)),
-                note: Arc::new(RwLock::new(None)),
-                panels: Arc::new(RwLock::new(None)),
+                season: Cache::new(episode::season(&episode.metadata.title)),
+                title: Cache::new(episode.metadata.title),
+                published,
+                length: Cache::empty(),
+                thumbnail: Cache::empty(),
+                note: Cache::empty(),
+                panels: Cache::empty(),
                 views: Some(episode.metadata.views),
                 ad_status: Some(episode.dashboard_status.ad_status()),
                 published_status: Some(episode.dashboard_status.into()),
             });
         }
 
+        // QUESTION: Maybe dont need this?
         // Sleep for one second to prevent getting a 429 response code for going between the pages too quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    // NOTE: we don't test on `invariant!(!episodes.is_empty())` as the dashboard could be of a brand new Webtoon.
+
+    match u16::try_from(episodes.len()) {
+        Ok(_) => {}
+        Err(err) => {
+            invariant!(
+                "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
+                episodes.len()
+            )
+        }
     }
 
     let mut episodes: Vec<Episode> = episodes.into_iter().collect();

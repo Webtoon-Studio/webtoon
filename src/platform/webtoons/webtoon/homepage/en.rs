@@ -13,6 +13,7 @@ use crate::{
         webtoon::{WebtoonError, episode::Episode},
     },
     stdx::{
+        cache::Cache,
         error::{Invariant, invariant},
         math::MathExt,
     },
@@ -571,16 +572,16 @@ pub(super) fn episode(
 
     Ok(Episode {
         webtoon: webtoon.clone(),
-        season: Arc::new(RwLock::new(episode::season(&title))),
-        title: Arc::new(RwLock::new(Some(title))),
+        season: Cache::new(episode::season(&title)),
+        title: Cache::new(title),
         number,
         published: Some(published),
         published_status: Some(PublishedStatus::Published),
 
-        length: Arc::new(RwLock::new(None)),
-        thumbnail: Arc::new(RwLock::new(None)),
-        note: Arc::new(RwLock::new(None)),
-        panels: Arc::new(RwLock::new(None)),
+        length: Cache::empty(),
+        thumbnail: Cache::empty(),
+        note: Cache::empty(),
+        panels: Cache::empty(),
         views: None,
         // NOTE:
         // It is impossible to say from this page what its ad status, at any

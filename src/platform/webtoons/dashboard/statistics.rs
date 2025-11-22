@@ -1,7 +1,10 @@
 use scraper::{Html, Selector};
 
 use crate::{
-    platform::webtoons::{Webtoon, error::WebtoonError},
+    platform::webtoons::{
+        Webtoon,
+        error::{StatsDashboardError, WebtoonError},
+    },
     stdx::error::{Invariant, invariant},
 };
 
@@ -28,9 +31,10 @@ pub struct Previous {
     pub average_views_per_update: Option<u32>,
 }
 
-pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, WebtoonError> {
+pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
     let html = webtoon.client.get_stats_dashboard(webtoon).await?;
 
+    // TODO: For now only need subscribers from here, but could do the others as well.
     Ok(Stats {
         subscribers: subscribers(&html)?,
         ..Default::default()
@@ -38,27 +42,29 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, WebtoonError> {
 }
 
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
-    let category_selector =
-        Selector::parse(r".col3>p").expect("`.col3>p` should be a valid selector");
+    {
+        let selector = Selector::parse(r".col3>p") //
+            .expect("`.col3>p` should be a valid selector");
 
-    let category = html
-        .select(&category_selector)
+        let category = html
+        .select(&selector)
         .next()
         .invariant("`.col3>p`, representing a category, is missing on `webtoons.com` Webtoon stats dashboard: should have an element which says what category its for, eg. `Subscribers`")?
         .text()
         .next()
         .invariant("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category, but no text was present in element")?;
 
-    invariant!(
-        category == "Subscribers",
-        "expected to find `Subscribers` category on `webtoons.com` stats dashboard at `.col3>p`, but instead found: `{category}`"
-    );
+        invariant!(
+            category == "Subscribers",
+            "expected to find `Subscribers` category on `webtoons.com` stats dashboard at `.col3>p`, but instead found: `{category}`"
+        );
+    }
 
-    let subscribers_selector = Selector::parse(r".col3>.num") //
+    let selector = Selector::parse(r".col3>.num") //
         .expect("`.col3>.num` should be a valid selector");
 
     let count = html
-        .select(&subscribers_selector)
+        .select(&selector)
         .next()
         .invariant("`.col3>.num` on `webtoons.com` stats dashboard is missing: subscriber category was found, and should have a value associated with it, but nothing was found")?
         .text()
@@ -80,6 +86,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 
             (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
+        // TODO: match on thousands and hundreds separately
         thousand => thousand
             .replace(',', "")
             .parse::<u32>()

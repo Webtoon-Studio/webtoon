@@ -1,15 +1,20 @@
-use anyhow::{Context, anyhow};
-// use chrono::serde::ts_milliseconds_option;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::hash::Hash;
 
-use crate::platform::webtoons::{dashboard::episodes::DashboardStatus, error::EpisodeError};
+use crate::{
+    platform::webtoons::{dashboard::episodes::DashboardStatus, error::EpisodeError},
+    stdx::error::invariant,
+};
 
 pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
-    // PERF: Creating new string during cleaning
+    const START: &str = "dashboardEpisodeList: ";
+    const END: char = ',';
+
     fn clean(line: &str) -> String {
         // Removes `dashboardEpisodeList: ` from the front and `,` from the back
-        let cleaned = line[22..line.len() - 1]
+        let cleaned = line
+            .trim_start_matches(START)
+            .trim_end_matches(END)
             .replace(r"\'", "'")
             .replace(r"\x3c", "<")
             // If left in, the HTML entity decode will leave raw `"` in the string, leaving a malformed JSON because of it
@@ -18,23 +23,30 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
         html_escape::decode_html_entities(&cleaned).to_string()
     }
 
-    for line in html.lines().rev() {
-        let trimmed = line.trim_start();
-
-        if trimmed.starts_with("dashboardEpisodeList") {
-            return Ok(
-                serde_json::from_str::<Vec<DashboardEpisode>>(&clean(trimmed))
-                    .with_context(|| trimmed.to_string())?,
-            );
+    if let Some(json) = html
+        .lines()
+        // PERF:
+        // The wanted line is closer to the bottom
+        // of the HTML so start there and work up.
+        .rev()
+        .map(|line| line.trim_start())
+        .find(|line| line.starts_with(START) && line.ends_with(END))
+        .map(|line| clean(line))
+    {
+        match serde_json::from_str::<Vec<DashboardEpisode>>(&json) {
+            Ok(episodes) => return Ok(episodes),
+            Err(err) => invariant!(
+                "failed to deserialize `dashboardEpisodeList` json from `webtoons.com` episode dashboard: {err}\n\n{json}"
+            ),
         }
     }
 
-    Err(EpisodeError::Unexpected(anyhow!(
-        "failed to find `dashboardEpisodeList` as the start of any line:\n\n{html}"
-    )))
+    invariant!(
+        "failed to find line that starts with `{START}` and ends with `{END}` on `webtoons.com` episode dashboard:\n\n{html}"
+    );
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize)]
 pub struct DashboardEpisode {
     #[serde(alias = "episode")]
     pub metadata: Metadata,
@@ -78,13 +90,13 @@ impl Hash for DashboardEpisode {
     where
         Self: Sized,
     {
-        for piece in data {
-            piece.hash(state);
+        for episode in data {
+            episode.hash(state);
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Deserialize)]
 pub struct Metadata {
     #[serde(alias = "episodeNo")]
     pub number: u16,
@@ -109,6 +121,8 @@ pub struct Metadata {
     #[serde(alias = "creatorNote")]
     pub creator_note: String,
 }
+
+// use chrono::serde::ts_milliseconds_option;
 
 // #[derive(Debug, Deserialize, Clone, Copy, Serialize, Hash, PartialEq, Eq)]
 // pub struct RewardAdOnDate {
