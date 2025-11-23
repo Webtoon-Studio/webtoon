@@ -51,50 +51,50 @@ impl FromStr for Language {
     }
 }
 
-impl Language {
-    /// Returns a string representation of the language.
-    /// - En -> "en"
-    /// - Zh -> "zh-hant"
-    /// - Th -> "th"
-    /// - Id -> "id"
-    /// - Es -> "es"
-    /// - Fr -> "fr"
-    /// - De -> "de"
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::En => "en",
-            Self::Zh => "zh-hant",
-            Self::Th => "th",
-            Self::Id => "id",
-            Self::Es => "es",
-            Self::Fr => "fr",
-            Self::De => "de",
-        }
-    }
+// impl Language {
+//     /// Returns a string representation of the language.
+//     /// - En -> "en"
+//     /// - Zh -> "zh-hant"
+//     /// - Th -> "th"
+//     /// - Id -> "id"
+//     /// - Es -> "es"
+//     /// - Fr -> "fr"
+//     /// - De -> "de"
+//     #[must_use]
+//     pub const fn as_str_lower(self) -> &'static str {
+//         match self {
+//             Self::En => "en",
+//             Self::Zh => "zh-hant",
+//             Self::Th => "th",
+//             Self::Id => "id",
+//             Self::Es => "es",
+//             Self::Fr => "fr",
+//             Self::De => "de",
+//         }
+//     }
 
-    /// Returns a string representation of the language.
-    /// - En -> "ENGLISH"
-    /// - Zh -> "CHINESE"
-    /// - Th -> "THAI"
-    /// - Id -> "INDONESIAN"
-    /// - Es -> "SPANISH"
-    /// - Fr -> "FRENCH"
-    /// - De -> "GERMAN"
-    #[must_use]
-    pub const fn as_str_caps(self) -> &'static str {
-        match self {
-            Self::En => "ENGLISH",
-            Self::Th => "THAI",
-            Self::Id => "INDONESIAN",
-            Self::Es => "SPANISH",
-            // Below haven't been confirmed.
-            Self::Zh => "CHINESE",
-            Self::De => "GERMAN",
-            Self::Fr => "FRENCH",
-        }
-    }
-}
+//     /// Returns a string representation of the language.
+//     /// - En -> "ENGLISH"
+//     /// - Zh -> "CHINESE"
+//     /// - Th -> "THAI"
+//     /// - Id -> "INDONESIAN"
+//     /// - Es -> "SPANISH"
+//     /// - Fr -> "FRENCH"
+//     /// - De -> "GERMAN"
+//     #[must_use]
+//     pub const fn as_str_caps(self) -> &'static str {
+//         match self {
+//             Self::En => "ENGLISH",
+//             Self::Th => "THAI",
+//             Self::Id => "INDONESIAN",
+//             Self::Es => "SPANISH",
+//             // Below haven't been confirmed.
+//             Self::Zh => "CHINESE",
+//             Self::De => "GERMAN",
+//             Self::Fr => "FRENCH",
+//         }
+//     }
+// }
 
 /// Represents the type a webtoon can be on webtoons.com.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
