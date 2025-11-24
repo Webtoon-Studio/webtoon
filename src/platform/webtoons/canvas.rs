@@ -89,7 +89,7 @@ pub enum Sort {
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let sort = match self {
-            Self::Popularity => "READ_COUNT",
+            Self::Popularity => "MANA",
             Self::Likes => "LIKEIT",
             Self::Date => "UPDATE",
         };
