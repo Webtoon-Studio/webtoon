@@ -1579,39 +1579,44 @@ fn is_audio_reader(html: &Html) -> Result<bool, InternalInvariant> {
 }
 
 fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
-    let mut float = img
-            .value()
-            .attr("height")
-            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
-            .split('.');
+    let value = img.value().attr("height").invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
-    let height = match float
-            .next()
-            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
-            .parse::<u32>()
+    let height = match value {
+        float if float.chars().any(|char| char == '.') => {
+            let mut float = float.split('.');
+
+            let height = match float
+                .next()
+                .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+                .parse::<u32>()
              {
                 Ok(height) => height,
                 Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
              };
 
-    {
-        match float.next() {
-            Some("0") => {}
-            Some(val) => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
-            ),
-            None => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
-            ),
-        }
+            match float.next() {
+                Some(_) => {}
+                None => invariant!(
+                    "`webtoons.com` episode `height` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
+                ),
+            }
 
-        match float.next() {
-            None => {}
-            Some(val) => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
-            ),
+            match float.next() {
+                None => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode `height` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
+                ),
+            }
+
+            height
         }
-    }
+        height => match height.parse::<u32>() {
+            Ok(width) => width,
+            Err(err) => invariant!(
+                "`height` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{height}"
+            ),
+        },
+    };
 
     invariant!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
@@ -1623,39 +1628,47 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
 }
 
 fn width(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
-    let mut float = img
-            .value()
-            .attr("width")
-            .invariant("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
-            .split('.');
+    let value = img
+        .value()
+        .attr("width")
+        .invariant("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
-    let width = match float
-            .next()
-            .invariant("`width` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
-            .parse::<u32>()
-             {
-                Ok(width) => width,
-                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-             };
+    let width = match value {
+        float if float.chars().any(|char| char == '.') => {
+            let mut float = float.split('.');
 
-    {
-        match float.next() {
-            Some("0") => {}
-            Some(val) => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
-            ),
-            None => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
-            ),
+            let width = match float.next()
+                .invariant("detected a `.` in `width` attribute on `webtoons.com` episode page, so should be a float, `720.0`, so should always split on `.`: `720` `0`")?
+                .parse::<u32>()
+                {
+                    Ok(width) => width,
+                    Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+                };
+
+            match float.next() {
+                Some(_) => {}
+                None => invariant!(
+                    "`webtoons.com` episode `width` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => invariant!(
+                    "`webtoons.com` episode `width` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
+                ),
+            }
+
+            width
         }
-
-        match float.next() {
-            None => {}
-            Some(val) => invariant!(
-                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+        // Width can also be a whole number: `800`.
+        width => match width.parse::<u32>() {
+            Ok(width) => width,
+            Err(err) => invariant!(
+                "`width` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{width}"
             ),
-        }
-    }
+        },
+    };
 
     invariant!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
