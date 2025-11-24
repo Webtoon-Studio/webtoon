@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use regex::Regex;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -1477,6 +1477,11 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
 }
 
 fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
+    // TODO: Canvas: 1085313, Episode 1:
+    // Width can be an integer: 800
+    // Height isn't always a float that end in `0`: 1203.8240917782027
+    // Should assume that height can also be a whole number
+
     if is_audio_reader(html)? {
         return Ok(None);
     }
@@ -1487,48 +1492,8 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
     let mut length = 0;
 
     for img in html.select(&selector) {
-        let mut float = img
-            .value()
-            .attr("height")
-            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
-            .split('.');
-
-        let height = match float
-            .next()
-            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
-            .parse::<u32>()
-             {
-                Ok(height) => height,
-                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-             };
-
-        {
-            match float.next() {
-                Some("0") => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
-                ),
-                None => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
-                ),
-            }
-
-            match float.next() {
-                None => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
-                ),
-            }
-        }
-
-        length += height;
+        length += height(img)?;
     }
-
-    invariant!(
-        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
-        length <= 1280,
-        "`webtoons.com` enforces strict limits of `1280` pixels in height"
-    );
 
     Ok(Some(length))
 }
@@ -1553,7 +1518,7 @@ fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
     Ok(Some(note.to_string()))
 }
 
-fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
+fn thumbnail(html: &Html, episode: u16) -> Result<Url, InternalInvariant> {
     let selector =
         Selector::parse(r"div.episode_lst>div.episode_cont>ul>li") //
             .invariant(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
@@ -1611,6 +1576,94 @@ fn is_audio_reader(html: &Html) -> Result<bool, InternalInvariant> {
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
     Ok(html.select(&selector).next().is_some())
+}
+
+fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
+    let mut float = img
+            .value()
+            .attr("height")
+            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
+            .split('.');
+
+    let height = match float
+            .next()
+            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+            .parse::<u32>()
+             {
+                Ok(height) => height,
+                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+    {
+        match float.next() {
+            Some("0") => {}
+            Some(val) => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
+            ),
+            None => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
+            ),
+        }
+
+        match float.next() {
+            None => {}
+            Some(val) => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+            ),
+        }
+    }
+
+    invariant!(
+        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+        height <= 1280,
+        "`webtoons.com` enforces strict limits of `1280` pixels in height"
+    );
+
+    Ok(height)
+}
+
+fn width(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
+    let mut float = img
+            .value()
+            .attr("width")
+            .invariant("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
+            .split('.');
+
+    let width = match float
+            .next()
+            .invariant("`width` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+            .parse::<u32>()
+             {
+                Ok(width) => width,
+                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+    {
+        match float.next() {
+            Some("0") => {}
+            Some(val) => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
+            ),
+            None => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
+            ),
+        }
+
+        match float.next() {
+            None => {}
+            Some(val) => invariant!(
+                "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
+            ),
+        }
+    }
+
+    invariant!(
+        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+        width <= 800,
+        "`webtoons.com` enforces strict limits of `800` pixels in width"
+    );
+
+    Ok(width)
 }
 
 /// Represents a single panel for an episode.
@@ -1681,86 +1734,6 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
     let mut panels = Vec::new();
 
     for (number, img) in html.select(&selector).enumerate() {
-        let mut float = img
-            .value()
-            .attr("height")
-            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
-            .split('.');
-
-        let height = match float
-            .next()
-            .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
-            .parse::<u32>()
-             {
-                Ok(height) => height,
-                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-             };
-
-        {
-            match float.next() {
-                Some("0") => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
-                ),
-                None => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
-                ),
-            }
-
-            match float.next() {
-                None => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
-                ),
-            }
-        }
-
-        invariant!(
-            // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
-            height <= 1280,
-            "`webtoons.com` enforces strict limits of `1280` pixels in height"
-        );
-
-        let mut float = img
-            .value()
-            .attr("height")
-            .invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?
-            .split('.');
-
-        let width = match float
-            .next()
-            .invariant("`width` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
-            .parse::<u32>()
-             {
-                Ok(width) => width,
-                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-             };
-
-        {
-            match float.next() {
-                Some("0") => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet this part was not `0`, got: {val}"
-                ),
-                None => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet nothing was yielded to the right of the `.`"
-                ),
-            }
-
-            match float.next() {
-                None => {}
-                Some(val) => invariant!(
-                    "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
-                ),
-            }
-        }
-
-        invariant!(
-            // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
-            width <= 800,
-            "`webtoons.com` enforces strict limits of `800` pixels in width"
-        );
-
         let data_url = img
             .value()
             .attr("data-url")
@@ -1791,8 +1764,8 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
             number: u16::try_from(number + 1)
                 // TODO: see if can check actual limits to enforce better.
                 .invariant("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
-            height,
-            width,
+            height: height(img)?,
+            width: width(img)?,
             ext,
             bytes: Vec::new(),
         });
