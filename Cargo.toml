@@ -12,62 +12,54 @@ description = "Client for interacting with various webtoon websites."
 keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 
 [package.metadata.playground]
-features = ["rss"]
+features = ["rss", "naver"]
 
 [package.metadata.docs.rs]
-features = ["rss"]
+features = ["rss", "download", "naver"]
 all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Currently using `Mutex`, `sleep`, and `Semaphore`.
-# When `feature = "download"` in enabled, it also uses `fs`.
-tokio = { version = "1", features = ["sync", "time"] }
+# Currently using `sleep`.
+# When `feature = "download"` in enabled, it also uses `fs` and `sync`(Semaphore).
+tokio = { version = "1", features = ["time"] }
 futures = "0.3"
-
 url = "2"
-# Used when the session needs to be sent in a URL
-urlencoding = "2"
+urlencoding = "2" # Used when the session needs to be sent in a URL
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
-
-# Used for getting the URL from the CSS of the thumbnail and the season numbers from the title
-regex = "1"
-
+regex = "1" # Used for getting the URL from the CSS of the thumbnail and the season numbers from the title
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
-
+chrono = { version = "0.4",default-features = false, features = ["std", "serde"] }
 scraper = "0.24"
 html-escape = "0.2"
-
 parking_lot = "0.12"
-
 fastrand = "2"
-
 anyhow = "1"
 thiserror = "2"
 error_set = "0.9.0"
 
 # feature = `download`
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"], optional = true}
-
-# `feature = "rss"` and `feature = "naver"`
-rss = { version = "2", optional = true }
+# `feature = "rss"`
+rss = { version = "2", optional = true, default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1"
 tokio = { version = "1", features = ["full"] }
+chrono = "0.4"
 
 [features]
 default = []
 rss = ["dep:rss"]
-download = ["dep:image", "tokio/fs"]
+# `tokio/sync` is currently needed for `Semaphore`.
+download = ["dep:image", "tokio/sync", "tokio/fs"]
 # `image` is needed as currently the only way to get the size of the episodes is
 # to download the panels and then convert them to an image and use the metadata
 # to get the sizes.
-naver = ["dep:image"]
+# `tokio/sync` is currently needed for `Semaphore`.
+naver = ["dep:image", "tokio/sync"]
 
 # `webtoons.com`
 [[example]]
