@@ -41,3 +41,16 @@ impl<T> Cache<T> {
         self.0.read().clone()
     }
 }
+
+impl<T> Store<T> {
+    #[inline]
+    pub fn or_default(self) -> T
+    where
+        T: Default,
+    {
+        match self {
+            Self::Empty => Default::default(),
+            Self::Value(item) => item,
+        }
+    }
+}

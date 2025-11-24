@@ -3,7 +3,6 @@
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use scraper::{Html, Selector};
-use serde_json::json;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -18,7 +17,6 @@ use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
     client::Client,
     error::{ClientError, EpisodeError},
-    meta::Scope,
 };
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{InternalInvariant, Invariant, invariant};
@@ -1203,53 +1201,10 @@ impl Episode {
     /// # }
     /// ```
     pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), PostsError> {
-        // TODO: Move logic to `Client`
-        let page_id = format!(
-            "{}_{}_{}",
-            match self.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            self.webtoon.id,
-            self.number
-        );
-
-        let spoiler_filter = if is_spoiler { "ON" } else { "OFF" };
-
-        let body = json!(
-            {
-                "pageId": page_id,
-                "settings":{
-                    "reply": "ON",
-                    "reaction": "ON",
-                    "spoilerFilter": spoiler_filter
-                },
-                "body": body
-            }
-        );
-
-        let token = self.webtoon.client.get_api_token().await?;
-
-        let session = self
-            .webtoon
-            .client
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
         self.webtoon
             .client
-            .http
-            .post("https://www.webtoons.com/p/api/community/v2/post")
-            .json(&body)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Api-Token", token)
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
-            .await
-            .map_err(RequestError)?;
-
+            .post_comment(self, body, is_spoiler)
+            .await?;
         Ok(())
     }
 

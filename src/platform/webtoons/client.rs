@@ -17,12 +17,12 @@ use crate::{
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
-            ApiTokenError, ClientBuilderError, CreatorWebtoonsError, DeletePostError, EpisodeError,
-            InvalidWebtoonUrl, LikesError, PostsError, ReactTokenError, RequestError, SessionError,
-            UserInfoError,
+            ApiTokenError, BlockUserError, ClientBuilderError, CreatorWebtoonsError,
+            DeletePostError, EpisodeError, InvalidWebtoonUrl, LikesError, PostsError,
+            ReactTokenError, RequestError, SessionError, UserInfoError,
         },
         search::Item,
-        webtoon::post::{PinRepresentation, id::Id},
+        webtoon::post::{PinRepresentation, Poster, id::Id},
     },
     stdx::{
         error::{Invariant, invariant},
@@ -48,7 +48,7 @@ use super::{
 use parking_lot::RwLock;
 use scraper::Html;
 use serde_json::json;
-use std::{collections::HashMap, ops::RangeBounds, sync::Arc};
+use std::{collections::HashMap, fmt::Display, ops::RangeBounds, sync::Arc};
 
 #[cfg(feature = "rss")]
 use std::str::FromStr;
@@ -81,7 +81,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct ClientBuilder {
     builder: reqwest::ClientBuilder,
-    session: Option<Arc<str>>,
+    session: Session,
 }
 
 impl Default for ClientBuilder {
@@ -112,7 +112,7 @@ impl ClientBuilder {
 
         Self {
             builder,
-            session: None,
+            session: Session::default(),
         }
     }
 
@@ -130,7 +130,7 @@ impl ClientBuilder {
     #[inline]
     #[must_use]
     pub fn with_session(mut self, session: &str) -> Self {
-        self.session = Some(Arc::from(session));
+        self.session = Session::new(session);
         self
     }
 
@@ -200,7 +200,7 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     pub(super) http: reqwest::Client,
-    pub(super) session: Option<Arc<str>>,
+    pub(super) session: Session,
 }
 
 // Creation impls
@@ -775,7 +775,7 @@ impl Client {
     #[inline]
     #[must_use]
     pub fn has_session(&self) -> bool {
-        self.session.is_some()
+        self.session.is_empty()
     }
 
     /// Tries to validate the current session.
@@ -803,13 +803,11 @@ impl Client {
     /// # }
     /// ```
     pub async fn has_valid_session(&self) -> Result<bool, SessionError> {
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided);
-        };
-
-        let user_info = self.user_info_for_session(session).await?;
-
-        Ok(user_info.is_logged_in())
+        match self.session.validate(self).await {
+            Ok(_) => Ok(true),
+            Err(SessionError::InvalidSession) => Ok(false),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -1005,13 +1003,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<(), SessionError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession);
-        }
-
-        let session = self.session.as_ref().invariant(
-            "checked with `has_valid_session` that session should exist, so should never be `None`",
-        )?;
+        let session = self.session.validate(self).await?;
 
         let mut form = HashMap::new();
         form.insert("titleNo", webtoon.id.to_string());
@@ -1040,13 +1032,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<(), SessionError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession);
-        }
-
-        let session = self.session.as_ref().invariant(
-            "checked with `has_valid_session` that session should exist, so should never be `None`",
-        )?;
+        let session = self.session.validate(self).await?;
 
         let mut form = HashMap::new();
         form.insert("titleNo", webtoon.id.to_string());
@@ -1076,9 +1062,7 @@ impl Client {
         webtoon: &Webtoon,
         page: u16,
     ) -> Result<Vec<DashboardEpisode>, EpisodeError> {
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided.into());
-        };
+        let session = self.session.validate(self).await?;
 
         let url = format!(
             "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}",
@@ -1104,9 +1088,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<Html, SessionError> {
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided);
-        };
+        let session = self.session.validate(self).await?;
 
         let language = match webtoon.language {
             Language::En => "en",
@@ -1217,12 +1199,6 @@ impl Client {
         &self,
         episode: &Episode,
     ) -> Result<RawLikesResponse, LikesError> {
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1234,10 +1210,16 @@ impl Client {
             "https://www.webtoons.com/api/v1/like/search/counts?serviceId=LINEWEBTOON&contentIds={scope}_{webtoon}_{episode}"
         );
 
-        let response = self
-            .http
-            .get(&url)
-            .header("Cookie", format!("NEO_SES={session}"))
+        let request = match self.session.validate(self).await {
+            Ok(session) => self
+                .http
+                .get(&url)
+                .header("Cookie", format!("NEO_SES={session}")),
+            Err(SessionError::NoSessionProvided) => self.http.get(&url),
+            Err(err) => return Err(err.into()),
+        };
+
+        let response = request
             .retry()
             .send()
             .await
@@ -1255,17 +1237,7 @@ impl Client {
     }
 
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), SessionError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession);
-        }
-
-        let session = self
-            .session
-            .as_ref()
-            // TODO: This is already checked on `has_valid_session`.
-            // Try to encapsulate returning a Option valid session ans return Invalid
-            // on None
-            .ok_or(SessionError::NoSessionProvided)?;
+        let session = self.session.validate(self).await?;
 
         let webtoon = episode.webtoon.id;
         let r#type = episode.webtoon.scope.as_single_letter();
@@ -1312,14 +1284,7 @@ impl Client {
     }
 
     pub(super) async fn unlike_episode(&self, episode: &Episode) -> Result<(), SessionError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession);
-        }
-
-        let session = self
-            .session
-            .as_ref()
-            .ok_or(SessionError::NoSessionProvided)?;
+        let session = self.session.validate(self).await?;
 
         let webtoon = episode.webtoon.id;
         let r#type = episode.webtoon.scope.as_single_letter();
@@ -1371,12 +1336,6 @@ impl Client {
         stride: u8,
         pin_representation: PinRepresentation,
     ) -> Result<RawPostResponse, PostsError> {
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1396,11 +1355,17 @@ impl Client {
             ),
         };
 
-        let response = self
-            .http
-            .get(&url)
+        let request = match self.session.validate(self).await {
+            Ok(session) => self
+                .http
+                .get(&url)
+                .header("Cookie", format!("NEO_SES={session}")),
+            Err(SessionError::NoSessionProvided) => self.http.get(&url),
+            Err(err) => return Err(err.into()),
+        };
+
+        let response = request
             .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
             .await
@@ -1421,19 +1386,11 @@ impl Client {
         &self,
         episode: &Episode,
     ) -> Result<bool, ClientError> {
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
         };
-
         let webtoon = episode.webtoon.id;
-
         let episode = episode.number;
 
         let url = format!(
@@ -1444,7 +1401,6 @@ impl Client {
             .http
             .get(&url)
             .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
             .await
@@ -1457,32 +1413,30 @@ impl Client {
         &self,
         post: &Post,
     ) -> Result<Count, PostError> {
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
+        let scope = match post.episode.webtoon.scope {
+            Scope::Original(_) => "w",
+            Scope::Canvas => "c",
+        };
+        let webtoon = post.episode.webtoon.id;
+        let episode = post.episode.number;
 
-        let page_id = format!(
-            "{}_{}_{}",
-            match post.episode.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            post.episode.webtoon.id,
-            post.episode.number
-        );
+        let id = post.id;
 
         let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/count",
-            post.id
+            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/count",
         );
 
-        let response = self
-            .http
-            .get(&url)
+        let request = match self.session.validate(self).await {
+            Ok(session) => self
+                .http
+                .get(&url)
+                .header("Cookie", format!("NEO_SES={session}")),
+            Err(SessionError::NoSessionProvided) => self.http.get(&url),
+            Err(err) => return Err(err.into()),
+        };
+
+        let response = request
             .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
             .await
@@ -1505,25 +1459,25 @@ impl Client {
         cursor: Option<Id>,
         stride: u8,
     ) -> Result<RawPostResponse, PostsError> {
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
-        let post_id = post.id;
+        let id = post.id;
 
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
 
         let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/post/{post_id}/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=false"
+            "https://www.webtoons.com/p/api/community/v2/post/{id}/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize={stride}&cursor={cursor}&withCursor=false"
         );
 
-        let response = self
-            .http
-            .get(&url)
+        let request = match self.session.validate(self).await {
+            Ok(session) => self
+                .http
+                .get(&url)
+                .header("Cookie", format!("NEO_SES={session}")),
+            Err(SessionError::NoSessionProvided) => self.http.get(&url),
+            Err(err) => return Err(err.into()),
+        };
+
+        let response = request
             .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
             .await
@@ -1540,18 +1494,58 @@ impl Client {
         }
     }
 
+    pub(super) async fn post_comment(
+        &self,
+        episode: &Episode,
+        body: &str,
+        is_spoiler: bool,
+    ) -> Result<(), SessionError> {
+        let page_id = format!(
+            "{}_{}_{}",
+            match episode.webtoon.scope {
+                Scope::Original(_) => "w",
+                Scope::Canvas => "c",
+            },
+            episode.webtoon.id,
+            episode.number
+        );
+
+        let spoiler_filter = if is_spoiler { "ON" } else { "OFF" };
+
+        let body = json!(
+            {
+                "pageId": page_id,
+                "settings":{
+                    "reply": "ON",
+                    "reaction": "ON",
+                    "spoilerFilter": spoiler_filter
+                },
+                "body": body
+            }
+        );
+
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
+
+        self.http
+            .post("https://www.webtoons.com/p/api/community/v2/post")
+            .json(&body)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Api-Token", token)
+            .header("Cookie", format!("NEO_SES={session}"))
+            .send()
+            .await
+            .map_err(RequestError)?;
+
+        Ok(())
+    }
+
     pub(super) async fn post_reply(
         &self,
         post: &Post,
         body: &str,
         is_spoiler: bool,
     ) -> Result<(), SessionError> {
-        // TODO: validate session
-        let session = self
-            .session
-            .as_deref()
-            .ok_or(SessionError::NoSessionProvided)?;
-
         let page_id = format!(
             "{}_{}_{}",
             match post.episode.webtoon.scope {
@@ -1573,7 +1567,8 @@ impl Client {
             }
         ];
 
-        let token = self.get_api_token().await?;
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
 
         self.http
             .post("https://www.webtoons.com/p/api/community/v2/post")
@@ -1592,13 +1587,8 @@ impl Client {
     }
 
     pub(super) async fn delete_post(&self, post: &Post) -> Result<(), DeletePostError> {
-        let token = self.get_api_token().await?;
-
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .ok_or(SessionError::NoSessionProvided)?;
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
 
         self.http
             .delete(format!(
@@ -1616,48 +1606,127 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn put_react_to_post(
+    pub(super) async fn react_to_post(
         &self,
         post: &Post,
         reaction: Reaction,
     ) -> Result<(), PostError> {
-        let page_id = format!(
-            "{}_{}_{}",
-            match post.episode.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            post.episode.webtoon.id,
-            post.episode.number
-        );
-
-        let url = match reaction {
-            Reaction::Upvote => format!(
-                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like",
-                post.id
+        let reaction = match reaction {
+            Reaction::Upvote => "like",
+            Reaction::Downvote => "dislike",
+            Reaction::None => invariant!(
+                "should never be used with `Reaction::None`, as should only be called from `post.upvote()`` or `post.downvote()`, and `None` doesnt make any sense to pass"
             ),
-            Reaction::Downvote => format!(
-                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike",
-                post.id
-            ),
-            Reaction::None => unreachable!("Should never be used with `Reaction::None`"),
         };
 
-        let token = self.get_api_token().await?;
+        let scope = match post.episode.webtoon.scope {
+            Scope::Original(_) => "w",
+            Scope::Canvas => "c",
+        };
+        let webtoon = post.episode.webtoon.id;
+        let episode = post.episode.number;
 
-        let session = self
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .ok_or(SessionError::NoSessionProvided)?;
+        let id = post.id;
+
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/{reaction}",
+        );
+
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
 
         self.http
             .put(&url)
             .header("Service-Ticket-Id", "epicom")
             .header("Referer", "https://www.webtoons.com/")
             .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token.clone())
+            .header("Api-Token", token)
             .retry()
+            .send()
+            .await
+            .map_err(RequestError)?;
+
+        // TODO: validate response
+
+        Ok(())
+    }
+
+    pub(super) async fn remove_post_reaction(
+        &self,
+        post: &Post,
+        reaction: Reaction,
+    ) -> Result<(), PostError> {
+        let reaction = match reaction {
+            Reaction::Upvote => "like",
+            Reaction::Downvote => "dislike",
+            Reaction::None => invariant!(
+                "should never be used with `Reaction::None`, as should only be called from `post.unvote()`, and `None` doesnt make any sense to pass"
+            ),
+        };
+
+        let scope = match post.episode.webtoon.scope {
+            Scope::Original(_) => "w",
+            Scope::Canvas => "c",
+        };
+        let webtoon = post.episode.webtoon.id;
+        let episode = post.episode.number;
+
+        let id = post.id;
+
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/{reaction}",
+        );
+
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
+
+        self.http
+            .delete(&url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Referer", "https://www.webtoons.com/")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Api-Token", token)
+            .retry()
+            .send()
+            .await
+            .map_err(RequestError)?;
+
+        // TODO: confirm it was done properly
+        // {"status":"success"}
+
+        Ok(())
+    }
+
+    pub(super) async fn block_user(&self, poster: &Poster) -> Result<(), BlockUserError> {
+        let scope = match poster.webtoon.scope {
+            Scope::Original(_) => "w",
+            Scope::Canvas => "c",
+        };
+        let webtoon = poster.webtoon.id;
+        let episode = poster.episode;
+
+        let cuid = poster.cuid();
+
+        let url = format!(
+            "https://www.webtoons.com/p/api/community/v1/restriction/type/write-post/page/{scope}_{webtoon}_{episode}/target/{cuid}",
+        );
+
+        let payload = json![
+            {
+                "sourcePostId": poster.post_id
+            }
+        ];
+
+        let session = self.session.validate(self).await?;
+        let token = self.get_api_token(&session).await?;
+
+        self.http
+            .post(url)
+            .header("Service-Ticket-Id", "epicom")
+            .header("Referer", "https://www.webtoons.com/")
+            .header("Cookie", format!("NEO_SES={session}"))
+            .header("Api-Token", token)
+            .json(&payload)
             .send()
             .await
             .map_err(RequestError)?;
@@ -1669,24 +1738,16 @@ impl Client {
         &self,
         webtoon: &Webtoon,
     ) -> Result<WebtoonUserInfo, UserInfoError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession.into());
-        }
+        let session = self.session.validate(self).await?;
 
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided.into());
-        };
+        let id = webtoon.id;
 
         let url = match webtoon.scope {
-            Scope::Original(_) => format!(
-                "https://www.webtoons.com/getTitleUserInfo?titleNo={}",
-                webtoon.id
-            ),
+            Scope::Original(_) => {
+                format!("https://www.webtoons.com/getTitleUserInfo?titleNo={id}")
+            }
             Scope::Canvas => {
-                format!(
-                    "https://www.webtoons.com/canvas/getTitleUserInfo?titleNo={}",
-                    webtoon.id
-                )
+                format!("https://www.webtoons.com/canvas/getTitleUserInfo?titleNo={id}")
             }
         };
 
@@ -1711,13 +1772,7 @@ impl Client {
     }
 
     async fn get_react_token(&self) -> Result<ReactToken, ReactTokenError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession.into());
-        }
-
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided.into());
-        };
+        let session = self.session.validate(self).await?;
 
         let response = self
             .http
@@ -1740,15 +1795,10 @@ impl Client {
         }
     }
 
-    pub(super) async fn get_api_token(&self) -> Result<String, ApiTokenError> {
-        if !self.has_valid_session().await? {
-            return Err(SessionError::InvalidSession.into());
-        }
-
-        let Some(session) = &self.session else {
-            return Err(SessionError::NoSessionProvided.into());
-        };
-
+    pub(super) async fn get_api_token(
+        &self,
+        session: &ValidSession,
+    ) -> Result<String, ApiTokenError> {
         let response = self
             .http
             .get("https://www.webtoons.com/p/api/community/v1/api-token")
@@ -1773,5 +1823,40 @@ impl Client {
 impl Default for Client {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub(crate) struct ValidSession(Arc<str>);
+
+impl Display for ValidSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Session(Option<Arc<str>>);
+
+impl Session {
+    fn new(session: &str) -> Self {
+        Self(Some(Arc::from(session)))
+    }
+
+    pub async fn validate(&self, client: &Client) -> Result<ValidSession, SessionError> {
+        let Some(session) = &self.0 else {
+            return Err(SessionError::NoSessionProvided);
+        };
+
+        let user_info = client.user_info_for_session(session).await?;
+
+        if !user_info.is_logged_in() {
+            return Err(SessionError::InvalidSession);
+        }
+
+        Ok(ValidSession(session.clone()))
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.as_ref().is_none_or(|session| session.is_empty())
     }
 }

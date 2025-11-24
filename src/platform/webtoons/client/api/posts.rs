@@ -1,7 +1,6 @@
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
 
 use crate::{
     platform::webtoons::{
@@ -11,7 +10,10 @@ use crate::{
             post::{Body, Flare, Giphy, Post, Poster, Reaction, Sticker, id::Id},
         },
     },
-    stdx::error::{Invariant, invariant},
+    stdx::{
+        cache::Cache,
+        error::{Invariant, invariant},
+    },
 };
 
 #[allow(dead_code)]
@@ -440,7 +442,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                 is_current_webtoon_creator: post.created_by.is_page_owner,
                 is_creator: post.created_by.is_creator,
                 is_blocked: post.created_by.restriction.is_write_post_restricted,
-                reaction: Arc::new(RwLock::new(reaction)),
+                reaction: Cache::new(reaction),
                 super_like,
             },
         })

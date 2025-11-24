@@ -2,20 +2,17 @@
 
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
-use serde_json::json;
 use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 use crate::{
     platform::webtoons::{
         Webtoon,
-        error::{BlockUserError, PostError, PostsError, ReplyError, RequestError, SessionError},
-        meta::Scope,
+        error::{BlockUserError, PostError, PostsError, ReplyError},
         webtoon::post::id::Id,
     },
     private::Sealed,
-    stdx::error::invariant,
+    stdx::{cache::Cache, error::invariant},
 };
 
 use super::Episode;
@@ -654,37 +651,29 @@ impl Post {
     /// # }
     /// ```
     pub async fn upvote(&self) -> Result<(u32, u32), PostError> {
+        // If true, user is trying to upvote their own post, which is not allowed.
         if self.poster.is_current_session_user {
-            // If is_owner is true then user is trying to upvote their own post which is not allowed
             return self.upvotes_and_downvotes().await;
         }
 
-        let reaction = self.poster.reaction.read().await;
-        match *reaction {
-            Reaction::Upvote => {
+        match self.poster.reaction.get().or_default() {
+            Reaction::Upvote | Reaction::None => {
                 return self.upvotes_and_downvotes().await;
             }
             Reaction::Downvote => {
-                // Must first remove downvote before we can upvote
-                // Drop read lock
-                drop(reaction);
                 self.unvote().await?;
-            }
-            Reaction::None => {
-                // Drop read lock
-                drop(reaction);
             }
         }
 
         self.episode
             .webtoon
             .client
-            .put_react_to_post(self, Reaction::Upvote)
+            .react_to_post(self, Reaction::Upvote)
             .await?;
 
-        let mut reaction = self.poster.reaction.write().await;
-        *reaction = Reaction::None;
-        drop(reaction);
+        // TODO: Confirm that it actually changed
+
+        self.poster.reaction.insert(Reaction::None);
 
         self.upvotes_and_downvotes().await
     }
@@ -722,32 +711,22 @@ impl Post {
             return self.upvotes_and_downvotes().await;
         }
 
-        let reaction = self.poster.reaction.read().await;
-        match *reaction {
+        match self.poster.reaction.get().or_default() {
             // Must first remove upvote before we can upvote
-            Reaction::Upvote => {
-                // Drop read lock
-                drop(reaction);
-                self.unvote().await?;
-            }
-            Reaction::Downvote => {
+            Reaction::Upvote => self.unvote().await?,
+            Reaction::Downvote | Reaction::None => {
                 return self.upvotes_and_downvotes().await;
             }
-            Reaction::None => {
-                // Drop read lock
-                drop(reaction);
-            }
-        }
+        };
 
         self.episode
             .webtoon
             .client
-            .put_react_to_post(self, Reaction::Downvote)
+            .react_to_post(self, Reaction::Downvote)
             .await?;
 
-        let mut reaction = self.poster.reaction.write().await;
-        *reaction = Reaction::None;
-        drop(reaction);
+        // Update to new state.
+        self.poster.reaction.insert(Reaction::None);
 
         self.upvotes_and_downvotes().await
     }
@@ -780,54 +759,25 @@ impl Post {
     /// # }
     /// ```
     pub async fn unvote(&self) -> Result<(u32, u32), PostError> {
-        let Some(session) = self.episode.webtoon.client.session.as_deref() else {
-            return Err(SessionError::NoSessionProvided.into());
-        };
-
-        // TODO: Move to `Client::upvote_post`
-        let page_id = format!(
-            "{}_{}_{}",
-            match self.episode.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            self.episode.webtoon.id,
-            self.episode.number
-        );
-
-        let reaction = self.poster.reaction.read().await;
-        let url = match *reaction {
-            Reaction::Upvote => format!(
-                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/like",
-                self.id
-            ),
-            Reaction::Downvote => format!(
-                "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{page_id}/content/{}/emotion/dislike",
-                self.id
-            ),
+        match self.poster.reaction.get().or_default() {
+            Reaction::Upvote => {
+                self.episode
+                    .webtoon
+                    .client
+                    .remove_post_reaction(self, Reaction::Upvote)
+                    .await?;
+            }
+            Reaction::Downvote => {
+                self.episode
+                    .webtoon
+                    .client
+                    .remove_post_reaction(self, Reaction::Downvote)
+                    .await?;
+            }
             Reaction::None => return self.upvotes_and_downvotes().await,
-        };
-        // Drop read lock
-        drop(reaction);
+        }
 
-        let token = self.episode.webtoon.client.get_api_token().await?;
-
-        self.episode
-            .webtoon
-            .client
-            .http
-            .delete(url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token)
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        let mut reaction = self.poster.reaction.write().await;
-        *reaction = Reaction::None;
-        drop(reaction);
+        self.poster.reaction.insert(Reaction::None);
 
         // Get updated values.
         self.upvotes_and_downvotes().await
@@ -1071,7 +1021,7 @@ impl Body {
 pub enum Flare {
     /// A GIF in a post.
     Giphy(Giphy),
-    /// A list of webtoons in a post.
+    /// A list of Webtoons in a post.
     Webtoons(Vec<Webtoon>),
     /// A sticker in a post.
     Sticker(Sticker),
@@ -1252,7 +1202,7 @@ pub struct Poster {
     pub(crate) is_blocked: bool,
     pub(crate) is_current_session_user: bool,
     pub(crate) is_current_webtoon_creator: bool,
-    pub(crate) reaction: Arc<RwLock<Reaction>>,
+    pub(crate) reaction: Cache<Reaction>,
     pub(crate) super_like: Option<u32>,
 }
 
@@ -1337,9 +1287,12 @@ impl Poster {
     /// Returns if the session user reacted to post.
     ///
     /// Returns `true` if the user reacted, `false` if not.
-    pub async fn reacted(&self) -> bool {
-        let reaction = self.reaction.read().await;
-        matches!(*reaction, Reaction::Upvote | Reaction::Downvote)
+    #[must_use]
+    pub fn reacted(&self) -> bool {
+        matches!(
+            self.reaction.get().or_default(),
+            Reaction::Upvote | Reaction::Downvote
+        )
     }
 
     /// Returns if current session user is creator of post.
@@ -1350,9 +1303,9 @@ impl Poster {
         self.is_current_session_user
     }
 
-    /// Returns if poster is a creator on the webtoons platform.
+    /// Returns if poster is a creator on the Webtoons platform.
     ///
-    /// This doesn't mean they are the creator of the current webtoon, just that they are a creator, though it could be of the current webtoon.
+    /// This doesn't mean they are the creator of the current Webtoon, just that they are a creator, though it could be of the current Webtoon.
     /// For that info use [`Poster::is_current_webtoon_creator`].
     #[must_use]
     pub fn is_creator(&self) -> bool {
@@ -1407,49 +1360,7 @@ impl Poster {
             return Err(BlockUserError::NotCreator);
         }
 
-        // TODO: move to Client::block_user
-        let page_id = format!(
-            "{}_{}_{}",
-            match self.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            self.webtoon.id,
-            self.episode
-        );
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v1/restriction/type/write-post/page/{page_id}/target/{}",
-            self.cuid
-        );
-
-        let payload = json![
-            {
-                "sourcePostId": self.post_id
-            }
-        ];
-
-        let token = self.webtoon.client.get_api_token().await?;
-
-        let session = self
-            .webtoon
-            .client
-            .session
-            .as_ref()
-            .ok_or(BlockUserError::NoSessionProvided)?;
-
-        self.webtoon
-            .client
-            .http
-            .post(url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(RequestError)?;
+        self.webtoon.client.block_user(self).await?;
 
         Ok(())
     }
@@ -1476,13 +1387,14 @@ impl Eq for Post {}
 /// **These are mutually exclusive**
 ///
 /// </div>
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Default)]
 pub enum Reaction {
     /// User has upvoted
     Upvote,
     /// User has downvoted
     Downvote,
     /// User has not voted
+    #[default]
     None,
 }
 
