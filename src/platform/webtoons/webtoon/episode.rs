@@ -1525,9 +1525,9 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
     }
 
     invariant!(
-        // TODO: see if there are upload limits imposed and add the value here.
-        length > 0,
-        "`webtoons.com` episodes must have at least 1 panel, and therefore have at least 1 pixel in height"
+        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+        length <= 1280,
+        "`webtoons.com` enforces strict limits of `1280` pixels in height"
     );
 
     Ok(Some(length))
@@ -1715,6 +1715,12 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
             }
         }
 
+        invariant!(
+            // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+            height <= 1280,
+            "`webtoons.com` enforces strict limits of `1280` pixels in height"
+        );
+
         let mut float = img
             .value()
             .attr("height")
@@ -1748,6 +1754,12 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
                 ),
             }
         }
+
+        invariant!(
+            // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+            width <= 800,
+            "`webtoons.com` enforces strict limits of `800` pixels in width"
+        );
 
         let data_url = img
             .value()
