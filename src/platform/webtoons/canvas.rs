@@ -72,6 +72,15 @@ pub(super) async fn scrape(
         }
     }
 
+    invariant!(
+        !webtoons.is_empty(),
+        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should never be empty"
+    );
+    invariant!(
+        webtoons.len() % 20 == 0,
+        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should `webtoons % 20 == 0`"
+    );
+
     Ok(webtoons)
 }
 
