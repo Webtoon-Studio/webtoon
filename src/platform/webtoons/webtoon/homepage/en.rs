@@ -350,18 +350,29 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 
     match subscribers.as_str() {
         millions if millions.ends_with('M') => {
-            let (millionth, hundred_thousandth) = millions
-                .trim_end_matches('M')
-                .split_once('.')
-                .invariant("on `webtoons.com` english Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
+            match millions {
+                float if float.chars().any(|char| char == '.') => {
+                    let (millionth, hundred_thousandth) = millions
+                        .trim_end_matches('M')
+                        .split_once('.')
+                        .invariant("on `webtoons.com` english Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
-            let millions = millionth.parse::<u32>()
-                .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
+                    let millions = millionth.parse::<u32>()
+                        .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
 
-            let hundred_thousands = hundred_thousandth.parse::<u32>()
-                .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}"))?;
+                    let hundred_thousands = hundred_thousandth.parse::<u32>()
+                        .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}"))?;
 
-            Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
+                    Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
+                }
+                // Can be `1M` as well, with no decimal.
+                digit => match digit.trim_end_matches('M').parse::<u32>() {
+                    Ok(million) => Ok(million * 1_000_000),
+                    Err(err) => invariant!(
+                        "`webtoons.com` subscribers count ended with `M`, didn't have any `.` inside, which must mean its a whole number, yet failed to parse into a `u32`: {err}\n\n{digit}"
+                    ),
+                },
+            }
         }
         thousands if thousands.contains(',') => {
             let (thousandth, hundreth) = thousands
