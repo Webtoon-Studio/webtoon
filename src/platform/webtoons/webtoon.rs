@@ -37,7 +37,7 @@ use crate::{
 ///
 /// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`].
 ///
-/// This abstracts over all the sections a Webtoon may be in, such as the `originals` or `canvas` sections. Relevant capabilities
+/// This abstracts over the sections a Webtoon may be in, such as the `originals` or `canvas` sections. Relevant capabilities
 /// are exposed, with methods taking missing features that may not exists across all sections into account.
 ///
 /// Read the method documentation for more info.
@@ -46,11 +46,11 @@ pub struct Webtoon {
     pub(super) client: Client,
     pub(super) id: u32,
     pub(super) language: Language,
-    // some genre for an original or canvas for canvas webtoons: "fantasy" or "canvas"
+    // Some genre for an original or `canvas` for canvas webtoons: "fantasy" or "canvas"
     pub(super) scope: Scope,
-    /// url slug of the webtoon name: Tower of God -> tower-of-god
+    /// URL slug of the Webtoon name: Tower of God -> tower-of-god
     pub(super) slug: Arc<str>,
-    /// Cache for data on the Wetboons landing page: title, etc.
+    /// Cache for data on the Webtoon homepage: title, etc.
     pub(super) page: Cache<Page>,
 }
 
@@ -95,6 +95,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn language(&self) -> Language {
         self.language
     }
@@ -122,6 +123,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -147,6 +149,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn r#type(&self) -> Type {
         match self.scope {
             Scope::Original(_) => Type::Original,
@@ -336,13 +339,13 @@ impl Webtoon {
     /// Retrieves the total number of views for this `Webtoon`.
     ///
     /// # Behavior
-    /// The method determines the total views based on whether the current session belongs to the creator of the webtoon:
+    /// The method determines the total views based on whether the current session belongs to the creator of the Webtoon:
     ///
-    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the view count from the webtoon's main page. This value may be rounded (e.g., `3,800,000`).
+    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the view count from the Webtoon's main page. This value may be rounded (e.g., `3,800,000`).
     /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method fetches more detailed episode-by-episode view counts and sums them to return a more accurate total view count (e.g., `3,804,237` instead of `3,800,000`).
     ///
     /// **ONLY ENGLISH DASHBOARD SUPPORTED**
-    /// - Even if valid session is provided for the webtoon creator, only the public data on the Webtoon's page will be gotten.
+    /// - Even if valid session is provided for the Webtoon Creator, only the public data on the Webtoon's page will be gotten.
     ///
     /// # Example
     ///

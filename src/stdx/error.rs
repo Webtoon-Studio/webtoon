@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 macro_rules! invariant {
     ($msg:literal $(, $args:expr)* ) => {{
         return Err($crate::stdx::error::InternalInvariant::from( format!($msg $(, $args)*)).into());
@@ -34,12 +36,11 @@ pub(crate) use invariant;
 pub struct InternalInvariant(String);
 
 impl From<String> for InternalInvariant {
+    #[inline]
     fn from(msg: String) -> Self {
         Self(msg)
     }
 }
-
-use thiserror::Error;
 
 pub trait Invariant<T> {
     type Output;
@@ -50,6 +51,7 @@ pub trait Invariant<T> {
 impl<T> Invariant<T> for Option<T> {
     type Output = Result<T, InternalInvariant>;
 
+    #[inline]
     fn invariant(self, msg: impl Into<String>) -> Self::Output {
         self.ok_or_else(|| InternalInvariant(msg.into()))
     }
@@ -58,6 +60,7 @@ impl<T> Invariant<T> for Option<T> {
 impl<T, E> Invariant<T> for Result<T, E> {
     type Output = Result<T, InternalInvariant>;
 
+    #[inline]
     fn invariant(self, msg: impl Into<String>) -> Self::Output {
         self.map_err(|_err: _| InternalInvariant(msg.into()))
     }

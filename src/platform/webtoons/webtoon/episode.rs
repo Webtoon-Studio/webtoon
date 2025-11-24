@@ -10,13 +10,10 @@ use url::Url;
 
 use super::Webtoon;
 use super::post::{PinRepresentation, Posts};
-use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
-use crate::platform::webtoons::error::{PostsError, RequestError, SessionError};
-use crate::platform::webtoons::webtoon::post::Post;
-use crate::platform::webtoons::webtoon::post::id::Id;
 use crate::platform::webtoons::{
-    client::Client,
-    error::{ClientError, EpisodeError},
+    dashboard::episodes::DashboardStatus,
+    error::{ClientError, EpisodeError, PostsError, SessionError},
+    webtoon::post::{Post, id::Id},
 };
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{InternalInvariant, Invariant, invariant};
@@ -74,6 +71,7 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn count(&self) -> u16 {
         self.count
     }
@@ -97,9 +95,11 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
-        // PERF: If in the process of making the Vec we can insert into the index that the number is, then we can use
-        // `get(episode)` instead. As of now, the episodes can be in any order, so we have to search through and find
+        // PERF: If in the process of making the Vec we can insert into the index
+        // that the number is, then we can use `get(episode)` instead. As of now,
+        // the episodes can be in any order, so we have to search through and find
         // the wanted one
 
         self.episodes
@@ -162,7 +162,7 @@ impl IntoIterator for Episodes {
 pub struct Episode {
     pub(crate) webtoon: Webtoon,
     pub(crate) number: u16,
-    // TODO: Need to store? Should be pretty cheap one title is cached.
+    // TODO: Need to store? Should be pretty cheap to compute on the fly as title is most likely cached.
     pub(crate) season: Cache<Option<u8>>,
     pub(crate) title: Cache<String>,
     pub(crate) published: Option<DateTime<Utc>>,
@@ -239,6 +239,7 @@ impl Episode {
     ///
     /// [`episode_no=25`]: https://www.webtoons.com/en/fantasy/the-roguish-guard-in-a-medieval-fantasy/episode-25/viewer?title_no=7370&episode_no=25
     #[inline]
+    #[must_use]
     pub fn number(&self) -> u16 {
         self.number
     }
@@ -439,6 +440,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn published(&self) -> Option<i64> {
         self.published.map(|datetime| datetime.timestamp_millis())
     }
@@ -479,6 +481,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn views(&self) -> Option<u32> {
         self.views
     }
@@ -1037,6 +1041,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn published_status(&self) -> Option<PublishedStatus> {
         self.published_status
     }
@@ -1087,6 +1093,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn ad_status(&self) -> Option<AdStatus> {
         self.ad_status
     }
@@ -1233,6 +1241,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "download")]
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
@@ -1645,24 +1654,18 @@ impl Panel {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
 
-    async fn download(&mut self, client: &Client) -> Result<(), EpisodeError> {
-        // TODO: Move to `Client::download_episode`
-        let bytes = client
-            .http
-            .get(self.url.as_str())
-            .send()
-            .await
-            .map_err(RequestError)?
-            .bytes()
-            .await
-            .map_err(RequestError)?;
-
-        self.bytes = bytes.to_vec();
-
+    #[cfg(feature = "download")]
+    async fn download(
+        &mut self,
+        client: &crate::platform::webtoons::Client,
+    ) -> Result<(), ClientError> {
+        self.bytes = client.download_panel(&self.url).await?;
         Ok(())
     }
 }
@@ -1709,7 +1712,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
                 Some(val) => invariant!(
                     "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
                 ),
-            };
+            }
         }
 
         let mut float = img
@@ -1743,7 +1746,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
                 Some(val) => invariant!(
                     "`webtoons.com` episode pixels should be represented as floats, always ending with `.0`, yet yielded on a second `.` split, got: {val}"
                 ),
-            };
+            }
         }
 
         let data_url = img
@@ -1849,6 +1852,8 @@ impl Panels {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn count(&self) -> usize {
         self.images.len()
     }
@@ -1868,7 +1873,7 @@ impl Panels {
     /// # Behavior
     ///
     /// - Combines all panels of the episode vertically into one long image.
-    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
+    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG limitations.
     /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
     ///
     /// # Example
@@ -1900,8 +1905,12 @@ impl Panels {
 
         tokio::fs::create_dir_all(path).await?;
 
-        let ext = &self.images[0].ext;
-        let episode = self.images[0].episode;
+        let first = self.images.first().invariant(
+            "`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!",
+        )?;
+
+        let ext = &first.ext;
+        let episode = first.episode;
         let width = self.width;
         let height = self.height;
 

@@ -73,7 +73,6 @@ mod _inner {
         SearchError := Base || ClientError || WebtoonError
 
         CreatorError := {
-            // TODO: Add specific languages to function docs: `Language::Zh`, `Language::De`, and `Language::Fr`
             #[display("`webtoons.com` does not support creator profiles for this language")]
             UnsupportedLanguage,
             #[display("profile page disabled by creator")]
@@ -92,7 +91,6 @@ mod _inner {
         } || Base || ClientError || SessionError
 
         PostsError := {
-            // TODO See if this is needed
             ParseIdError(ParseIdError)
         } || Base || ClientError || SessionError
 

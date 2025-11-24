@@ -85,6 +85,7 @@ pub struct ClientBuilder {
 }
 
 impl Default for ClientBuilder {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -169,6 +170,7 @@ impl ClientBuilder {
     /// let client: Client = ClientBuilder::new().build()?;
     /// # Ok::<(), webtoon::platform::webtoons::error::ClientBuilderError>(())
     /// ```
+    #[inline]
     pub fn build(self) -> Result<Client, ClientBuilderError> {
         Ok(Client {
             http: self
@@ -222,6 +224,7 @@ impl Client {
     /// # use webtoon::platform::webtoons::Client;
     /// let client = Client::new();
     /// ```
+    #[inline]
     #[must_use]
     pub fn new() -> Self {
         #[expect(
@@ -603,6 +606,7 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn originals(&self, language: Language) -> Result<Vec<Webtoon>, OriginalsError> {
         originals::scrape(self, language).await
     }
@@ -652,6 +656,7 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn canvas(
         &self,
         language: Language,
@@ -682,6 +687,7 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, WebtoonError> {
         Webtoon::new_with_client(id, r#type, self).await
     }
@@ -711,6 +717,7 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub fn webtoon_from_url(&self, url: &str) -> Result<Webtoon, InvalidWebtoonUrl> {
         Webtoon::from_url_with_client(url, self)
     }
@@ -775,7 +782,7 @@ impl Client {
     #[inline]
     #[must_use]
     pub fn has_session(&self) -> bool {
-        self.session.is_empty()
+        !self.session.is_empty()
     }
 
     /// Tries to validate the current session.
@@ -1239,14 +1246,13 @@ impl Client {
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let webtoon = episode.webtoon.id;
-        let r#type = episode.webtoon.scope.as_single_letter();
-        let number = episode.number;
-
         let response = self.get_react_token().await?;
 
-        // TODO: there is some logic overlap with `unlike_episode` that could be consolidated in `get_react_token`
         if response.success {
+            let webtoon = episode.webtoon.id;
+            let r#type = episode.webtoon.scope.as_single_letter();
+            let number = episode.number;
+
             let token = response
                 .result
                 .guest_token
@@ -1286,22 +1292,22 @@ impl Client {
     pub(super) async fn unlike_episode(&self, episode: &Episode) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let webtoon = episode.webtoon.id;
-        let r#type = episode.webtoon.scope.as_single_letter();
-        let number = episode.number;
-
         let response = self.get_react_token().await?;
 
         if response.success {
+            let webtoon = episode.webtoon.id;
+            let r#type = episode.webtoon.scope.as_single_letter();
+            let number = episode.number;
+
             let token = response
                 .result
                 .guest_token
-                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be `Some`")?;
 
             let timestamp = response
                 .result
                 .timestamp
-                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
+                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be `Some`")?;
 
             let language = match episode.webtoon.language {
                 Language::En => "en",
@@ -1818,6 +1824,21 @@ impl Client {
             ),
         }
     }
+
+    #[cfg(feature = "download")]
+    pub(super) async fn download_panel(&self, url: &reqwest::Url) -> Result<Vec<u8>, ClientError> {
+        let bytes = self
+            .http
+            .get(url.as_str())
+            .send()
+            .await
+            .map_err(RequestError)?
+            .bytes()
+            .await
+            .map_err(RequestError)?;
+
+        Ok(bytes.to_vec())
+    }
 }
 
 impl Default for Client {
@@ -1838,6 +1859,7 @@ impl Display for ValidSession {
 pub(crate) struct Session(Option<Arc<str>>);
 
 impl Session {
+    #[inline]
     fn new(session: &str) -> Self {
         Self(Some(Arc::from(session)))
     }
@@ -1856,7 +1878,25 @@ impl Session {
         Ok(ValidSession(session.clone()))
     }
 
+    #[inline]
     fn is_empty(&self) -> bool {
         self.0.as_ref().is_none_or(|session| session.is_empty())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn session_should_be_empty() {
+        let session = Session::default();
+        assert!(session.is_empty());
+    }
+
+    #[test]
+    fn session_should_not_be_empty() {
+        let session = Session::new("session");
+        assert!(!session.is_empty());
     }
 }
