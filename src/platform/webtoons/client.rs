@@ -1006,22 +1006,21 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn post_subscribe_to_webtoon(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<(), SessionError> {
+    pub(super) async fn subscribe_to_webtoon(&self, webtoon: &Webtoon) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let mut form = HashMap::new();
-        form.insert("titleNo", webtoon.id.to_string());
-        form.insert("currentStatus", false.to_string());
+        let form = HashMap::from([
+            ("titleNo", webtoon.id().to_string()),
+            ("currentStatus", false.to_string()),
+        ]);
 
-        let url = match webtoon.scope {
-            Scope::Original(_) => "https://www.webtoons.com/setFavorite",
-            Scope::Canvas => "https://www.webtoons.com/challenge/setFavorite",
+        let url = match webtoon.r#type() {
+            Type::Original => "https://www.webtoons.com/setFavorite",
+            Type::Canvas => "https://www.webtoons.com/canvas/setFavorite",
         };
 
-        self.http
+        let response = self
+            .http
             .post(url)
             .header("Referer", "https://www.webtoons.com/")
             .header("Service-Ticket-Id", "epicom")
@@ -1030,12 +1029,25 @@ impl Client {
             .retry()
             .send()
             .await
+            .map_err(RequestError)?
+            .text()
+            .await
             .map_err(RequestError)?;
+
+        match serde_json::from_str::<api::subscription::Response>(&response) {
+            Ok(result) if result.success && result.favorite => {}
+            Ok(result) => invariant!(
+                "`subscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
+            ),
+            Err(err) => invariant!(
+                "response from subscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
+            ),
+        }
 
         Ok(())
     }
 
-    pub(super) async fn post_unsubscribe_to_webtoon(
+    pub(super) async fn unsubscribe_to_webtoon(
         &self,
         webtoon: &Webtoon,
     ) -> Result<(), SessionError> {
@@ -1045,12 +1057,13 @@ impl Client {
         form.insert("titleNo", webtoon.id.to_string());
         form.insert("currentStatus", true.to_string());
 
-        let url = match webtoon.scope {
-            Scope::Original(_) => "https://www.webtoons.com/setFavorite",
-            Scope::Canvas => "https://www.webtoons.com/challenge/setFavorite",
+        let url = match webtoon.r#type() {
+            Type::Original => "https://www.webtoons.com/setFavorite",
+            Type::Canvas => "https://www.webtoons.com/canvas/setFavorite",
         };
 
-        self.http
+        let response = self
+            .http
             .post(url)
             .header("Referer", "https://www.webtoons.com/")
             .header("Service-Ticket-Id", "epicom")
@@ -1059,7 +1072,20 @@ impl Client {
             .retry()
             .send()
             .await
+            .map_err(RequestError)?
+            .text()
+            .await
             .map_err(RequestError)?;
+
+        match serde_json::from_str::<api::subscription::Response>(&response) {
+            Ok(result) if result.success && !result.favorite => {}
+            Ok(result) => invariant!(
+                "`unsubscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
+            ),
+            Err(err) => invariant!(
+                "response from unsubscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
+            ),
+        }
 
         Ok(())
     }
@@ -1071,6 +1097,7 @@ impl Client {
     ) -> Result<Vec<DashboardEpisode>, EpisodeError> {
         let session = self.session.validate(self).await?;
 
+        // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
         let url = format!(
             "https://www.webtoons.com/*/challenge/dashboardEpisode?titleNo={id}&page={page}",
             id = webtoon.id
@@ -1106,6 +1133,7 @@ impl Client {
             Language::Fr => "fr",
             Language::De => "de",
         };
+        // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
         let scope = match webtoon.scope {
             Scope::Canvas => "challenge",
             Scope::Original(_) => "*",
@@ -1748,11 +1776,11 @@ impl Client {
 
         let id = webtoon.id;
 
-        let url = match webtoon.scope {
-            Scope::Original(_) => {
+        let url = match webtoon.r#type() {
+            Type::Original => {
                 format!("https://www.webtoons.com/getTitleUserInfo?titleNo={id}")
             }
-            Scope::Canvas => {
+            Type::Canvas => {
                 format!("https://www.webtoons.com/canvas/getTitleUserInfo?titleNo={id}")
             }
         };

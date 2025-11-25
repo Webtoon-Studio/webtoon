@@ -961,7 +961,7 @@ impl Webtoon {
             return Ok(());
         }
 
-        self.client.post_subscribe_to_webtoon(self).await?;
+        self.client.subscribe_to_webtoon(self).await?;
 
         Ok(())
     }
@@ -1012,7 +1012,7 @@ impl Webtoon {
             return Ok(());
         }
 
-        self.client.post_unsubscribe_to_webtoon(self).await?;
+        self.client.unsubscribe_to_webtoon(self).await?;
 
         Ok(())
     }
