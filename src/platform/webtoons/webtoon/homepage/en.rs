@@ -203,6 +203,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
 
                 'username: for username in text.split(',') {
                     let username = username.trim().trim_end_matches("...").trim();
+
                     if username.is_empty() {
                         continue;
                     }
@@ -211,10 +212,8 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                     // this loop. The text should be the exact same so it's safe
                     // to check if they already exist in the list, continuing to
                     // the next text block if so.
-                    for creator in &creators {
-                        if creator.username == username {
-                            continue 'username;
-                        }
+                    if creators.iter().any(|creator| creator.username == username) {
+                        continue 'username;
                     }
 
                     creators.push(Creator {
@@ -287,6 +286,7 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
         "views element(`em.cnt`) on english `webtoons.com` Webtoon homepage should never be empty"
     );
 
+    // TODO: Might need to support `1B` and `3M` values, whereas currently we only support floats here, `1.0B` and `3.0M`.
     match views.as_str() {
         billions if billions.ends_with('B') => {
             let number = billions.trim_end_matches('B');
@@ -304,10 +304,9 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
                     None => Ok(number.parse::<u64>()
                         .invariant(format!("on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into `u64`, got: {number}"))?),
                 }
-
         }
         millions if millions.ends_with('M') => {
-            let number  = millions.trim_end_matches('M');
+            let number = millions.trim_end_matches('M');
 
             match number.split_once('.') {
                 Some((m, t)) => {
@@ -322,12 +321,22 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
                 None => Ok(number.parse::<u64>()
                         .invariant(format!("on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}"))?),
             }
-
-
         }
-        // PERF: refactor to use splits like `subscribers` below has. No string allocation, and can branch on thousands and hundreds separately
-        thousands_or_less => Ok(thousands_or_less.replace(',', "").parse::<u64>().invariant(format!(
-            "hundreds to hundreds of thousands of views should fit in a `u64`, got: {thousands_or_less}",
+        thousands if thousands.contains(',') => {
+            let (thousandth, hundreth) = thousands
+                .split_once(',')
+                .invariant(format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 views is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
+
+            let thousands = thousandth.parse::<u64>()
+                .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the views count should always fit in a `u64`, got: {thousandth}"))?;
+
+            let hundreds = hundreth.parse::<u64>()
+                .invariant(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the views count should always fit in a `u64`, got: {hundreth}"))?;
+
+            Ok((thousands * 1_000) + hundreds)
+        }
+        hundreds => Ok(hundreds.parse::<u64>().invariant(format!(
+            "hundreds of views should fit in a `u64`, got: {hundreds}",
         ))?),
     }
 }
@@ -351,7 +360,7 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     match subscribers.as_str() {
         millions if millions.ends_with('M') => {
             match millions {
-                float if float.chars().any(|char| char == '.') => {
+                float if float.contains('.') => {
                     let (millionth, hundred_thousandth) = millions
                         .trim_end_matches('M')
                         .split_once('.')
@@ -491,8 +500,12 @@ pub(super) fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
         .attr("src")
         .invariant("`src` attribute is missing in `.thmb>img` on english `webtoons.com` canvas Webtoon homepage")?;
 
-    let mut thumbnail = Url::parse(url)
-        .invariant("thumnbail url returned from english `webtoons.com` canvas Webtoon homepage was an invalid absolute path url")?;
+    let mut thumbnail = match Url::parse(url) {
+        Ok(thumbnail) => thumbnail,
+        Err(err) => invariant!(
+            "thumnbail url returned from english `webtoons.com` canvas Webtoon homepage was an invalid absolute path url: {err}\n\n{url}"
+        ),
+    };
 
     thumbnail
         // This host doesn't need a `referer` header to see the image.
@@ -516,9 +529,12 @@ pub(super) fn banner(html: &Html) -> Result<Url, WebtoonError> {
         .attr("src")
         .invariant("`src` attribute is missing in `.thmb>img` on english `webtoons.com` originals Webtoon homepage")?;
 
-    let mut banner = Url::parse(url).invariant(
-        "banner url returned from `webtoons.com` Webtoon homepage was an invalid absolute path url",
-    )?;
+    let mut banner = match Url::parse(url) {
+        Ok(banner) => banner,
+        Err(err) => invariant!(
+            "banner url returned from `webtoons.com` Webtoon homepage was an invalid absolute path url: {err}\n\n{url}"
+        ),
+    };
 
     banner
         // This host doesn't need a `referer` header to see the image.
@@ -652,8 +668,8 @@ fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
     let date = NaiveDate::parse_from_str(text, "%b %e, %Y")
         .invariant(format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}"))?;
 
-    let time =
-        NaiveTime::from_hms_opt(2, 0, 0).invariant("2:00:00 should be a valid `NaiveTime`")?;
+    let time = NaiveTime::from_hms_opt(2, 0, 0) //
+        .invariant("2:00:00 should be a valid `NaiveTime`")?;
 
     Ok(DateTime::from_naive_utc_and_offset(
         date.and_time(time),
