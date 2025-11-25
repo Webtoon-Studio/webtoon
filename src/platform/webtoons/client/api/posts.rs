@@ -322,7 +322,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
 
         let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
             invariant!(
-                "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got {}",
+                "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`",
                 post.created_at
             );
         };
