@@ -1582,7 +1582,7 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
     let value = img.value().attr("height").invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let height = match value {
-        float if float.chars().any(|char| char == '.') => {
+        float if float.contains('.') => {
             let mut float = float.split('.');
 
             let height = match float
@@ -1610,6 +1610,7 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
 
             height
         }
+        // Height can also be a whole number: `1280`.
         height => match height.parse::<u32>() {
             Ok(width) => width,
             Err(err) => invariant!(
@@ -1634,7 +1635,7 @@ fn width(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
         .invariant("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let width = match value {
-        float if float.chars().any(|char| char == '.') => {
+        float if float.contains('.') => {
             let mut float = float.split('.');
 
             let width = match float.next()
@@ -1769,13 +1770,19 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
             ),
         };
 
+        invariant!(
+            ["jpeg", "png", "jpg"]
+                .into_iter()
+                .any(|format| format != ext),
+            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`) and PNG(`png`), but found: `{ext}`"
+        );
+
         panels.push(Panel {
             url,
 
             episode,
             // Enumerate starts at 0, so add +1 so that it starts at one.
             number: u16::try_from(number + 1)
-                // TODO: see if can check actual limits to enforce better.
                 .invariant("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
             height: height(img)?,
             width: width(img)?,
