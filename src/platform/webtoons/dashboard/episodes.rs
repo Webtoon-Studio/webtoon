@@ -58,7 +58,6 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             published,
             views: Some(episode.metadata.views),
             ad_status: Some(episode.dashboard_status.ad_status()),
-            // TODO: look into the From impl for this as this might need to be try_from
             published_status: Some(episode.dashboard_status.into()),
 
             length: Cache::empty(),
