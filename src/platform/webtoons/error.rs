@@ -87,8 +87,6 @@ mod _inner {
         StatsDashboardError := Base || ClientError || SessionError
 
         EpisodeError := {
-            // TODO: missing, or deleted? I think we can figure out if an episode has at all existed.
-            // Could be disabled or deleted. Could also be a draft? Have to confirm behavior.
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
         } || Base || ClientError || SessionError
@@ -140,7 +138,6 @@ mod _inner {
 
         ClientError := {
             RequestFailed(super::RequestError),
-            // TODO: Some way to encode that a `RequestBuilder` failed to clone: request could not be cloned.
         }
 
         ClientBuilderError := {
