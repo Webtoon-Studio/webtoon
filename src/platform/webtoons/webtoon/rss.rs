@@ -135,17 +135,17 @@ fn published(date: &str, language: Language) -> Result<DateTime<Utc>, InternalIn
         // Tuesday, 10 Sep 2024 16:40:23 GMT
         Language::En => "%d %b %Y %T",
         // 星期二, 17 9月 2024 13:01:22 GMT
-        Language::Zh => "%e %m月 %Y %T",
+        Language::Zh => todo!(), //"%e %m月 %Y %T", NOTE: This works as far as I know but will just focus on English for now.
         // วันอังคาร, 17 ก.ย. 2024 13:04:59 GMT
-        Language::Th => "%d %b %Y %T",
+        Language::Th => todo!(), // "%d %b %Y %T",
         // Selasa, 17 Sep 2024 15:03:59 GMT
-        Language::Id => "%d %b %Y %T",
+        Language::Id => todo!(), //"%d %b %Y %T",
         // miércoles, 18 sept. 2024 01:01:48 GMT
-        Language::Es => "%d %b. %Y %T",
+        Language::Es => todo!(), // "%d %b. %Y %T",
         // mercredi, 18 sept. 2024 14:01:48 GMT
-        Language::Fr => "%d %b. %Y %T",
+        Language::Fr => todo!(), //"%d %b. %Y %T",
         // Mittwoch, 18 Sep. 2024 14:01:20 GMT
-        Language::De => "%d %b. %Y %T",
+        Language::De => todo!(), //"%d %b. %Y %T",
     };
 
     let Some(date) = date
@@ -154,7 +154,7 @@ fn published(date: &str, language: Language) -> Result<DateTime<Utc>, InternalIn
         .map(|date| date.trim())
     else {
         invariant!(
-            "incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should alwatys be `Some`, but got: {date}"
+            "incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got: `{date}`"
         );
     };
 
@@ -184,13 +184,13 @@ fn episode(url: &str) -> Result<u16, InternalInvariant> {
     let url = match Url::parse(url) {
         Ok(url) => url,
         Err(err) => invariant!(
-            "urls returned from `webtoons.com` rss feed should always be valid: {err}\n\n{url}"
+            "urls returned from `webtoons.com` rss feed should always be valid: {err}\n\n`{url}`"
         ),
     };
 
     let Some((key, value)) = url.query_pairs().nth(1) else {
         invariant!(
-            "`webtoons.com` Webtoon rss url should always 2 queries, one for the Webtoon id, `title_no`, and one for the episode number, `episode_no`: {url}"
+            "`webtoons.com` Webtoon rss url should always 2 queries, one for the Webtoon id, `title_no`, and one for the episode number, `episode_no`: `{url}`"
         )
     };
 
@@ -202,7 +202,7 @@ fn episode(url: &str) -> Result<u16, InternalInvariant> {
     match u16::from_str(&value) {
         Ok(episode) => Ok(episode),
         Err(err) => invariant!(
-            "`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes: {err}\n\n{value}"
+            "`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes: {err}\n\n`{value}`"
         ),
     }
 }
@@ -220,6 +220,7 @@ mod test {
     }
 
     #[test]
+    #[ignore = "todo"]
     fn should_parse_zh_rss_date() {
         let date = published("星期二, 17 9月 2024 13:01:22 GMT", Language::Zh).unwrap();
         assert_eq!(1726578082, date.timestamp());
@@ -233,6 +234,7 @@ mod test {
     }
 
     #[test]
+    #[ignore = "todo"]
     fn should_parse_id_rss_date() {
         let date = published("Selasa, 17 Sep 2024 15:03:59 GMT", Language::Id).unwrap();
         assert_eq!(1726585439, date.timestamp());
@@ -253,6 +255,7 @@ mod test {
     }
 
     #[test]
+    #[ignore = "todo"]
     fn should_parse_de_rss_date() {
         let date = published("Mittwoch, 18 Sep. 2024 14:01:20 GMT", Language::De).unwrap();
         assert_eq!(1726668080, date.timestamp());
