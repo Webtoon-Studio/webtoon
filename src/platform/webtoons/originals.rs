@@ -89,14 +89,11 @@ impl TryFrom<Vec<&str>> for Schedule {
                 .find_map(|parser| parser(release).ok())
                 .ok_or_else(|| ParseScheduleError((*release).to_string())),
             // Multiple releases must be weekdays
-            releases => {
-                let mut weekdays = Vec::with_capacity(7);
-                for release in releases {
-                    let weekday = Weekday::from_str(release)?;
-                    weekdays.push(weekday);
-                }
-                Ok(Self::Weekdays(weekdays))
-            }
+            releases => releases
+                .iter()
+                .map(|release| Weekday::from_str(release))
+                .collect::<Result<Vec<Weekday>, ParseScheduleError>>()
+                .map(|weekdays| Self::Weekdays(weekdays)),
         }
     }
 }

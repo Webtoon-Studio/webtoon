@@ -431,6 +431,11 @@ pub(super) fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
         "original Webtoon homepage on english `webtoons.com` should always have a release schedule, even if completed"
     );
 
+    invariant!(
+        releases.len() < 7,
+        "original Webtoon homepage on english `webtoons.com` should always have 6 or less items, as if there was a list of 7 days, it would just say `daily` instead: `{releases:?}`"
+    );
+
     let schedule = match Schedule::try_from(releases) {
         Ok(schedule) => schedule,
         Err(err) => invariant!(
