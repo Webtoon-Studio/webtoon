@@ -68,7 +68,7 @@ pub(super) async fn scrape(
             let webtoon = match Webtoon::from_url_with_client(href, client) {
                 Ok(webtoon) => webtoon,
                 Err(err) => invariant!(
-                    "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}"
+                    "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}\n\n{href}"
                 ),
             };
 
