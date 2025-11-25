@@ -30,6 +30,8 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
         // of the HTML so start there and work up.
         .rev()
         .map(|line| line.trim_start())
+        // TODO: Add invariant check this is true.
+        // Only one line should match this condition.
         .find(|line| line.starts_with(START) && line.ends_with(END))
         .map(|line| clean(line))
     {
