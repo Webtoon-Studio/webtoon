@@ -51,6 +51,10 @@ pub(super) async fn scrape(
         std::ops::Bound::Unbounded => 100,
     };
 
+    if start > end {
+        return Err(CanvasError::InvalidRange);
+    }
+
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {

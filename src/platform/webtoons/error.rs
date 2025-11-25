@@ -68,7 +68,10 @@ mod _inner {
 
         OriginalsError := Base || ClientError
 
-        CanvasError := Base || ClientError
+        CanvasError := {
+            #[display("range `start` cannot be lower than `end`")]
+            InvalidRange,
+        } || Base || ClientError
 
         SearchError := Base || ClientError || WebtoonError
 
