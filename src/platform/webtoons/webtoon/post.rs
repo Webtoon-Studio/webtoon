@@ -712,7 +712,7 @@ impl Post {
         }
 
         match self.poster.reaction.get().or_default() {
-            // Must first remove upvote before we can upvote
+            // Must first remove upvote before we can downvote.
             Reaction::Upvote => self.unvote().await?,
             Reaction::Downvote | Reaction::None => {
                 return self.upvotes_and_downvotes().await;
@@ -1775,18 +1775,22 @@ pub(crate) mod id {
 
     impl Display for Id {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            if let Some(reply) = &self.reply {
+            let Self {
+                tag,
+                scope,
+                webtoon,
+                episode,
+                post,
+                reply,
+            } = self;
+
+            if let Some(reply) = reply {
                 write!(
                     f,
-                    "GW-epicom:{}-{}_{}_{}-{}-{reply}",
-                    self.tag, self.scope, self.webtoon, self.episode, self.post,
+                    "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}-{reply}"
                 )
             } else {
-                write!(
-                    f,
-                    "GW-epicom:{}-{}_{}_{}-{}",
-                    self.tag, self.scope, self.webtoon, self.episode, self.post
-                )
+                write!(f, "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}",)
             }
         }
     }
