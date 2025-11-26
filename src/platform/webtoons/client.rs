@@ -1053,9 +1053,10 @@ impl Client {
     ) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let mut form = HashMap::new();
-        form.insert("titleNo", webtoon.id.to_string());
-        form.insert("currentStatus", true.to_string());
+        let form = HashMap::from([
+            ("titleNo", webtoon.id().to_string()),
+            ("currentStatus", true.to_string()),
+        ]);
 
         let url = match webtoon.r#type() {
             Type::Original => "https://www.webtoons.com/setFavorite",

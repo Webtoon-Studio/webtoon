@@ -951,11 +951,6 @@ impl Webtoon {
     pub async fn subscribe(&self) -> Result<(), WebtoonError> {
         let user = self.client.get_user_info_for_webtoon(self).await?;
 
-        // Can't sub to own Webtoon
-        if user.is_webtoon_creator() {
-            return Ok(());
-        }
-
         // Already subscribed
         if user.favorite {
             return Ok(());
@@ -1001,11 +996,6 @@ impl Webtoon {
     /// ```
     pub async fn unsubscribe(&self) -> Result<(), WebtoonError> {
         let title_user_info = self.client.get_user_info_for_webtoon(self).await?;
-
-        // Can't sub to own webtoon so also can't unsub
-        if title_user_info.is_webtoon_creator() {
-            return Ok(());
-        }
 
         // Already not subscribed
         if !title_user_info.favorite {
