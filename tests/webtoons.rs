@@ -304,29 +304,50 @@ async fn englsh_canvas_posts() {
     let posts = episode.posts().await.unwrap();
 
     for post in posts {
-        for _reply in post.replies::<Posts>().await.unwrap() {}
-
-        if client.has_valid_session().await.is_ok_and(|result| result) {
-            post.upvote().await.unwrap();
-            post.downvote().await.unwrap();
-            post.unvote().await.unwrap();
-
-            if !post.is_deleted() {
-                post.reply("REPLY", true).await.unwrap();
-            }
-
-            let replies = post.replies::<Posts>().await.unwrap();
-
-            for reply in replies {
-                // Delete just added reply
-                if reply.body().contents() == "REPLY" {
-                    reply.delete().await.unwrap();
-                }
-            }
+        if client.has_valid_session().await.unwrap()
+            && post.poster().is_current_session_user()
+            && post.body().contents() == "MESSAGE"
+        {
+            post.reply("REPLY", true).await.unwrap();
 
             // Delete just added post
-            if post.body().contents() == "MESSAGE" && !post.is_deleted() {
-                post.delete().await.unwrap();
+            post.delete().await.unwrap();
+        } else {
+            for reply in post.replies::<Posts>().await.unwrap() {
+                _ = std::hint::black_box(reply);
+            }
+        }
+
+        if client.has_valid_session().await.unwrap() && post.poster().username() == "Nen19" {
+            let (upvotes, downvotes) = post.unvote().await.unwrap();
+            assert_eq!(0, upvotes);
+            assert_eq!(1, downvotes);
+
+            let (upvotes, downvotes) = post.upvote().await.unwrap();
+            assert_eq!(1, upvotes, "{upvotes}, {downvotes}");
+            assert_eq!(1, downvotes);
+
+            let (upvotes, downvotes) = post.downvote().await.unwrap();
+            assert_eq!(0, upvotes);
+            assert_eq!(2, downvotes);
+
+            let (upvotes, downvotes) = post.unvote().await.unwrap();
+            assert_eq!(0, upvotes);
+            assert_eq!(1, downvotes);
+        }
+    }
+
+    // Clean up previous reply to post.
+    //
+    // This is needed as currently cannot get
+    // updated replies after getting a `Post`.
+    //
+    // This refreshes to get new data for posts
+    // and therefore can find all replies with `REPLY`.
+    for post in episode.posts().await.unwrap() {
+        for reply in post.replies::<Posts>().await.unwrap() {
+            if reply.body().contents() == "REPLY" {
+                reply.delete().await.unwrap();
             }
         }
     }
@@ -362,18 +383,9 @@ async fn englsh_original_posts() {
             post.downvote().await.unwrap();
             post.unvote().await.unwrap();
 
-            if !post.is_deleted() {
-                post.reply("REPLY", true).await.unwrap();
-            }
-
-            let replies = post.replies::<Posts>().await.unwrap();
-
-            for reply in replies {
-                // Delete just added reply
-                if reply.body().contents() == "REPLY" {
-                    reply.delete().await.unwrap();
-                }
-            }
+            // There are some complications around replying and then deleting
+            // replies, and as this is currently not a priority, just do simple
+            // tests.
 
             // Delete just added post
             if post.body().contents() == "MESSAGE" && !post.is_deleted() {
