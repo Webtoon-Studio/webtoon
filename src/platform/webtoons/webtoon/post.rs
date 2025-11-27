@@ -653,16 +653,21 @@ impl Post {
     pub async fn upvote(&self) -> Result<(u32, u32), PostError> {
         // If true, user is trying to upvote their own post, which is not allowed.
         if self.poster.is_current_session_user {
+            // TODO: return Err(UpvoteError::UpvoteSelf);
             return self.upvotes_and_downvotes().await;
         }
 
         match self.poster.reaction.get().or_default() {
-            Reaction::Upvote | Reaction::None => {
+            // Already upvoted the post, return with current values.
+            Reaction::Upvote => {
                 return self.upvotes_and_downvotes().await;
             }
+            // If current reaction is `downvote`, then must unvote before
+            // we can upvote.
             Reaction::Downvote => {
                 self.unvote().await?;
             }
+            Reaction::None => {}
         }
 
         self.episode
@@ -671,9 +676,10 @@ impl Post {
             .react_to_post(self, Reaction::Upvote)
             .await?;
 
-        // TODO: Confirm that it actually changed
+        // TODO: Confirm that it actually changed.
 
-        self.poster.reaction.insert(Reaction::None);
+        // Set internal representation to `upvote`.
+        self.poster.reaction.insert(Reaction::Upvote);
 
         self.upvotes_and_downvotes().await
     }
@@ -713,11 +719,15 @@ impl Post {
 
         match self.poster.reaction.get().or_default() {
             // Must first remove upvote before we can downvote.
-            Reaction::Upvote => self.unvote().await?,
-            Reaction::Downvote | Reaction::None => {
+            Reaction::Upvote => {
+                self.unvote().await?;
+            }
+            // Already downvoted the post, return with current values.
+            Reaction::Downvote => {
                 return self.upvotes_and_downvotes().await;
             }
-        };
+            Reaction::None => {}
+        }
 
         self.episode
             .webtoon
@@ -725,8 +735,10 @@ impl Post {
             .react_to_post(self, Reaction::Downvote)
             .await?;
 
-        // Update to new state.
-        self.poster.reaction.insert(Reaction::None);
+        // TODO: Confirm that it actually changed.
+
+        // Set internal representation to `downvote`.
+        self.poster.reaction.insert(Reaction::Downvote);
 
         self.upvotes_and_downvotes().await
     }
@@ -774,7 +786,7 @@ impl Post {
                     .remove_post_reaction(self, Reaction::Downvote)
                     .await?;
             }
-            Reaction::None => return self.upvotes_and_downvotes().await,
+            Reaction::None => {}
         }
 
         self.poster.reaction.insert(Reaction::None);
