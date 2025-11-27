@@ -70,6 +70,9 @@ pub struct RawPost {
     // pub extraList: Vec<_>,
     pub id: Id,
     pub is_owner: bool,
+    // NOTE: this could be the same as `is_owner`, but it's hard to tell for sure.
+    // For now, this is what we use to indicate if a post was left by current session user.
+    pub is_owner_account: bool,
     pub is_pinned: bool,
     pub page_id: String,
     pub page_owner_child_post_count: i32,
@@ -438,7 +441,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                 cuid: Arc::from(post.created_by.cuid),
                 profile: Arc::from(post.created_by.profile_url),
                 username: Arc::from(post.created_by.name),
-                is_current_session_user: post.created_by.is_page_owner,
+                is_current_session_user: post.is_owner_account,
                 is_current_webtoon_creator: post.created_by.is_page_owner,
                 is_creator: post.created_by.is_creator,
                 is_blocked: post.created_by.restriction.is_write_post_restricted,
