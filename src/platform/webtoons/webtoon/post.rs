@@ -1432,6 +1432,25 @@ pub trait Replies: Sized + Sealed {
 
 impl Replies for u32 {
     async fn replies(post: &Post) -> Result<Self, PostsError> {
+        // FIX: While this is fast and gotten from the initial request, this can
+        // also become out-of-date if a `post.reply()` is used followed by a
+        // `post.replies()`.
+        //
+        // No matter which `replies` is used, both `post.replies` either to
+        // return directly, or to check if `0`, which as this does not update,
+        // if checked after a `reply()`, then it would be `0` without a full
+        // re-scrape of the posts again.
+        //
+        // The tricky part here is when there is no need to update the reply count
+        // yet wanting to optimize for a:
+        //
+        // ```rust
+        // for post in webtoon.posts().await {
+        //     let replies = post.replies::<u32>();
+        // }
+        // ```
+        //
+        // Use case, with no extra network round-trip.
         Ok(post.replies)
     }
 }
@@ -1439,10 +1458,16 @@ impl Replies for u32 {
 impl Sealed for Posts {}
 impl Replies for Posts {
     async fn replies(post: &Post) -> Result<Self, PostsError> {
-        // No need to make a network request when there ar no replies to fetch.
+        // No need to make a network request when there are
+        // no replies to fetch.
+        //
+        // FIX: Might make this always fetch replies?
+        // I know this was put in to optimize a use case, but the reply count getting
+        // out-of-date is an issue.
         if post.replies == 0 {
             return Ok(Self { posts: Vec::new() });
         }
+
         #[allow(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
