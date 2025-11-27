@@ -17,7 +17,7 @@ use crate::{
         meta::{Genre, Language},
         originals::Schedule,
     },
-    stdx::error::{Invariant, invariant},
+    stdx::error::{Assume, assumption},
 };
 
 use super::{WebtoonError, episode::Episode};
@@ -108,7 +108,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .invariant("`li._episodeItem` should be a valid selector")?;
+        .assumption("`li._episodeItem` should be a valid selector")?;
 
     let mut episodes = Vec::with_capacity(pages as usize * 10);
 
@@ -133,7 +133,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
-    invariant!(
+    assumption!(
         !episodes.is_empty(),
         "public facing webtoons on `webtoons.com` should always have at least one public episode"
     );
@@ -141,7 +141,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
     match u16::try_from(episodes.len()) {
         Ok(_) => {}
         Err(err) => {
-            invariant!(
+            assumption!(
                 "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
                 episodes.len()
             )
@@ -159,7 +159,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .invariant("`li._episodeItem` should be a valid selector")?;
+        .assumption("`li._episodeItem` should be a valid selector")?;
 
     let html = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
 
@@ -182,7 +182,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
     match first {
         Some(first) => Ok(first),
         None => {
-            invariant!(
+            assumption!(
                 "`webtoons.com` Webtoon homepage should always have at least one episode for which to get a `first` episode"
             )
         }

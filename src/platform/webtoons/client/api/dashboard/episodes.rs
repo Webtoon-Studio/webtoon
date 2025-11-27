@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 use crate::{
     platform::webtoons::{dashboard::episodes::DashboardStatus, error::EpisodeError},
-    stdx::error::invariant,
+    stdx::error::assumption,
 };
 
 pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
@@ -37,13 +37,13 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
     {
         match serde_json::from_str::<Vec<DashboardEpisode>>(&json) {
             Ok(episodes) => return Ok(episodes),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize `dashboardEpisodeList` json from `webtoons.com` episode dashboard: {err}\n\n{json}"
             ),
         }
     }
 
-    invariant!(
+    assumption!(
         "failed to find line that starts with `{START}` and ends with `{END}` on `webtoons.com` episode dashboard:\n\n{html}"
     );
 }

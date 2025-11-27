@@ -1,22 +1,22 @@
 use thiserror::Error;
 
-macro_rules! invariant {
+macro_rules! assumption {
     ($msg:literal $(, $args:expr)* ) => {{
-        return Err($crate::stdx::error::InternalInvariant::from( format!($msg $(, $args)*)).into());
+        return Err($crate::stdx::error::Assumption::from( format!($msg $(, $args)*)).into());
     }};
     ($err:expr) => {{
-        return Err($crate::stdx::error::InternalInvariant::from( format!("{}", $err)).into());
+        return Err($crate::stdx::error::Assumption::from( format!("{}", $err)).into());
     }};
     ($cond:expr, $msg:literal $(, $args:expr)* ) => {{
         if !$cond {
-        return Err($crate::stdx::error::InternalInvariant::from( format!("`{}`, {}", stringify!($cond), format!($msg $(, $args)*))).into());
+        return Err($crate::stdx::error::Assumption::from( format!("`{}`, {}", stringify!($cond), format!($msg $(, $args)*))).into());
         }
     }};
 }
 
-pub(crate) use invariant;
+pub(crate) use assumption;
 
-/// Represents internal invariants that were violated.
+/// Represents internal assumptions that were violated.
 ///
 /// If this is returned, this is considered a bug that must be fixed!
 ///
@@ -32,37 +32,49 @@ pub(crate) use invariant;
 /// post checks are used to make sure any changes that happen underneath the
 /// library are caught and fixed as soon as possible.
 #[derive(Debug, Error)]
-#[error("internal invariant violated: {0}")]
-pub struct InternalInvariant(String);
+#[error("internal assumption violated: {0}")]
+pub struct Assumption(String);
 
-impl From<String> for InternalInvariant {
+impl From<String> for Assumption {
     #[inline]
     fn from(msg: String) -> Self {
         Self(msg)
     }
 }
 
-pub trait Invariant<T> {
+pub trait Assume<T> {
     type Output;
 
-    fn invariant(self, msg: impl Into<String>) -> Self::Output;
+    fn assumption(self, msg: impl Into<String>) -> Self::Output;
 }
 
-impl<T> Invariant<T> for Option<T> {
-    type Output = Result<T, InternalInvariant>;
+impl<T> Assume<T> for Option<T> {
+    type Output = Result<T, Assumption>;
 
     #[inline]
-    fn invariant(self, msg: impl Into<String>) -> Self::Output {
-        self.ok_or_else(|| InternalInvariant(msg.into()))
+    fn assumption(self, msg: impl Into<String>) -> Self::Output {
+        self.ok_or_else(|| Assumption(msg.into()))
     }
 }
 
-impl<T, E> Invariant<T> for Result<T, E> {
-    type Output = Result<T, InternalInvariant>;
+impl<T, E> Assume<T> for Result<T, E> {
+    type Output = Result<T, Assumption>;
 
     #[inline]
-    fn invariant(self, msg: impl Into<String>) -> Self::Output {
-        self.map_err(|_err: _| InternalInvariant(msg.into()))
+    fn assumption(self, msg: impl Into<String>) -> Self::Output {
+        self.map_err(|_err: _| Assumption(msg.into()))
+    }
+}
+
+#[expect(dead_code, reason = "created now, but use later")]
+pub trait AssumeFor<T, E>: Assume<T> {
+    fn assumption_for(self, msg: impl FnOnce(E) -> String) -> Self::Output;
+}
+
+impl<T, E> AssumeFor<T, E> for Result<T, E> {
+    #[inline]
+    fn assumption_for(self, msg: impl FnOnce(E) -> String) -> Self::Output {
+        self.map_err(|err| Assumption(msg(err)))
     }
 }
 
@@ -72,15 +84,15 @@ mod test {
 
     #[test]
     #[ignore = "this should only be manually verified"]
-    fn should_bail_with_message() -> Result<(), InternalInvariant> {
-        invariant!("failed to uphold assumption");
+    fn should_bail_with_message() -> Result<(), Assumption> {
+        assumption!("failed to uphold assumption");
     }
 
     #[test]
     #[ignore = "this should only be manually verified"]
-    fn should_bail_on_condition_fail_with_message() -> Result<(), InternalInvariant> {
+    fn should_bail_on_condition_fail_with_message() -> Result<(), Assumption> {
         let panels: Vec<()> = vec![];
-        invariant!(
+        assumption!(
             !panels.is_empty(),
             "episode panels should not be empty, but was {}",
             panels.len()
@@ -90,25 +102,25 @@ mod test {
 
     #[test]
     #[ignore = "this should only be manually verified"]
-    fn should_have_format_args() -> Result<(), InternalInvariant> {
+    fn should_have_format_args() -> Result<(), Assumption> {
         let arg = "foo";
-        invariant!("failed to uphold assumption with {arg} and {}", "bar");
+        assumption!("failed to uphold assumption with {arg} and {}", "bar");
     }
 
     #[test]
     #[ignore = "this should only be manually verified"]
-    fn should_error_with_internal_invariant() -> Result<(), InternalInvariant> {
+    fn should_error_with_internal_assumption() -> Result<(), Assumption> {
         let err: Option<()> = None;
-        err.invariant("failed to find `a.img` html tag on webtoon homepage")?;
+        err.assumption("failed to find `a.img` html tag on webtoon homepage")?;
         Ok(())
     }
 
     #[test]
     #[ignore = "this should only be manually verified"]
-    fn should_error_with_internal_invariant2() -> Result<(), InternalInvariant> {
+    fn should_error_with_internal_assumption2() -> Result<(), Assumption> {
         let webtoon = "Test";
         let err: Option<()> = None;
-        err.invariant(format!(
+        err.assumption(format!(
             "failed to find `a.img` html tag on webtoon homepage for `{webtoon}`"
         ))?;
         Ok(())

@@ -16,7 +16,7 @@ use crate::platform::webtoons::{
     webtoon::post::{Post, id::Id},
 };
 use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{InternalInvariant, Invariant, invariant};
+use crate::stdx::error::{Assume, Assumption, assumption};
 
 /// Represents a collection of episodes.
 ///
@@ -109,12 +109,12 @@ impl Episodes {
 }
 
 impl TryFrom<Vec<Episode>> for Episodes {
-    type Error = InternalInvariant;
+    type Error = Assumption;
 
     fn try_from(value: Vec<Episode>) -> Result<Self, Self::Error> {
         Ok(Self {
             count: u16::try_from(value.len())
-                .invariant("largest episode number on `webtoons.com` should fit within `u16`")?,
+                .assumption("largest episode number on `webtoons.com` should fit within `u16`")?,
             episodes: value,
         })
     }
@@ -274,7 +274,7 @@ impl Episode {
 
             match self.title.get() {
                 Store::Value(title) => Ok(title),
-                Store::Empty => invariant!(
+                Store::Empty => assumption!(
                     "`webtoons.com` episode `title` should have been populated with `self.scrape`, and thus should never be `Empty`"
                 ),
             }
@@ -356,7 +356,7 @@ impl Episode {
 
             match self.note.get() {
                 Store::Value(note) => Ok(note),
-                Store::Empty => invariant!(
+                Store::Empty => assumption!(
                     "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
                 ),
             }
@@ -396,7 +396,7 @@ impl Episode {
 
             match self.length.get() {
                 Store::Value(length) => Ok(length),
-                Store::Empty => invariant!(
+                Store::Empty => assumption!(
                     "`webtoons.com` episode `length` should have been populated with `self.scrape`, and thus should never be `Empty`"
                 ),
             }
@@ -516,7 +516,7 @@ impl Episode {
             .result
             .contents
             .first()
-            .invariant("`contents` field in `webtoons.com` likes api response was empty")?;
+            .assumption("`contents` field in `webtoons.com` likes api response was empty")?;
 
         let likes = contents
             .reactions
@@ -959,7 +959,7 @@ impl Episode {
 
             match self.panels.get() {
                 Store::Value(panels) => Ok(panels),
-                Store::Empty => invariant!(
+                Store::Empty => assumption!(
                     "`webtoons.com` episode `panels` should have been populated with `self.scrape`, and thus should never be `Empty`"
                 ),
             }
@@ -996,7 +996,7 @@ impl Episode {
 
             match self.thumbnail.get() {
                 Store::Value(thumbnail) => Ok(thumbnail.to_string()),
-                Store::Empty => invariant!(
+                Store::Empty => assumption!(
                     "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
                 ),
             }
@@ -1258,7 +1258,7 @@ impl Episode {
             let semaphore = semaphore
                 .acquire()
                 .await
-                .invariant("failed to acquire `Episode::download` sepmahore")?;
+                .assumption("failed to acquire `Episode::download` sepmahore")?;
 
             panel.download(&self.webtoon.client).await?;
 
@@ -1330,16 +1330,16 @@ impl Episode {
     }
 }
 
-pub(crate) fn season(title: &str) -> Result<Option<u8>, InternalInvariant> {
+pub(crate) fn season(title: &str) -> Result<Option<u8>, Assumption> {
     // [Season 3]
     {
         let reg = Regex::new(r"\[Season (?P<season>\d+)\]")
-            .invariant("`[Season N]` regex should be valid")?;
+            .assumption("`[Season N]` regex should be valid")?;
 
         if let Some(capture) = reg.captures(title.as_ref()) {
             let season = capture["season"]
                 .parse::<u8>()
-                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
             return Ok(Some(season));
         }
@@ -1347,12 +1347,12 @@ pub(crate) fn season(title: &str) -> Result<Option<u8>, InternalInvariant> {
 
     // [S3]
     {
-        let reg = Regex::new(r"\[S(?P<season>\d+)\]").invariant("`[SN]` regex should be valid")?;
+        let reg = Regex::new(r"\[S(?P<season>\d+)\]").assumption("`[SN]` regex should be valid")?;
 
         if let Some(capture) = reg.captures(title.as_ref()) {
             let season = capture["season"]
                 .parse::<u8>()
-                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
             return Ok(Some(season));
         }
@@ -1360,12 +1360,12 @@ pub(crate) fn season(title: &str) -> Result<Option<u8>, InternalInvariant> {
 
     // (S3)
     {
-        let reg = Regex::new(r"\(S(?P<season>\d+)\)").invariant("(SN) regex should be valid")?;
+        let reg = Regex::new(r"\(S(?P<season>\d+)\)").assumption("(SN) regex should be valid")?;
 
         if let Some(capture) = reg.captures(title.as_ref()) {
             let season = capture["season"]
                 .parse::<u8>()
-                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
             return Ok(Some(season));
         }
@@ -1374,12 +1374,12 @@ pub(crate) fn season(title: &str) -> Result<Option<u8>, InternalInvariant> {
     // (Season 3)
     {
         let reg = Regex::new(r"\(Season (?P<season>\d+)\)")
-            .invariant("`(Season N)` regex should be valid")?;
+            .assumption("`(Season N)` regex should be valid")?;
 
         if let Some(capture) = reg.captures(title.as_ref()) {
             let season = capture["season"]
                 .parse::<u8>()
-                .invariant(r"regex match on `\d+` so should be parsable as an int")?;
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
             return Ok(Some(season));
         }
@@ -1458,17 +1458,17 @@ impl From<DashboardStatus> for PublishedStatus {
 
 fn title(html: &Html) -> Result<String, EpisodeError> {
     let selector = Selector::parse("div.subj_info>.subj_episode") //
-        .invariant("`div.subj_info>.subj_episode` should be a valid selector")?;
+        .assumption("`div.subj_info>.subj_episode` should be a valid selector")?;
 
     let title = html
         .select(&selector)
         .next()
-        .invariant("`.subj_episode`(title) is missing on `webtoons.com` episode page")?
+        .assumption("`.subj_episode`(title) is missing on `webtoons.com` episode page")?
         .text()
         .next()
-        .invariant("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
+        .assumption("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
 
-    invariant!(
+    assumption!(
         !title.is_empty(),
         "`webtoons.com` episode title on episode page should never be empty"
     );
@@ -1487,7 +1487,7 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
     }
 
     let selector = Selector::parse(r"img._images") //
-        .invariant("`img._images` should be a valid selector")?;
+        .assumption("`img._images` should be a valid selector")?;
 
     let mut length = 0;
 
@@ -1500,17 +1500,17 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
 
 fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
     let selector = Selector::parse(r".creator_note>.author_text") //
-        .invariant("`.creator_note>.author_text` should be a valid selector")?;
+        .assumption("`.creator_note>.author_text` should be a valid selector")?;
 
     let Some(selection) = html.select(&selector).next() else {
         return Ok(None);
     };
 
-    let note = selection.text().next().invariant(
+    let note = selection.text().next().assumption(
         "`.author_text` on `webtoons.com` episode page was found, but no text was present",
     )?;
 
-    invariant!(
+    assumption!(
         !note.is_empty(),
         "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
     );
@@ -1518,19 +1518,19 @@ fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
     Ok(Some(note.to_string()))
 }
 
-fn thumbnail(html: &Html, episode: u16) -> Result<Url, InternalInvariant> {
+fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
     let selector =
         Selector::parse(r"div.episode_lst>div.episode_cont>ul>li") //
-            .invariant(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
+            .assumption(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
 
     for li in html.select(&selector) {
         let data_episode_no = match li
             .attr("data-episode-no")
-            .invariant("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
+            .assumption("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
             .parse::<u16>()
             {
                 Ok(data_episode_no) => data_episode_no,
-                Err(err) => invariant!("`data-episode-no` should always be able to parse into a `u16`: {err}"),
+                Err(err) => assumption!("`data-episode-no` should always be able to parse into a `u16`: {err}"),
             };
 
         if data_episode_no != episode {
@@ -1538,20 +1538,20 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, InternalInvariant> {
         }
 
         let selector = Selector::parse("a>span.thmb>img._thumbnailImages")
-            .invariant("`a>span.thmb>img._thumbnailImages` should be a valid selector")?;
+            .assumption("`a>span.thmb>img._thumbnailImages` should be a valid selector")?;
 
         let url = li
             .select(&selector)
             .next()
-            .invariant(
+            .assumption(
                 "`img._thumbnailImages`(thumbnail) is missing in `webtoons.com` episode page, should have at least one, even if only for the currently viewed episode",
             )?
             .attr("data-url")
-            .invariant("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
+            .assumption("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
 
         let mut thumbnail = match Url::parse(url) {
             Ok(url) => url,
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"
             ),
         };
@@ -1559,27 +1559,27 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, InternalInvariant> {
         thumbnail
             // This host doesn't need a `referer` header to see the image.
             .set_host(Some("swebtoon-phinf.pstatic.net"))
-            .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
+            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
         return Ok(thumbnail);
     }
 
-    invariant!(
+    assumption!(
         "`webtoons.com` episode page should always have at least one thumbnail url on it, even if just for the currently viewed episode"
     );
 }
 
 #[inline]
-fn is_audio_reader(html: &Html) -> Result<bool, InternalInvariant> {
+fn is_audio_reader(html: &Html) -> Result<bool, Assumption> {
     let selector = Selector::parse("button#soundControl")
-        .invariant("`button#soundControl` should be a valid selector")?;
+        .assumption("`button#soundControl` should be a valid selector")?;
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
     Ok(html.select(&selector).next().is_some())
 }
 
-fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
-    let value = img.value().attr("height").invariant("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
+    let value = img.value().attr("height").assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let height = match value {
         float if float.contains('.') => {
@@ -1587,23 +1587,23 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
 
             let height = match float
                 .next()
-                .invariant("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+                .assumption("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
                 .parse::<u32>()
              {
                 Ok(height) => height,
-                Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+                Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
              };
 
             match float.next() {
                 Some(_) => {}
-                None => invariant!(
+                None => assumption!(
                     "`webtoons.com` episode `height` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
                 ),
             }
 
             match float.next() {
                 None => {}
-                Some(val) => invariant!(
+                Some(val) => assumption!(
                     "`webtoons.com` episode `height` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
                 ),
             }
@@ -1613,13 +1613,13 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
         // Height can also be a whole number: `1280`.
         height => match height.parse::<u32>() {
             Ok(width) => width,
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "`height` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{height}"
             ),
         },
     };
 
-    invariant!(
+    assumption!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
         // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this.
         height <= 1280,
@@ -1629,34 +1629,34 @@ fn height(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
     Ok(height)
 }
 
-fn width(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
+fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
     let value = img
         .value()
         .attr("width")
-        .invariant("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+        .assumption("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let width = match value {
         float if float.contains('.') => {
             let mut float = float.split('.');
 
             let width = match float.next()
-                .invariant("detected a `.` in `width` attribute on `webtoons.com` episode page, so should be a float, `720.0`, so should always split on `.`: `720` `0`")?
+                .assumption("detected a `.` in `width` attribute on `webtoons.com` episode page, so should be a float, `720.0`, so should always split on `.`: `720` `0`")?
                 .parse::<u32>()
                 {
                     Ok(width) => width,
-                    Err(err) => invariant!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+                    Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
                 };
 
             match float.next() {
                 Some(_) => {}
-                None => invariant!(
+                None => assumption!(
                     "`webtoons.com` episode `width` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
                 ),
             }
 
             match float.next() {
                 None => {}
-                Some(val) => invariant!(
+                Some(val) => assumption!(
                     "`webtoons.com` episode `width` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
                 ),
             }
@@ -1666,13 +1666,13 @@ fn width(img: ElementRef<'_>) -> Result<u32, InternalInvariant> {
         // Width can also be a whole number: `800`.
         width => match width.parse::<u32>() {
             Ok(width) => width,
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "`width` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{width}"
             ),
         },
     };
 
-    invariant!(
+    assumption!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
         width <= 800,
         "`webtoons.com` enforces strict limits of `800` pixels in width"
@@ -1744,7 +1744,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
     }
 
     let selector = Selector::parse(r"img._images") //
-        .invariant("`img._images` should be a valid selector")?;
+        .assumption("`img._images` should be a valid selector")?;
 
     let mut panels = Vec::new();
 
@@ -1752,26 +1752,26 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
         let data_url = img
             .value()
             .attr("data-url")
-            .invariant("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
+            .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
         let mut url = match Url::parse(data_url) {
             Ok(url) => url,
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"
             ),
         };
 
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
-            .invariant("`swebtoon-phinf.pstatic.net` should be a valid host")?;
+            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
         let ext = match url.path().split('.').nth(1) {
             Some(ext) => ext.to_string(),
-            None => invariant!(
+            None => assumption!(
                 "`webtoons.com` episode page panel image urls should end in an extension, got: {url}"
             ),
         };
 
-        invariant!(
+        assumption!(
             ["jpeg", "png", "jpg"]
                 .into_iter()
                 .any(|format| format != ext),
@@ -1784,7 +1784,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
             episode,
             // Enumerate starts at 0, so add +1 so that it starts at one.
             number: u16::try_from(number + 1)
-                .invariant("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
+                .assumption("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
             height: height(img)?,
             width: width(img)?,
             ext,
@@ -1792,7 +1792,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
         });
     }
 
-    invariant!(
+    assumption!(
         !panels.is_empty(),
         "episodes on `webtoons.com` must have at least one panel on its viewer, platform doesnt let you create an episode without at least one"
     );
@@ -1911,7 +1911,7 @@ impl Panels {
 
         tokio::fs::create_dir_all(path).await?;
 
-        let first = self.images.first().invariant(
+        let first = self.images.first().assumption(
             "`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!",
         )?;
 
@@ -1933,7 +1933,7 @@ impl Panels {
 
             let image = match image::load_from_memory(bytes) {
                 Ok(image) => image,
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features: {err}"
                 ),
             };
@@ -1951,11 +1951,11 @@ impl Panels {
             Ok(ok) => match ok {
                 Ok(()) => Ok(()),
                 Err(image::ImageError::IoError(err)) => Err(DownloadError::IoError(err)),
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
                 ),
             },
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to join tokio handle trying to save single `webtoons.com` image to disk: {err}"
             ),
         }

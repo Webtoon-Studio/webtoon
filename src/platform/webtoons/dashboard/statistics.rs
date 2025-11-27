@@ -5,7 +5,7 @@ use crate::{
         Webtoon,
         error::{StatsDashboardError, WebtoonError},
     },
-    stdx::error::{Invariant, invariant},
+    stdx::error::{Assume, assumption},
 };
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
@@ -44,45 +44,45 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     {
         let selector = Selector::parse(r".col3>p") //
-            .invariant("`.col3>p` should be a valid selector")?;
+            .assumption("`.col3>p` should be a valid selector")?;
 
         let category = html
         .select(&selector)
         .next()
-        .invariant("`.col3>p`, representing a category, is missing on `webtoons.com` Webtoon stats dashboard: should have an element which says what category its for, eg. `Subscribers`")?
+        .assumption("`.col3>p`, representing a category, is missing on `webtoons.com` Webtoon stats dashboard: should have an element which says what category its for, eg. `Subscribers`")?
         .text()
         .next()
-        .invariant("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category, but no text was present in element")?;
+        .assumption("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category, but no text was present in element")?;
 
-        invariant!(
+        assumption!(
             category == "Subscribers",
             "expected to find `Subscribers` category on `webtoons.com` stats dashboard at `.col3>p`, but instead found: `{category}`"
         );
     }
 
     let selector = Selector::parse(r".col3>.num") //
-        .invariant("`.col3>.num` should be a valid selector")?;
+        .assumption("`.col3>.num` should be a valid selector")?;
 
     let count = html
         .select(&selector)
         .next()
-        .invariant("`.col3>.num` on `webtoons.com` stats dashboard is missing: subscriber category was found, and should have a value associated with it, but nothing was found")?
+        .assumption("`.col3>.num` on `webtoons.com` stats dashboard is missing: subscriber category was found, and should have a value associated with it, but nothing was found")?
         .text()
         .next()
-        .invariant("`.col3>.num` on `webtoons.com` stats dashboard was found, but no text was present in element")?;
+        .assumption("`.col3>.num` on `webtoons.com` stats dashboard was found, but no text was present in element")?;
 
     let subscribers = match count {
         millions if millions.ends_with('M') => {
             let (millionth, hundred_thousandth) = millions
                 .trim_end_matches('M')
                 .split_once('.')
-                .invariant("on `webtoons.com` Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
+                .assumption("on `webtoons.com` Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
             let millions = millionth.parse::<u32>()
-                .invariant(format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
+                .assumption(format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
 
             let hundred_thousands = hundred_thousandth.parse::<u32>()
-                .invariant(format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}"))?;
+                .assumption(format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}"))?;
 
             (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
@@ -90,7 +90,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         thousand => thousand
             .replace(',', "")
             .parse::<u32>()
-            .invariant(format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}"))?,
+            .assumption(format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}"))?,
     };
 
     Ok(subscribers)

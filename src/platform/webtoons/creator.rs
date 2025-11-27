@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use crate::stdx::error::{InternalInvariant, Invariant, invariant};
+use crate::stdx::error::{Assume, Assumption, assumption};
 
 use super::{Client, Language, Webtoon, error::CreatorError};
 
@@ -269,7 +269,7 @@ impl Creator {
                 let profile = homepage
                     .as_ref()
                     .map(|homepage| homepage.id.clone())
-                    .invariant(
+                    .assumption(
                         "failed to find creator profile property on creator homepage html",
                     )?;
 
@@ -285,7 +285,7 @@ impl Creator {
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
                 let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &self.client).await {
                     Ok(Some(webtoon)) => webtoon,
-                    Ok(None) => invariant!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
+                    Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
                     Err(err) => return Err(err.into()),
                 };
 
@@ -355,7 +355,7 @@ pub(super) async fn homepage(
 }
 
 fn username(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("h3").invariant("`h3` should be a valid selector")?;
+    let selector = Selector::parse("h3").assumption("`h3` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(class) = element.value().attr("class")
@@ -364,18 +364,18 @@ fn username(html: &Html) -> Result<String, CreatorError> {
             return Ok(element
                 .text()
                 .next()
-                .invariant("username element on `webtoons.com` creator homepage was empty")?
+                .assumption("username element on `webtoons.com` creator homepage was empty")?
                 .to_string());
         }
     }
 
-    invariant!(
+    assumption!(
         "did not find any class that starts with `HomeProfile_nickname` on `webtoons.com` creator homepage html"
     );
 }
 
 fn followers(html: &Html) -> Result<u32, CreatorError> {
-    let selector = Selector::parse("span").invariant("`span` should be a valid selector")?;
+    let selector = Selector::parse("span").assumption("`span` should be a valid selector")?;
 
     if let Some(element) = html
         .select(&selector)
@@ -392,15 +392,15 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
         let count = element
             .text()
             .next()
-            .invariant("follower count element on `weboons.com` creator homepage was empty")?
+            .assumption("follower count element on `weboons.com` creator homepage was empty")?
             .replace(',', "");
 
         return Ok(count
                     .parse::<u32>()
-                    .invariant(format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"))?);
+                    .assumption(format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"))?);
     }
 
-    invariant!(
+    assumption!(
         "did not find any class that starts with `CreatorBriefMetric_count` on `webtoons.com` creator homepage html"
     );
 }
@@ -408,7 +408,7 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
 // TODO: explain that the profile provided is not always the one that is needed
 // for operations and that this id can be found on the creator page hmtl in a script tag.
 fn id(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("script").invariant("`script` should be a valid selector")?;
+    let selector = Selector::parse("script").assumption("`script` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(inner) = element.text().next()
@@ -416,7 +416,7 @@ fn id(html: &Html) -> Result<String, CreatorError> {
         {
             let id  = inner
                 .get(idx..)
-                .invariant(
+                .assumption(
                     "`find` should point to start of `webtoons.com` creator homepage `creatorId`, so should never be out of bounds",
                 )?
                 // `creatorId\":\"n5z4d\"` -> `\":\"n5z4d\"`
@@ -428,7 +428,7 @@ fn id(html: &Html) -> Result<String, CreatorError> {
                 .take_while(|ch| ch.is_ascii_alphanumeric())
                 .collect::<String>();
 
-            invariant!(
+            assumption!(
                 !id.is_empty(),
                 "`creatorId` on `webtoons.com` creator homepage should never be empty"
             );
@@ -437,13 +437,13 @@ fn id(html: &Html) -> Result<String, CreatorError> {
         }
     }
 
-    invariant!(
+    assumption!(
         "failed to find `creatorId` in script tag on english `webtoons.com` Creator homepage html"
     )
 }
 
-fn has_patreon(html: &Html) -> Result<bool, InternalInvariant> {
-    let selector = Selector::parse("img").invariant("`img` should be a valid selector")?;
+fn has_patreon(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("img").assumption("`img` should be a valid selector")?;
 
     let has_patreon = html
         .select(&selector)

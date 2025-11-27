@@ -25,7 +25,7 @@ use crate::{
         webtoon::post::{PinRepresentation, Poster, id::Id},
     },
     stdx::{
-        error::{Invariant, invariant},
+        error::{Assume, assumption},
         http::{DEFAULT_USER_AGENT, IRetry},
     },
 };
@@ -413,13 +413,13 @@ impl Client {
 
             let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
                 Ok(search) => search,
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
                 ),
             };
 
             let Some(originals) = search.result.webtoon_title_list else {
-                invariant!(
+                assumption!(
                     "search result didnt have `webtoonTitleList`(originals) field in response result"
                 );
             };
@@ -457,13 +457,13 @@ impl Client {
 
                 let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
                     Ok(search) => search,
-                    Err(err) => invariant!(
+                    Err(err) => assumption!(
                         "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
                     ),
                 };
 
                 let Some(originals) = search.result.webtoon_title_list else {
-                    invariant!(
+                    assumption!(
                         "search result didnt have `webtoonTitleList`(originals) field in response result"
                     );
                 };
@@ -505,13 +505,13 @@ impl Client {
 
             let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
                 Ok(search) => search,
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "failed to deserialize `webtoon.com` canvas search api response (structure change possible): {err}\n\n{json}"
                 ),
             };
 
             let Some(canvas) = search.result.challenge_title_list else {
-                invariant!(
+                assumption!(
                     "search result didnt have `challengeTitleList`(canvas) field in response result"
                 );
             };
@@ -549,13 +549,13 @@ impl Client {
 
                 let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
                     Ok(search) => search,
-                    Err(err) => invariant!(
+                    Err(err) => assumption!(
                         "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
                     ),
                 };
 
                 let Some(canvas) = search.result.challenge_title_list else {
-                    invariant!(
+                    assumption!(
                         "search result didnt have `challengeTitleList`(canvas) field in response result"
                     );
                 };
@@ -757,7 +757,7 @@ impl Client {
         match serde_json::from_str::<UserInfo>(&response) {
             Ok(user_info) => Ok(user_info),
             Err(err) => {
-                invariant!(
+                assumption!(
                     "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
                 )
             }
@@ -957,7 +957,7 @@ impl Client {
         match serde_json::from_str::<CreatorWebtoons>(&json) {
             Ok(creator_webtoons) => Ok(creator_webtoons),
             Err(err) => {
-                invariant!(
+                assumption!(
                     "failed to deserialize creator webtoons `webtoons.com` response: {err}\n\n{json}"
                 )
             }
@@ -1036,10 +1036,10 @@ impl Client {
 
         match serde_json::from_str::<api::subscription::Response>(&response) {
             Ok(result) if result.success && result.favorite => {}
-            Ok(result) => invariant!(
+            Ok(result) => assumption!(
                 "`subscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
             ),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "response from subscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
             ),
         }
@@ -1080,10 +1080,10 @@ impl Client {
 
         match serde_json::from_str::<api::subscription::Response>(&response) {
             Ok(result) if result.success && !result.favorite => {}
-            Ok(result) => invariant!(
+            Ok(result) => assumption!(
                 "`unsubscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
             ),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "response from unsubscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
             ),
         }
@@ -1195,7 +1195,7 @@ impl Client {
 
         match rss::Channel::from_str(&response) {
             Ok(channel) => Ok(channel),
-            Err(err) => invariant!("rss feed returned from `webtoons.com` failed to parse: {err}"),
+            Err(err) => assumption!("rss feed returned from `webtoons.com` failed to parse: {err}"),
         }
     }
 
@@ -1266,7 +1266,7 @@ impl Client {
 
         match serde_json::from_str::<RawLikesResponse>(&response) {
             Ok(response) => Ok(response),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize raw likes api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1285,12 +1285,12 @@ impl Client {
             let token = response
                 .result
                 .guest_token
-                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
+                .assumption("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
 
             let timestamp = response
                 .result
                 .timestamp
-                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
+                .assumption("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
 
             let language = match episode.webtoon.language {
                 Language::En => "en",
@@ -1331,12 +1331,12 @@ impl Client {
             let token = response
                 .result
                 .guest_token
-                .invariant("if `webtoons.com` react token api response is successful, the `guestToken` should be `Some`")?;
+                .assumption("if `webtoons.com` react token api response is successful, the `guestToken` should be `Some`")?;
 
             let timestamp = response
                 .result
                 .timestamp
-                .invariant("if `webtoons.com` react token api response is successful, the `timestamp` should be `Some`")?;
+                .assumption("if `webtoons.com` react token api response is successful, the `timestamp` should be `Some`")?;
 
             let language = match episode.webtoon.language {
                 Language::En => "en",
@@ -1411,7 +1411,7 @@ impl Client {
 
         match serde_json::from_str::<RawPostResponse>(&response) {
             Ok(response) => Ok(response),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1482,7 +1482,7 @@ impl Client {
 
         match serde_json::from_str::<Count>(&response) {
             Ok(count) => Ok(count),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize post upvote/downvote api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1523,7 +1523,7 @@ impl Client {
 
         match serde_json::from_str::<RawPostResponse>(&response) {
             Ok(response) => Ok(response),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1649,7 +1649,7 @@ impl Client {
         let reaction = match reaction {
             Reaction::Upvote => "like",
             Reaction::Downvote => "dislike",
-            Reaction::None => invariant!(
+            Reaction::None => assumption!(
                 "should never be used with `Reaction::None`, as should only be called from `post.upvote()`` or `post.downvote()`, and `None` doesnt make any sense to pass"
             ),
         };
@@ -1694,7 +1694,7 @@ impl Client {
         let reaction = match reaction {
             Reaction::Upvote => "like",
             Reaction::Downvote => "dislike",
-            Reaction::None => invariant!(
+            Reaction::None => assumption!(
                 "should never be used with `Reaction::None`, as should only be called from `post.unvote()`, and `None` doesnt make any sense to pass"
             ),
         };
@@ -1800,7 +1800,7 @@ impl Client {
 
         match serde_json::from_str::<WebtoonUserInfo>(&response) {
             Ok(response) => Ok(response),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize webtoon user info api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1824,7 +1824,7 @@ impl Client {
 
         match serde_json::from_str::<ReactToken>(&response) {
             Ok(token) => Ok(token),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize react token api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
@@ -1848,7 +1848,7 @@ impl Client {
 
         match serde_json::from_str::<ApiToken>(&response) {
             Ok(response) => Ok(response.result.token),
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "failed to deserialize api token api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }

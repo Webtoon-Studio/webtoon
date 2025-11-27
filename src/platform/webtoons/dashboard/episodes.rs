@@ -10,7 +10,7 @@ use crate::{
             episode::{self, AdStatus, Episode},
         },
     },
-    stdx::{cache::Cache, error::invariant, math::MathExt},
+    stdx::{cache::Cache, error::assumption, math::MathExt},
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
@@ -25,7 +25,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
 
     let dashboard_episodes = webtoon.client.get_episodes_dashboard(webtoon, 1).await?;
 
-    invariant!(
+    assumption!(
         dashboard_episodes.len() <= usize::from(MAX_EPISODES_PER_PAGE),
         "`webtoons.com` episode dashboard was expected to have a max of 10 per page, but had: {}",
         dashboard_episodes.len()
@@ -43,7 +43,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     for episode in dashboard_episodes {
         let published = match episode.published.map(DateTime::from_timestamp_millis) {
             Some(Some(published)) => Some(published),
-            Some(None) => invariant!(
+            Some(None) => assumption!(
                 "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
                 episode.published
             ),
@@ -73,7 +73,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
         for episode in dashboard_episodes {
             let published = match episode.published.map(DateTime::from_timestamp_millis) {
                 Some(Some(published)) => Some(published),
-                Some(None) => invariant!(
+                Some(None) => assumption!(
                     "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
                     episode.published
                 ),
@@ -105,7 +105,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
     match u16::try_from(episodes.len()) {
         Ok(_) => {}
         Err(err) => {
-            invariant!(
+            assumption!(
                 "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
                 episodes.len()
             )

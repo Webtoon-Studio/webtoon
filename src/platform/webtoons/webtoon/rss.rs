@@ -8,7 +8,7 @@ use crate::{
     platform::webtoons::{Language, creator::Creator},
     stdx::{
         cache::Cache,
-        error::{InternalInvariant, Invariant, invariant},
+        error::{Assume, Assumption, assumption},
     },
 };
 
@@ -76,20 +76,20 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
     for item in &channel.items {
         let published = published(
             item.pub_date()
-                .invariant("publish date should always be present in `webtoons.com` rss feed, as this feed only shows published episodes")?,
+                .assumption("publish date should always be present in `webtoons.com` rss feed, as this feed only shows published episodes")?,
             webtoon.language(),
         )?;
 
         let number = episode(
             item.link
                 .as_ref()
-                .invariant("rss `link` tag should always be filled, as this represents the link to the `webtoons.com` episode")?,
+                .assumption("rss `link` tag should always be filled, as this represents the link to the `webtoons.com` episode")?,
         )?;
 
         let title = item
             .title
             .as_ref()
-            .invariant("rss feed for `webtoons.com` should always have a Webtoon tile")?
+            .assumption("rss feed for `webtoons.com` should always have a Webtoon tile")?
             .clone();
 
         episodes.push(Episode {
@@ -115,7 +115,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
         url: channel.link.clone(),
         thumbnail: channel
             .image()
-            .invariant("`webtoons.com` Webtoon rss feed should should have an `image`, represening the thumbnail of the Webtoon")?
+            .assumption("`webtoons.com` Webtoon rss feed should should have an `image`, represening the thumbnail of the Webtoon")?
             .url
             .clone(),
         creators: webtoon.creators().await?,
@@ -124,8 +124,8 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
     })
 }
 
-fn published(date: &str, language: Language) -> Result<DateTime<Utc>, InternalInvariant> {
-    invariant!(
+fn published(date: &str, language: Language) -> Result<DateTime<Utc>, Assumption> {
+    assumption!(
         date.ends_with("GMT"),
         "all known rss date formats end with `GMT`"
     );
@@ -153,19 +153,19 @@ fn published(date: &str, language: Language) -> Result<DateTime<Utc>, InternalIn
         .map(|(_, date)| date.trim_end_matches("GMT"))
         .map(|date| date.trim())
     else {
-        invariant!(
+        assumption!(
             "incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got: `{date}`"
         );
     };
 
-    invariant!(
+    assumption!(
         date.chars()
             .next()
             .is_some_and(|char| char.is_ascii_digit()),
         "`date` should start with a digit after splitting on `,`"
     );
 
-    invariant!(
+    assumption!(
         !date.ends_with("GMT"),
         "`date` should not end with `GMT` after trimming"
     );
@@ -173,35 +173,35 @@ fn published(date: &str, language: Language) -> Result<DateTime<Utc>, InternalIn
     match NaiveDateTime::parse_from_str(date, fmt) {
         Ok(date) => Ok(date.and_utc()),
         Err(err) => {
-            invariant!(
+            assumption!(
                 "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format: {err}\n\n`{fmt}`:`{date}`"
             )
         }
     }
 }
 
-fn episode(url: &str) -> Result<u16, InternalInvariant> {
+fn episode(url: &str) -> Result<u16, Assumption> {
     let url = match Url::parse(url) {
         Ok(url) => url,
-        Err(err) => invariant!(
+        Err(err) => assumption!(
             "urls returned from `webtoons.com` rss feed should always be valid: {err}\n\n`{url}`"
         ),
     };
 
     let Some((key, value)) = url.query_pairs().nth(1) else {
-        invariant!(
+        assumption!(
             "`webtoons.com` Webtoon rss url should always 2 queries, one for the Webtoon id, `title_no`, and one for the episode number, `episode_no`: `{url}`"
         )
     };
 
-    invariant!(
+    assumption!(
         key == "episode_no",
         "second url query in `webtoons.com` Webtoon rss feed url was not `episode_no`: {url}"
     );
 
     match u16::from_str(&value) {
         Ok(episode) => Ok(episode),
-        Err(err) => invariant!(
+        Err(err) => assumption!(
             "`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes: {err}\n\n`{value}`"
         ),
     }

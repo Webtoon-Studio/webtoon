@@ -24,7 +24,7 @@ use std::{fmt::Display, ops::RangeBounds};
 
 use crate::{
     platform::webtoons::error::CanvasError,
-    stdx::error::{Invariant, invariant},
+    stdx::error::{Assume, assumption},
 };
 
 use super::{Client, Language, Webtoon};
@@ -37,7 +37,7 @@ pub(super) async fn scrape(
 ) -> Result<Vec<Webtoon>, CanvasError> {
     // NOTE: currently all languages are the same
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
-        .invariant("`div.challenge_lst>ul>li>a` should be a valid selector")?;
+        .assumption("`div.challenge_lst>ul>li>a` should be a valid selector")?;
 
     let start = match pages.start_bound() {
         std::ops::Bound::Included(&n) => n.max(1),
@@ -61,13 +61,13 @@ pub(super) async fn scrape(
         let html = client.get_canvas_page(language, page, sort).await?;
 
         for card in html.select(&selector) {
-            let href = card.attr("href").invariant(
+            let href = card.attr("href").assumption(
                 "`href` attribute is missing on `webtoon.com` `Canvas` page, `a` tag should always have one",
             )?;
 
             let webtoon = match Webtoon::from_url_with_client(href, client) {
                 Ok(webtoon) => webtoon,
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}\n\n{href}"
                 ),
             };
@@ -76,11 +76,11 @@ pub(super) async fn scrape(
         }
     }
 
-    invariant!(
+    assumption!(
         !webtoons.is_empty(),
         "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should never be empty"
     );
-    invariant!(
+    assumption!(
         webtoons.len() % 20 == 0,
         "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should `webtoons % 20 == 0`"
     );

@@ -36,9 +36,7 @@ pub use _inner::{
 };
 
 mod _inner {
-    use crate::{
-        platform::webtoons::webtoon::post::id::ParseIdError, stdx::error::InternalInvariant,
-    };
+    use crate::{platform::webtoons::webtoon::post::id::ParseIdError, stdx::error::Assumption};
     use error_set::error_set;
 
     error_set! {
@@ -145,7 +143,7 @@ mod _inner {
         }
 
         Base := {
-            Internal(InternalInvariant),
+            Internal(Assumption),
         }
     }
 }

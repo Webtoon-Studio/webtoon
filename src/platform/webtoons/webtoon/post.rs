@@ -12,7 +12,7 @@ use crate::{
         webtoon::post::id::Id,
     },
     private::Sealed,
-    stdx::{cache::Cache, error::invariant},
+    stdx::{cache::Cache, error::assumption},
 };
 
 use super::Episode;
@@ -821,7 +821,7 @@ impl Post {
         let mut upvotes = 0;
         let mut downvotes = 0;
 
-        invariant!(
+        assumption!(
             response.result.emotions.len() < 3,
             "`webtoons.com` post api should only have either upvotes or downvotes, yet had three items: {:?}",
             response.result.emotions

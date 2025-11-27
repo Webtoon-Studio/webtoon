@@ -7,7 +7,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::stdx::error::{Invariant, invariant};
+use crate::stdx::error::{Assume, assumption};
 
 use super::{Client, Language, Webtoon, error::OriginalsError};
 
@@ -17,7 +17,7 @@ pub(super) async fn scrape(
 ) -> Result<Vec<Webtoon>, OriginalsError> {
     // NOTE: Currently all languages follow this pattern
     let selector = Selector::parse("ul.webtoon_list>li>a") //
-        .invariant("`ul.webtoon_list>li>a` should be a valid selector")?;
+        .assumption("`ul.webtoon_list>li>a` should be a valid selector")?;
 
     let days = [
         "monday",
@@ -41,11 +41,11 @@ pub(super) async fn scrape(
         for card in html.select(&selector) {
             let href = card
                 .attr("href")
-                .invariant("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
+                .assumption("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
 
             let webtoon = match Webtoon::from_url_with_client(href, client) {
                 Ok(webtoon) => webtoon,
-                Err(err) => invariant!(
+                Err(err) => assumption!(
                     "urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`: {err}"
                 ),
             };
@@ -54,7 +54,7 @@ pub(super) async fn scrape(
         }
     }
 
-    invariant!(
+    assumption!(
         !webtoons.is_empty(),
         "after scraping `webtoons.com` Originals page, there should be at least some Webtoons that were found"
     );

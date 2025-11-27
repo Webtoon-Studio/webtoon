@@ -12,7 +12,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Invariant, invariant},
+        error::{Assume, assumption},
     },
 };
 
@@ -281,7 +281,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         let emotions = post
             .reactions
             .first()
-            .invariant(
+            .assumption(
                 "`reactions` field in `webtoons.com` raw post response didn't have a 0th element",
             )?
             .emotions
@@ -305,7 +305,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             })
             .unwrap_or_default();
 
-        invariant!(
+        assumption!(
             !(liked && disliked),
             "user cannot both have liked *and* disliked a post on `webtoons.com`; either or, neither, but not both"
         );
@@ -321,7 +321,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         };
 
         let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
-            invariant!(
+            assumption!(
                 "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`",
                 post.created_at
             );
@@ -341,18 +341,18 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         let path = data.info.extra.episode_list_path.as_str();
 
                         let url = match url::Url::parse("https://www.webtoons.com")
-                            .invariant("`https://www.webtoons.com` should be a valid url")?
+                            .assumption("`https://www.webtoons.com` should be a valid url")?
                             .join(path)
                         {
                             Ok(url) => url,
-                            Err(err) => invariant!(
+                            Err(err) => assumption!(
                                 "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
                             ),
                         };
 
                         let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
                             Ok(webtoon) => webtoon,
-                            Err(err) => invariant!(
+                            Err(err) => assumption!(
                                 "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
                             ),
                         };
@@ -363,7 +363,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         super_like = Some(data.super_like_count);
                     }
                     _ => {
-                        invariant!(
+                        assumption!(
                             "only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
                         );
                     }
@@ -378,7 +378,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                     }
                     Section::Sticker { data, .. } => match Sticker::from_str(&data.sticker_id) {
                         Ok(sticker) => Some(Flare::Sticker(sticker)),
-                        Err(err) => invariant!(
+                        Err(err) => assumption!(
                             "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id: {err}\n\n{}",
                             data.sticker_id
                         ),
@@ -387,18 +387,18 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         let path = data.info.extra.episode_list_path.as_str();
 
                         let url = match url::Url::parse("https://www.webtoons.com")
-                            .invariant("`https://www.webtoons.com` should be a valid url")?
+                            .assumption("`https://www.webtoons.com` should be a valid url")?
                             .join(path)
                         {
                             Ok(url) => url,
-                            Err(err) => invariant!(
+                            Err(err) => assumption!(
                                 "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
                             ),
                         };
 
                         let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
                             Ok(webtoon) => webtoon,
-                            Err(err) => invariant!(
+                            Err(err) => assumption!(
                                 "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
                             ),
                         };

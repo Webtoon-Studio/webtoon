@@ -28,7 +28,7 @@ use crate::{
     platform::webtoons::error::{InvalidWebtoonUrl, PostsError, RequestError, UserInfoError},
     stdx::{
         cache::{Cache, Store},
-        error::{Invariant, invariant},
+        error::{Assume, assumption},
         http::IRetry,
     },
 };
@@ -673,7 +673,7 @@ impl Webtoon {
         };
 
         let count = u16::try_from(episodes.len())
-            .invariant("all webtoons on `webtoons.com` should never have more than 65,535 episodes; this post-condition should have been caught before this point!")?;
+            .assumption("all webtoons on `webtoons.com` should never have more than 65,535 episodes; this post-condition should have been caught before this point!")?;
 
         Ok(Episodes { count, episodes })
     }
@@ -840,7 +840,7 @@ impl Webtoon {
                     EpisodeError::NoSessionProvided => return Err(PostsError::NoSessionProvided),
                     EpisodeError::InvalidSession => return Err(PostsError::InvalidSession),
                     EpisodeError::Internal(err) => return Err(err.into()),
-                    EpisodeError::NotViewable => invariant!(
+                    EpisodeError::NotViewable => assumption!(
                         "`NotViewable` for a `webtoons.com` episode means you cannot see the panels through normal means; getting posts has no dependency on viewability"
                     ),
                 },
@@ -1038,29 +1038,29 @@ impl Webtoon {
 
         let url = response.url();
 
-        let mut segments = url.path_segments().invariant(
+        let mut segments = url.path_segments().assumption(
             format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
         )?;
 
         let lang = segments
             .next()
-            .invariant("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
+            .assumption("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
 
         let language = match Language::from_str(lang) {
             Ok(langauge) => langauge,
-            Err(err) => invariant!(
+            Err(err) => assumption!(
                 "first segement of the `webtoons.com` returned url provided an unexpected language: {err}"
             ),
         };
 
         let scope = segments
             .next()
-            .invariant("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
+            .assumption("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
 
         let scope = match Scope::from_str(scope) {
             Ok(scope) => scope,
             Err(err) => {
-                invariant!(
+                assumption!(
                     "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
                 )
             }
@@ -1068,7 +1068,7 @@ impl Webtoon {
 
         let slug = segments
             .next()
-            .invariant("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
+            .assumption("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
             .to_string();
 
         let webtoon = Self {
