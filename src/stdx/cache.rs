@@ -54,3 +54,18 @@ impl<T> Store<T> {
         }
     }
 }
+
+pub enum State<T> {
+    Fresh(T),
+    Stale,
+}
+
+impl<T> State<T> {
+    pub fn is_fresh(&self) -> bool {
+        matches!(self, Self::Fresh(_))
+    }
+
+    pub fn is_stale(&self) -> bool {
+        matches!(self, Self::Stale)
+    }
+}
