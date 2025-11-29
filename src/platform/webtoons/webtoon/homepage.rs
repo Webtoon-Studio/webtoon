@@ -1,27 +1,29 @@
-mod de;
+// mod de;
 mod en;
-mod es;
-mod fr;
-mod id;
-mod th;
-mod zh;
+// mod es;
+// mod fr;
+// mod id;
+// mod th;
+// mod zh;
 
-use anyhow::anyhow;
 use scraper::Selector;
 use std::time::Duration;
 use url::Url;
 
-use crate::platform::webtoons::{
-    Webtoon,
-    creator::Creator,
-    meta::{Genre, Language},
-    originals::Schedule,
+use crate::{
+    platform::webtoons::{
+        Webtoon,
+        creator::Creator,
+        meta::{Genre, Language},
+        originals::Schedule,
+    },
+    stdx::error::{Assume, assumption},
 };
 
 use super::{WebtoonError, episode::Episode};
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Page {
     title: String,
     creators: Vec<Creator>,
@@ -41,12 +43,12 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
 
     let page = match webtoon.language {
         Language::En => en::page(&html, webtoon)?,
-        Language::Zh => zh::page(&html, webtoon)?,
-        Language::Th => th::page(&html, webtoon)?,
-        Language::Id => id::page(&html, webtoon)?,
-        Language::Es => es::page(&html, webtoon)?,
-        Language::Fr => fr::page(&html, webtoon)?,
-        Language::De => de::page(&html, webtoon)?,
+        Language::Zh => todo!(), // zh::page(&html, webtoon)?,
+        Language::Th => todo!(), // th::page(&html, webtoon)?,
+        Language::Id => todo!(), // id::page(&html, webtoon)?,
+        Language::Es => todo!(), // es::page(&html, webtoon)?,
+        Language::Fr => todo!(), // fr::page(&html, webtoon)?,
+        Language::De => todo!(), // de::page(&html, webtoon)?,
     };
 
     Ok(page)
@@ -106,7 +108,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .expect("`li._episodeItem` should be a valid selector");
+        .assumption("`li._episodeItem` should be a valid selector")?;
 
     let mut episodes = Vec::with_capacity(pages as usize * 10);
 
@@ -116,12 +118,12 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         for element in html.select(&selector) {
             let episode = match webtoon.language {
                 Language::En => en::episode(&element, webtoon)?,
-                Language::Zh => zh::episode(&element, webtoon)?,
-                Language::Th => th::episode(&element, webtoon)?,
-                Language::Id => id::episode(&element, webtoon)?,
-                Language::Es => es::episode(&element, webtoon)?,
-                Language::Fr => fr::episode(&element, webtoon)?,
-                Language::De => de::episode(&element, webtoon)?,
+                Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
+                Language::Th => todo!(), // th::episode(&element, webtoon)?,
+                Language::Id => todo!(), // id::episode(&element, webtoon)?,
+                Language::Es => todo!(), // es::episode(&element, webtoon)?,
+                Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
+                Language::De => todo!(), // de::episode(&element, webtoon)?,
             };
 
             episodes.push(episode);
@@ -129,6 +131,21 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
 
         // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    assumption!(
+        !episodes.is_empty(),
+        "public facing webtoons on `webtoons.com` should always have at least one public episode"
+    );
+
+    match u16::try_from(episodes.len()) {
+        Ok(_) => {}
+        Err(err) => {
+            assumption!(
+                "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
+                episodes.len()
+            )
+        }
     }
 
     // NOTE: Consistently return by episode order
@@ -142,7 +159,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
 
     // NOTE: currently all languages use this for the list element; this could change.
     let selector = Selector::parse("li._episodeItem") //
-        .expect("`li._episodeItem` should be a valid selector");
+        .assumption("`li._episodeItem` should be a valid selector")?;
 
     let html = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
 
@@ -151,18 +168,23 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
     for element in html.select(&selector) {
         let episode = match webtoon.language {
             Language::En => en::episode(&element, webtoon)?,
-            Language::Zh => zh::episode(&element, webtoon)?,
-            Language::Th => th::episode(&element, webtoon)?,
-            Language::Id => id::episode(&element, webtoon)?,
-            Language::Es => es::episode(&element, webtoon)?,
-            Language::Fr => fr::episode(&element, webtoon)?,
-            Language::De => de::episode(&element, webtoon)?,
+            Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
+            Language::Th => todo!(), // th::episode(&element, webtoon)?,
+            Language::Id => todo!(), // id::episode(&element, webtoon)?,
+            Language::Es => todo!(), // es::episode(&element, webtoon)?,
+            Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
+            Language::De => todo!(), // de::episode(&element, webtoon)?,
         };
 
         first = Some(episode);
     }
 
-    first.ok_or_else(|| {
-        anyhow!("no episode was found on public webtoon, which shouldn't be possible").into()
-    })
+    match first {
+        Some(first) => Ok(first),
+        None => {
+            assumption!(
+                "`webtoons.com` Webtoon homepage should always have at least one episode for which to get a `first` episode"
+            )
+        }
+    }
 }

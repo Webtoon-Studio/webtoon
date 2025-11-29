@@ -1,12 +1,15 @@
-use anyhow::Context;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use parking_lot::RwLock;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::Arc;
 
-use super::Page;
+use super::{
+    super::episode::{self, PublishedStatus},
+    Page,
+};
 use crate::platform::webtoons::{
     Webtoon,
+    errors::{Invariant, invariant},
     meta::Scope,
     originals::Schedule,
     webtoon::{WebtoonError, episode::Episode},
@@ -34,7 +37,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
             views: views(html)?,
             subscribers: subscribers(html)?,
             schedule: None,
-            thumbnail: Some(super::en::canvas_thumbnail(html)?),
+            thumbnail: Some(super::en::thumbnail(html)?),
             banner: Some(super::en::banner(html)?),
             pages: super::en::calculate_total_pages(html)?,
         },
@@ -49,22 +52,31 @@ fn views(html: &Html) -> Result<u64, WebtoonError> {
 
     let views = html
         .select(&selector)
+        // First occurrence of `em.cnt` is for the views.
         .next()
-        .context("`em.cnt` is missing: webtoons page displays total views")?
+        .invariant("`em.cnt`(views) on `webtoons.com` Webtoon homepage is missing: webtoons page displays total views")?
         .inner_html();
 
+    // TODO: There is no German Webtoon with a billion views, so unknown how it would be represented.
     match views.as_str() {
-        million if million.ends_with('M') => {
-            let value = million
-                .replace(',', ".")
+        millions if millions.ends_with('M') => {
+            let (millionth, hundred_thousandth) = millions
                 .trim_end_matches('M')
-                .parse::<f64>()
-                .map_err(|err| WebtoonError::Unexpected(err.into()))
-                .context(views)?;
+                .split_once(',')
+                .invariant("on german `webtoons.com` Webtoon homepage, a million views is always represented as a decimal value, with an `M` suffix and a comma separator, eg. `1,3M`, and so should always split on `,`")?;
 
-            Ok((value * 1_000_000.0) as u64)
+            let millions = millionth.parse::<u64>()
+                .invariant(format!("`on the german `webtoons.com` Webtoon homepage, the millions part of the views count should always fit in a `u64`, got: {millionth}"))?;
+
+            let hundred_thousands = hundred_thousandth.parse::<u64>()
+                .invariant(format!("`on the german `webtoons.com` Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u64`, got: {hundred_thousandth}"))?;
+
+            Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
         }
-        thousand => Ok(thousand.replace('.', "").parse::<u64>().context(views)?),
+        thousands_or_less => Ok(thousands_or_less
+            .replace('.', "")
+            .parse::<u64>()
+            .invariant(format!("hundreds to hundreds of thousands of subscribers should fit in a `u64`, got: {thousands_or_less}"))?),
     }
 }
 
@@ -74,36 +86,58 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 
     let subscribers = html
         .select(&selector)
+        // First instance of `em.cnt` is for views.
         .nth(1)
-        .context("`em.cnt` is missing: webtoons page displays subscribers")?
+        .invariant("second instance of `em.cnt`(subscribers) on german `webtoons.com` Webtoon homepage is missing")?
         .inner_html();
 
-    match subscribers.as_str() {
-        million if million.ends_with('M') => {
-            let value = million
-                .replace(',', ".")
-                .trim_end_matches('M')
-                .parse::<f64>()
-                .context(subscribers)?;
+    invariant!(
+        !subscribers.is_empty(),
+        "subscriber element(`em.cnt`) on german `webtoons.com` Webtoon homepage should never be empty"
+    );
 
-            Ok((value * 1_000_000.0) as u32)
+    match subscribers.as_str() {
+        millions if millions.ends_with('M') => {
+            let (millionth, hundred_thousandth) = millions
+                .trim_end_matches('M')
+                // 4,2M
+                .split_once(',')
+                .invariant("on `webtoons.com` german Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1,3M`, and so should always split on `.`")?;
+
+            let millions = millionth.parse::<u32>()
+                .invariant(format!("`on the `webtoons.com` german Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
+
+            let hundred_thousands = hundred_thousandth.parse::<u32>()
+                .invariant(format!("`on the `webtoons.com` german Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}"))?;
+
+            Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
         }
-        thousand => Ok(thousand
-            .replace('.', "")
-            .parse::<u32>()
-            .context(subscribers)?),
+        thousands_or_less => {
+            let (thousandth, hundreth) = thousands_or_less
+                .split_once(',')
+                .invariant("on `webtoons.com` german Webtoon homepage, a <1,000,000 subscribers is always represented as a decimal value, eg. `469.035`, and so should always split on `.`")?;
+
+            let thousands = thousandth.parse::<u32>()
+                .invariant(format!("`on the `webtoons.com` german Webtoon homepage, the thousands part of the subscribers count should always fit in a `u32`, got: {thousandth}"))?;
+
+            let hundreds = hundreth.parse::<u32>()
+                .invariant(format!("`on the `webtoons.com` german Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundreth}"))?;
+
+            Ok((thousands * 1_000) + hundreds)
+        }
     }
 }
 
 fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
-    let selector = Selector::parse(r"p.day_info").expect("`p.day_info` should be a valid selector");
+    let selector = Selector::parse(r"p.day_info") //
+        .expect("`p.day_info` should be a valid selector");
 
     let mut releases = Vec::new();
 
     for text in html
         .select(&selector)
         .next()
-        .context("`p.day_info` is missing: webtoons displays a release schedule")?
+        .invariant("`p.day_info`(schedule) on german `webtoons.com` originals Webtoons is missing")?
         .text()
     {
         if text == "UP" {
@@ -122,8 +156,17 @@ fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
         }
     }
 
-    let schedule = Schedule::try_from(releases) //
-        .map_err(|err| WebtoonError::Unexpected(err.into()))?;
+    invariant!(
+        !releases.is_empty(),
+        "original Webtoon homepage on german `webtoons.com` should always have a release schedule, even if completed"
+    );
+
+    let schedule = match Schedule::try_from(releases) {
+        Ok(schedule) => schedule,
+        Err(err) => invariant!(
+            "german originals on `webtoons.com` should only have a few known release days/types: {err}"
+        ),
+    };
 
     Ok(schedule)
 }
@@ -134,53 +177,56 @@ pub(super) fn episode(
 ) -> Result<Episode, WebtoonError> {
     let title = super::en::episode_title(element)?;
 
-    let number = element
+    let data_episode_no = element
         .value()
         .attr("data-episode-no")
-        .context("attribute `data-episode-no` should be found on webtoon page with episodes on it")?
+        .invariant(
+            "`data-episode-no` attribute should be found on german `webtoons.com` Webtoon homepage, representing the episodes number",
+        )?;
+
+    let number = data_episode_no
         .parse::<u16>()
-        .context("`data-episode-no` was not an int")?;
+        .invariant(format!("`data-episode-no` on german `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}"))?;
 
     let published = episode_published_date(element)?;
 
     Ok(Episode {
         webtoon: webtoon.clone(),
-        season: Arc::new(RwLock::new(super::super::episode::season(&title))),
+        season: Arc::new(RwLock::new(episode::season(&title))),
         title: Arc::new(RwLock::new(Some(title))),
         number,
         published: Some(published),
+        published_status: Some(PublishedStatus::Published),
+
         length: Arc::new(RwLock::new(None)),
         thumbnail: Arc::new(RwLock::new(None)),
         note: Arc::new(RwLock::new(None)),
         panels: Arc::new(RwLock::new(None)),
         views: None,
-        // NOTE: Impossible to say from this page. In general any random Original episode would have been
-        // behind an ad, but the initial release episodes which never were would be impossible to tell.
         ad_status: None,
-        published_status: Some(super::super::episode::PublishedStatus::Published),
     })
 }
 
-// NOTE: Currently forces all dates to be at 02:00 UTC as thats when the originals get released.
-// For more accurate times, must have a session.
 fn episode_published_date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
     let selector = Selector::parse("span.date") //
         .expect("`span.date` should be a valid selector");
 
-    let mut date = episode
+    let text = episode
         .select(&selector)
         .next()
-        .context("`span.date` should be found on a webtoon page with episodes on it")?
+        .invariant("`span.date` should be found on german `webtoons.com` Webtoon homepage with episodes listed on it")?
         .text()
         .next()
-        .context("`span.date` should have text inside it")?
-        .trim()
-        .to_string();
+        .invariant("`span.date` on german `webtoons.com` Webtoon homepage should have text inside it")?
+        .trim();
 
-    date.push_str(" 02:00:00 +0000");
+    let date = NaiveDate::parse_from_str(text, "%d.%m.%Y")
+        .invariant(format!("the german `webtoons.com` Webtoon homepage episode date should follow the `24.12.2021` format, got: {text}"))?;
 
-    let date = DateTime::parse_from_str(&date, "%d.%m.%Y %T %z")
-        .context("german webtoon page should have dates of pattern `2024年9月15日`")?;
+    let time = NaiveTime::from_hms_opt(2, 0, 0).expect("2:00:00 should be a valid `NaiveTime`");
 
-    Ok(date.into())
+    Ok(DateTime::from_naive_utc_and_offset(
+        date.and_time(time),
+        Utc,
+    ))
 }

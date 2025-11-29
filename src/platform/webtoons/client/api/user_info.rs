@@ -8,7 +8,7 @@ use serde::Deserialize;
 /// # Example
 ///
 /// ```no_run
-/// # use webtoon::platform::webtoons::{errors::Error, Client};
+/// # use webtoon::platform::webtoons::{error::Error, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -41,7 +41,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -64,7 +64,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -87,7 +87,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();

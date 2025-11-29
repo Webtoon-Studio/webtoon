@@ -3,12 +3,13 @@
 use std::str::FromStr;
 
 // mod genres;
-use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::{Client, Language, Webtoon, errors::OriginalsError};
+use crate::stdx::error::{Assume, assumption};
+
+use super::{Client, Language, Webtoon, error::OriginalsError};
 
 pub(super) async fn scrape(
     client: &Client,
@@ -16,7 +17,7 @@ pub(super) async fn scrape(
 ) -> Result<Vec<Webtoon>, OriginalsError> {
     // NOTE: Currently all languages follow this pattern
     let selector = Selector::parse("ul.webtoon_list>li>a") //
-        .expect("`ul.webtoon_list>li>a` should be a valid selector");
+        .assumption("`ul.webtoon_list>li>a` should be a valid selector")?;
 
     let days = [
         "monday",
@@ -40,17 +41,23 @@ pub(super) async fn scrape(
         for card in html.select(&selector) {
             let href = card
                 .attr("href")
-                .context("`href` is missing, `a` tag should always have one")?;
+                .assumption("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
 
-            webtoons.push(Webtoon::from_url_with_client(href, client)?);
+            let webtoon = match Webtoon::from_url_with_client(href, client) {
+                Ok(webtoon) => webtoon,
+                Err(err) => assumption!(
+                    "urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`: {err}"
+                ),
+            };
+
+            webtoons.push(webtoon);
         }
     }
 
-    if webtoons.is_empty() {
-        return Err(OriginalsError::Unexpected(anyhow!(
-            "Failed to scrape the originals page for webtoons"
-        )));
-    }
+    assumption!(
+        !webtoons.is_empty(),
+        "after scraping `webtoons.com` Originals page, there should be at least some Webtoons that were found"
+    );
 
     Ok(webtoons)
 }
@@ -76,28 +83,17 @@ impl TryFrom<Vec<&str>> for Schedule {
     type Error = ParseScheduleError;
 
     fn try_from(releases: Vec<&str>) -> Result<Self, Self::Error> {
-        if releases.len() == 1 {
-            let release = releases
-                .first()
-                .expect("already checked that there is at least one element");
-
-            if let Ok(weekday) = try_parse_weekday(release) {
-                Ok(weekday)
-            } else if let Ok(completed) = try_parse_completed(release) {
-                Ok(completed)
-            } else if let Ok(daily) = try_parse_daily(release) {
-                Ok(daily)
-            } else {
-                Err(ParseScheduleError((*release).to_string()))
-            }
-        } else {
-            // If there is more than one element it means that there are multiple days
-            let mut weekdays = Vec::with_capacity(7);
-            for release in releases {
-                let weekday = Weekday::from_str(release)?;
-                weekdays.push(weekday);
-            }
-            Ok(Self::Weekdays(weekdays))
+        match releases.as_slice() {
+            [release] => [try_parse_weekday, try_parse_completed, try_parse_daily]
+                .into_iter()
+                .find_map(|parser| parser(release).ok())
+                .ok_or_else(|| ParseScheduleError((*release).to_string())),
+            // Multiple releases must be weekdays
+            releases => releases
+                .iter()
+                .map(|release| Weekday::from_str(release))
+                .collect::<Result<Vec<Weekday>, ParseScheduleError>>()
+                .map(|weekdays| Self::Weekdays(weekdays)),
         }
     }
 }

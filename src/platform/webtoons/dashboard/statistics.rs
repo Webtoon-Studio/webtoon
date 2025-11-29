@@ -1,7 +1,12 @@
-use anyhow::{Context, anyhow};
 use scraper::{Html, Selector};
 
-use crate::platform::webtoons::{Webtoon, errors::WebtoonError};
+use crate::{
+    platform::webtoons::{
+        Webtoon,
+        error::{StatsDashboardError, WebtoonError},
+    },
+    stdx::error::{Assume, AssumeFor, assumption},
+};
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
 pub struct Stats {
@@ -26,9 +31,10 @@ pub struct Previous {
     pub average_views_per_update: Option<u32>,
 }
 
-pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, WebtoonError> {
+pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
     let html = webtoon.client.get_stats_dashboard(webtoon).await?;
 
+    // TODO: For now only need subscribers from here, but could do the others as well.
     Ok(Stats {
         subscribers: subscribers(&html)?,
         ..Default::default()
@@ -36,46 +42,55 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, WebtoonError> {
 }
 
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
-    let subscribers_text_selector =
-        Selector::parse(r".col3>p").expect("failed to parse subscriber descriptor selector");
+    {
+        let selector = Selector::parse(r".col3>p") //
+            .assumption("`.col3>p` should be a valid selector")?;
 
-    let text = html
-        .select(&subscribers_text_selector)
+        let category = html
+        .select(&selector)
         .next()
-        .context("`.col3>p` is missing: stats dashboard should have a subscribers element")?
+        .assumption("`.col3>p`, representing a category, is missing on `webtoons.com` Webtoon stats dashboard: should have an element which says what category its for, eg. `Subscribers`")?
         .text()
         .next()
-        .context("`.col3>p` was found but no text was present")?;
+        .assumption("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category, but no text was present in element")?;
 
-    if text != "Subscribers" {
-        return Err(WebtoonError::Unexpected(anyhow!(
-            "column was not a subscribers column but instead: `{text}`"
-        )));
+        assumption!(
+            category == "Subscribers",
+            "expected to find `Subscribers` category on `webtoons.com` stats dashboard at `.col3>p`, but instead found: `{category}`"
+        );
     }
 
-    let subscribers_selector =
-        Selector::parse(r".col3>.num").expect("failed to parse subscriber selector");
+    let selector = Selector::parse(r".col3>.num") //
+        .assumption("`.col3>.num` should be a valid selector")?;
 
     let count = html
-        .select(&subscribers_selector)
+        .select(&selector)
         .next()
-        .context("`.col3>.num` is missing: subscriber column should have a number count")?
+        .assumption("`.col3>.num` on `webtoons.com` stats dashboard is missing: subscriber category was found, and should have a value associated with it, but nothing was found")?
         .text()
         .next()
-        .context("`.col3>.num` was found but no text was present")?;
+        .assumption("`.col3>.num` on `webtoons.com` stats dashboard was found, but no text was present in element")?;
 
     let subscribers = match count {
-        million if million.ends_with('M') => {
-            let millions = &million[..million.len() - 1]
-                .parse::<f64>()
-                .map_err(|err| WebtoonError::Unexpected(err.into()))?;
+        millions if millions.ends_with('M') => {
+            let (millionth, hundred_thousandth) = millions
+                .trim_end_matches('M')
+                .split_once('.')
+                .assumption("on `webtoons.com` Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
-            (millions * 1_000_000.0) as u32
+            let millions = millionth.parse::<u32>()
+                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}: {err}"))?;
+
+            let hundred_thousands = hundred_thousandth.parse::<u32>()
+                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}: {err}"))?;
+
+            (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
+        // TODO: match on thousands and hundreds separately
         thousand => thousand
             .replace(',', "")
             .parse::<u32>()
-            .map_err(|err| WebtoonError::Unexpected(err.into()))?,
+            .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}: {err}"))?,
     };
 
     Ok(subscribers)

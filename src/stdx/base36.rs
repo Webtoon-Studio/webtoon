@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use std::{fmt::Display, num::ParseIntError, ops::Add, str::FromStr};
 
 use serde::{Deserialize, Serialize};
@@ -44,24 +46,33 @@ impl FromStr for Base36 {
 
 impl Display for Base36 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut x = self.0;
-        let mut result = ['\0'; 128];
+        let mut num = self.0;
+        let mut buffer = ['\0'; 128];
 
-        let mut used = 0;
+        let mut len = 0;
 
         loop {
-            let m = x % 36;
-            x /= 36;
+            assert!(
+                len < buffer.len(),
+                "a proper `u32` to a base36 `char` conversion would never loop more than the stack allocated array len"
+            );
 
-            result[used] = std::char::from_digit(m, 36).unwrap();
-            used += 1;
+            let codepoint = num % 36;
+            num /= 36;
 
-            if x == 0 {
+            *buffer
+                .get_mut(len)
+                .expect("index must be valid due to assertion above") =
+                std::char::from_digit(codepoint, 36).expect("base36 digit must always be valid");
+
+            len += 1;
+
+            if num == 0 {
                 break;
             }
         }
 
-        for c in result[..used].iter().rev() {
+        for c in buffer.iter().take(len).rev() {
             write!(f, "{c}")?;
         }
 
@@ -91,6 +102,8 @@ impl PartialEq<u32> for Base36 {
 
 #[cfg(test)]
 mod test {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
 
     #[test]

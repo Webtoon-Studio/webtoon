@@ -5,7 +5,7 @@ mod search;
 
 pub mod client;
 pub mod creator;
-pub mod errors;
+pub mod error;
 pub mod meta;
 pub mod webtoon;
 

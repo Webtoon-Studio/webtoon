@@ -52,7 +52,7 @@ exposing various ways to interact with the specific platform.
 ### `webtoons.com`
 
 ```rust
-use webtoon::platform::webtoons::{errors::Error, Client, Type};
+use webtoon::platform::webtoons::{error::Error, Client, Type};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

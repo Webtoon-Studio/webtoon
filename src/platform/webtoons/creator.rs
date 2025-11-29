@@ -1,12 +1,14 @@
 //! Module containing things related to a creator on `webtoons.com`.
 
-use anyhow::{Context, anyhow};
 use core::fmt::{self, Debug};
+use futures::future;
 use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use super::{Client, Language, Webtoon, errors::CreatorError};
+use crate::stdx::error::{Assume, AssumeFor, Assumption, assumption};
+
+use super::{Client, Language, Webtoon, error::CreatorError};
 
 /// Represents a creator of a `Webtoon`.
 ///
@@ -26,7 +28,7 @@ use super::{Client, Language, Webtoon, errors::CreatorError};
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+/// # use webtoon::platform::webtoons::{error::Error, Language, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -82,7 +84,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -96,6 +98,7 @@ impl Creator {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn username(&self) -> &str {
         &self.username
     }
@@ -109,7 +112,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -123,6 +126,7 @@ impl Creator {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
@@ -136,7 +140,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -175,7 +179,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -223,7 +227,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -244,61 +248,49 @@ impl Creator {
         let Some(profile) = self
             .profile
             .as_deref()
-            // Profiles can be prefixed with `_` but the url needs it trimmed to work.
+            // Profiles can be prefixed with `_` but the URL needs it trimmed to work.
             .map(|profile| profile.trim_start_matches('_'))
         else {
             return Ok(None);
         };
 
-        let language = self.language.as_str_caps();
-
-        let url = format!(
-            "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
-        );
-
-        let response = if let Ok(response) = self
+        // TODO: if this fails it could be because the profile needs to be the other one on the homepage.
+        // Need to get that id and then try again.
+        let response = match self
             .client
-            .http
-            .get(url)
-            .send()
-            .await?
-            .json::<api::Response>()
+            .get_creator_webtoons(profile, self.language)
             .await
         {
-            response
-        } else {
-            let homepage = homepage(self.language, profile, &self.client).await?;
-            let profile = homepage
-                .as_ref()
-                .map(|homepage| homepage.id.clone())
-                .context("failed to find creator profile property on creator homepage html")?;
-            *self.homepage.write() = homepage;
+            Ok(response) => response,
+            // TODO: match on specific error variant that only represents that the profile used is wrong.
+            Err(_) => {
+                let homepage = homepage(self.language, profile, &self.client).await?;
 
-            let url = format!(
-                "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
-            );
+                let profile = homepage
+                    .as_ref()
+                    .map(|homepage| homepage.id.clone())
+                    .assumption(
+                        "failed to find creator profile property on creator homepage html",
+                    )?;
 
-            self.client
-                .http
-                .get(url)
-                .send()
-                .await?
-                .json::<api::Response>()
-                .await?
+                *self.homepage.write() = homepage;
+
+                self.client
+                    .get_creator_webtoons(&profile, self.language)
+                    .await?
+            }
         };
 
         let webtoons =
-            futures::future::try_join_all(response.result.titles.iter().map(|webtoon| async {
-                let id = webtoon
-                    .id
-                    .parse::<u32>()
-                    .context("failed to parse webtoon id to number")?;
+            future::try_join_all(response.result.titles.iter().map(|webtoon| async {
+                let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &self.client).await {
+                    Ok(Some(webtoon)) => webtoon,
+                    Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
+                    Err(err) => return Err(err.into()),
+                };
 
-                let r#type = webtoon.r#type.parse()?;
-
-                Webtoon::new_with_client(id, r#type, &self.client).await
-            }))
-            .await?;
+                Ok::<_, CreatorError>(webtoon)
+            })).await?;
 
         Ok(Some(webtoons))
     }
@@ -316,7 +308,7 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -357,13 +349,13 @@ pub(super) async fn homepage(
     Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
-        has_patreon: has_patreon(&html),
+        has_patreon: has_patreon(&html)?,
         id: id(&html)?,
     }))
 }
 
 fn username(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("h3").expect("`h3` should be a valid selector");
+    let selector = Selector::parse("h3").assumption("`h3` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(class) = element.value().attr("class")
@@ -372,147 +364,91 @@ fn username(html: &Html) -> Result<String, CreatorError> {
             return Ok(element
                 .text()
                 .next()
-                .context("username element was empty")?
+                .assumption("username element on `webtoons.com` creator homepage was empty")?
                 .to_string());
         }
     }
 
-    Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator username on creator homepage"
-    )))
+    assumption!(
+        "did not find any class that starts with `HomeProfile_nickname` on `webtoons.com` creator homepage html"
+    );
 }
 
 fn followers(html: &Html) -> Result<u32, CreatorError> {
-    let selector = Selector::parse("span").expect("`span` should be a valid selector");
+    let selector = Selector::parse("span").assumption("`span` should be a valid selector")?;
 
-    // The same class name is used for series count as well. To get the followers, we need the second instance,
-    let mut encountered_class = false;
+    if let Some(element) = html
+        .select(&selector)
+        // The same class name is used for series count as well.
+        .filter(|element| {
+            element
+                .value()
+                .attr("class")
+                .is_some_and(|class| class.starts_with("CreatorBriefMetric_count"))
+        })
+        // To get the followers we need the second instance.
+        .nth(1)
+    {
+        let count = element
+            .text()
+            .next()
+            .assumption("follower count element on `weboons.com` creator homepage was empty")?
+            .replace(',', "");
 
-    for element in html.select(&selector) {
-        if let Some(class) = element.value().attr("class")
-            && class.starts_with("CreatorBriefMetric_count")
-        {
-            if encountered_class {
-                return Ok(element
-                    .text()
-                    .next()
-                    .context("follower count element was empty")?
-                    .replace(',', "")
-                    .parse()
-                    .context("follower count was not a number")?);
-            }
-
-            encountered_class = true;
-        }
+        return Ok(count
+                    .parse::<u32>()
+                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"))?);
     }
 
-    Err(CreatorError::Unexpected(anyhow!(
-        "failed to find creator follower count on creator homepage"
-    )))
+    assumption!(
+        "did not find any class that starts with `CreatorBriefMetric_count` on `webtoons.com` creator homepage html"
+    );
 }
 
+// TODO: explain that the profile provided is not always the one that is needed
+// for operations and that this id can be found on the creator page hmtl in a script tag.
 fn id(html: &Html) -> Result<String, CreatorError> {
-    let selector = Selector::parse("script").expect("`script` should be a valid selector");
+    let selector = Selector::parse("script").assumption("`script` should be a valid selector")?;
 
     for element in html.select(&selector) {
         if let Some(inner) = element.text().next()
             && let Some(idx) = inner.find("creatorId")
         {
-            let mut quotes = 0;
+            let id  = inner
+                .get(idx..)
+                .assumption(
+                    "`find` should point to start of `webtoons.com` creator homepage `creatorId`, so should never be out of bounds",
+                )?
+                // `creatorId\":\"n5z4d\"` -> `\":\"n5z4d\"`
+                .trim_start_matches("creatorId")
+                .chars()
+                // Skips `\":\"` leaving `n5z4d\"`
+                .skip_while(|ch| !ch.is_alphanumeric())
+                // Takes `n5z4d`, stopping on `\` of `\"`, which we don't need.
+                .take_while(|ch| ch.is_ascii_alphanumeric())
+                .collect::<String>();
 
-            // EXAMPLE: `creatorId\":\"n5z4d\"`
-            let bytes = &inner.as_bytes()[idx..];
+            assumption!(
+                !id.is_empty(),
+                "`creatorId` on `webtoons.com` creator homepage should never be empty"
+            );
 
-            let mut start = 0;
-            let mut idx = 0;
-
-            let mut found_start = false;
-
-            loop {
-                if bytes[idx] == b'"' {
-                    quotes += 1;
-                }
-
-                if quotes == 2 && !found_start {
-                    // `creatorId\":\"n5z4d\"`
-                    //           idx ^
-                    // Advance beyond quote:
-                    //
-                    // `creatorId\":\"n5z4d\"`
-                    //          start ^
-                    start = idx + 1;
-                    found_start = true;
-                }
-
-                if quotes == 3 {
-                    // `creatorId\":\"n5z4d\"`
-                    //          start ^     ^ idx
-                    return Ok(std::str::from_utf8(&bytes[start..idx])
-                        .expect("parsed creator id should be valid utf-8")
-                        .trim_end_matches('\\')
-                        .to_string());
-                }
-
-                idx += 1;
-            }
+            return Ok(id);
         }
     }
 
-    Err(CreatorError::Unexpected(anyhow!(
-        "failed to find alternate creator profile in creatior homepage html"
-    )))
+    assumption!(
+        "failed to find `creatorId` in script tag on english `webtoons.com` Creator homepage html"
+    )
 }
 
-fn has_patreon(html: &Html) -> bool {
-    let selector = Selector::parse("img").expect("`img` should be a valid selector");
+fn has_patreon(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("img").assumption("`img` should be a valid selector")?;
 
-    let mut has_patreon = false;
+    let has_patreon = html
+        .select(&selector)
+        .filter_map(|element| element.value().attr("alt"))
+        .any(|alt| alt == "PATREON");
 
-    for element in html.select(&selector) {
-        if let Some(alt) = element.value().attr("alt")
-            && alt == "PATREON"
-        {
-            has_patreon = true;
-            break;
-        }
-    }
-
-    has_patreon
-}
-
-#[allow(unused)]
-mod api {
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    pub(super) struct Response {
-        pub result: Result,
-    }
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    pub(super) struct Result {
-        pub titles: Vec<Titles>,
-        pub total_count: usize,
-    }
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    pub(super) struct Titles {
-        pub id: String,
-        #[serde(rename = "subject")]
-        pub title: String,
-        pub authors: Vec<Authors>,
-        pub genres: Vec<String>,
-        #[serde(rename = "grade")]
-        pub r#type: String,
-        pub thumbnail_url: String,
-        pub recent_episode_registered_at: i64,
-        pub title_registered_at: i64,
-    }
-
-    #[derive(Deserialize)]
-    pub(super) struct Authors {
-        pub nickname: String,
-    }
+    Ok(has_patreon)
 }

@@ -1,7 +1,7 @@
 use tokio::io::AsyncWriteExt;
 use webtoon::platform::webtoons::{
     Client, Type,
-    errors::{Error, PosterError},
+    error::{BlockUserError, Error},
     webtoon::post::Posts,
 };
 
@@ -61,8 +61,8 @@ async fn main() -> Result<(), Error> {
             // If has valid session and user has moderating permission(is the creator)
             match post.poster().block().await {
                 Ok(()) => {}
-                Err(PosterError::InvalidPermissions) => eprintln!("No moderating permissions!"),
-                Err(PosterError::BlockSelf) => eprintln!("Cannot block self!"),
+                Err(BlockUserError::NotCreator) => eprintln!("No moderating permissions!"),
+                Err(BlockUserError::BlockSelf) => eprintln!("Cannot block self!"),
                 Err(err) => eprintln!("{err}"),
             }
 

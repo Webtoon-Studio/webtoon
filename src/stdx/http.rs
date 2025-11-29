@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use reqwest::{RequestBuilder, Response};
 use std::time::Duration;
 
@@ -8,34 +7,30 @@ pub static DEFAULT_USER_AGENT: &str =
 pub struct Retry(RequestBuilder);
 
 impl Retry {
-    pub async fn send(self) -> Result<Response, anyhow::Error> {
+    pub async fn send(self) -> Result<Response, reqwest::Error> {
         let mut tries = 10;
-        let mut wait = fastrand::u64(1..=10);
+        let mut wait = fastrand::u64(1..=5);
 
         loop {
-            let request = self
-                .0
-                .try_clone()
-                .ok_or_else(|| anyhow!("failed to clone `RequestBuilder` in retry loop"))?;
+            #[allow(clippy::expect_used, reason = "if `RequestBuilder` fails to clone, it means we are working on streams, which is not the assumption of operation!")]
+            let request = self.0.try_clone()
+                .expect("`RequestBuilder` should only fail to clone when working with streams/readers, and we only do standard requests");
 
-            let response = request.send().await;
-
-            match response {
-                Ok(response) if response.status() == 429 && tries != 0 => {
+            match request.send().await {
+                Ok(response) if response.status() == 429 && tries > 0 => {
                     tokio::time::sleep(Duration::from_secs(wait)).await;
                     tries -= 1;
                     wait += 3;
                     wait += fastrand::u64(1..=5);
                 }
-                Err(_) if tries != 0 => {
+                Err(_) if tries > 0 => {
                     tokio::time::sleep(Duration::from_secs(wait)).await;
                     tries -= 1;
                     wait += 3;
                     wait += fastrand::u64(1..=5);
                 }
-
                 Ok(response) => return Ok(response),
-                Err(err) => return Err(err.into()),
+                Err(err) => return Err(err),
             }
         }
     }

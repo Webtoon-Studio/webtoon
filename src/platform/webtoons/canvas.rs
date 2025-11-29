@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```
-//! # use webtoon::platform::webtoons::{ Client, Language, errors::Error, canvas::Sort};
+//! # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
 //! let client = Client::new();
@@ -19,21 +19,25 @@
 //! # }
 //! ```
 
-use anyhow::{Context, Result, anyhow};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
-use super::{Client, Language, Webtoon, errors::CanvasError};
+use crate::{
+    platform::webtoons::error::CanvasError,
+    stdx::error::{Assume, assumption},
+};
+
+use super::{Client, Language, Webtoon};
 
 pub(super) async fn scrape(
     client: &Client,
     language: Language,
-    pages: impl RangeBounds<u16> + Send,
+    pages: impl RangeBounds<u16>,
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
     // NOTE: currently all languages are the same
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
-        .expect("`div.challenge_lst>ul>li>a` should be a valid selector");
+        .assumption("`div.challenge_lst>ul>li>a` should be a valid selector")?;
 
     let start = match pages.start_bound() {
         std::ops::Bound::Included(&n) => n.max(1),
@@ -48,9 +52,7 @@ pub(super) async fn scrape(
     };
 
     if start > end {
-        return Err(CanvasError::Unexpected(anyhow!(
-            "range start was greater than range end",
-        )));
+        return Err(CanvasError::InvalidRange);
     }
 
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
@@ -59,13 +61,29 @@ pub(super) async fn scrape(
         let html = client.get_canvas_page(language, page, sort).await?;
 
         for card in html.select(&selector) {
-            let href = card
-                .attr("href")
-                .context("`href` is missing, `a` tag should always have one")?;
+            let href = card.attr("href").assumption(
+                "`href` attribute is missing on `webtoon.com` `Canvas` page, `a` tag should always have one",
+            )?;
 
-            webtoons.push(Webtoon::from_url_with_client(href, client)?);
+            let webtoon = match Webtoon::from_url_with_client(href, client) {
+                Ok(webtoon) => webtoon,
+                Err(err) => assumption!(
+                    "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}\n\n{href}"
+                ),
+            };
+
+            webtoons.push(webtoon);
         }
     }
+
+    assumption!(
+        !webtoons.is_empty(),
+        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should never be empty"
+    );
+    assumption!(
+        webtoons.len() % 20 == 0,
+        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should `webtoons % 20 == 0`"
+    );
 
     Ok(webtoons)
 }
@@ -84,7 +102,7 @@ pub enum Sort {
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let sort = match self {
-            Self::Popularity => "READ_COUNT",
+            Self::Popularity => "MANA",
             Self::Likes => "LIKEIT",
             Self::Date => "UPDATE",
         };
