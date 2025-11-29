@@ -45,9 +45,7 @@ impl From<String> for Assumption {
 pub trait Assume<T> {
     type Output;
 
-    fn assumption(self, msg: impl Into<String>) -> Self::Output;
-
-    #[expect(dead_code, reason = "not using yet")]
+    fn assumption(self, msg: &'static str) -> Self::Output;
     fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output;
 }
 
@@ -55,10 +53,11 @@ impl<T> Assume<T> for Option<T> {
     type Output = Result<T, Assumption>;
 
     #[inline]
-    fn assumption(self, msg: impl Into<String>) -> Self::Output {
+    fn assumption(self, msg: &'static str) -> Self::Output {
         self.ok_or_else(|| Assumption(msg.into()))
     }
 
+    #[inline]
     fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output {
         self.ok_or_else(|| Assumption(msg()))
     }
@@ -68,16 +67,16 @@ impl<T, E> Assume<T> for Result<T, E> {
     type Output = Result<T, Assumption>;
 
     #[inline]
-    fn assumption(self, msg: impl Into<String>) -> Self::Output {
+    fn assumption(self, msg: &'static str) -> Self::Output {
         self.map_err(|_err: _| Assumption(msg.into()))
     }
 
+    #[inline]
     fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output {
         self.map_err(|_err: _| Assumption(msg()))
     }
 }
 
-#[expect(dead_code, reason = "created now, but use later")]
 pub trait AssumeFor<T, E>: Assume<T> {
     fn assumption_for(self, msg: impl FnOnce(E) -> String) -> Self::Output;
 }
@@ -131,9 +130,9 @@ mod test {
     fn should_error_with_internal_assumption2() -> Result<(), Assumption> {
         let webtoon = "Test";
         let err: Option<()> = None;
-        err.assumption(format!(
-            "failed to find `a.img` html tag on webtoon homepage for `{webtoon}`"
-        ))?;
+        err.with_assumption(|| {
+            format!("failed to find `a.img` html tag on webtoon homepage for `{webtoon}`")
+        })?;
         Ok(())
     }
 }

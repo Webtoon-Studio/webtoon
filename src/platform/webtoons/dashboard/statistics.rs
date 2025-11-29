@@ -5,7 +5,7 @@ use crate::{
         Webtoon,
         error::{StatsDashboardError, WebtoonError},
     },
-    stdx::error::{Assume, assumption},
+    stdx::error::{Assume, AssumeFor, assumption},
 };
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
@@ -79,10 +79,10 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
                 .assumption("on `webtoons.com` Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
             let millions = millionth.parse::<u32>()
-                .assumption(format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}: {err}"))?;
 
             let hundred_thousands = hundred_thousandth.parse::<u32>()
-                .assumption(format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}: {err}"))?;
 
             (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
@@ -90,7 +90,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         thousand => thousand
             .replace(',', "")
             .parse::<u32>()
-            .assumption(format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}"))?,
+            .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}: {err}"))?,
     };
 
     Ok(subscribers)

@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
-use crate::stdx::error::{Assume, Assumption, assumption};
+use crate::stdx::error::{Assume, AssumeFor, Assumption, assumption};
 
 use super::{Client, Language, Webtoon, error::CreatorError};
 
@@ -397,7 +397,7 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
 
         return Ok(count
                     .parse::<u32>()
-                    .assumption(format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"))?);
+                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"))?);
     }
 
     assumption!(

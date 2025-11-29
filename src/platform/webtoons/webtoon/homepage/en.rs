@@ -14,7 +14,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, assumption},
+        error::{Assume, AssumeFor, assumption},
         math::MathExt,
     },
 };
@@ -296,15 +296,15 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
             match number.split_once('.') {
                     Some((b, m)) => {
                         let billion = b.parse::<u64>()
-                            .assumption(format!("`on the english `webtoons.com` Webtoon homepage, the billions part of the views count should always fit in a `u64`, got: {b}"))?;
+                            .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the billions part of the views count should always fit in a `u64`, got: {b}: {err}"))?;
 
                         let hundred_million = m.parse::<u64>()
-                            .assumption(format!("`on the english `webtoons.com` Webtoon homepage, the hundred millions part of the views count should always fit in a `u64`, got: {m}"))?;
+                            .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred millions part of the views count should always fit in a `u64`, got: {m}: {err}"))?;
 
                         Ok((billion * 1_000_000_000) + (hundred_million * 100_000_000))
                     },
                     None => Ok(number.parse::<u64>()
-                        .assumption(format!("on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into `u64`, got: {number}"))?),
+                        .assumption_for(|err| format!("on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"))?),
                 }
         }
         millions if millions.ends_with('M') => {
@@ -313,33 +313,33 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
             match number.split_once('.') {
                 Some((m, t)) => {
                     let million = m.parse::<u64>()
-                        .assumption(format!("`on the english `webtoons.com` Webtoon homepage, the millions part of the views count should always fit in a `u64`, got: {m}"))?;
+                        .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the millions part of the views count should always fit in a `u64`, got: {m}: {err}"))?;
 
                     let hundred_thousand = t.parse::<u64>()
-                        .assumption(format!("`on the english `webtoons.com` Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u64`, got: {t}"))?;
+                        .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u64`, got: {t}: {err}"))?;
 
                     Ok((million * 1_000_000) + (hundred_thousand * 100_000))
                 },
                 None => Ok(number.parse::<u64>()
-                        .assumption(format!("on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}"))?),
+                        .assumption_for(|err| format!("on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"))?),
             }
         }
         thousands if thousands.contains(',') => {
             let (thousandth, hundreth) = thousands
                 .split_once(',')
-                .assumption(format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 views is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
+                .with_assumption(|| format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 views is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
 
             let thousands = thousandth.parse::<u64>()
-                .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the views count should always fit in a `u64`, got: {thousandth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the views count should always fit in a `u64`, got: {thousandth}: {err}"))?;
 
             let hundreds = hundreth.parse::<u64>()
-                .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the views count should always fit in a `u64`, got: {hundreth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the views count should always fit in a `u64`, got: {hundreth}: {err}"))?;
 
             Ok((thousands * 1_000) + hundreds)
         }
-        hundreds => Ok(hundreds.parse::<u64>().assumption(format!(
-            "hundreds of views should fit in a `u64`, got: {hundreds}",
-        ))?),
+        hundreds => Ok(hundreds.parse::<u64>().assumption_for(|err| {
+            format!("hundreds of views should fit in a `u64`, got: {hundreds}: {err}",)
+        })?),
     }
 }
 
@@ -369,38 +369,37 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
                         .assumption("on `webtoons.com` english Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
                     let millions = millionth.parse::<u32>()
-                        .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
+                        .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}: {err}"))?;
 
                     let hundred_thousands = hundred_thousandth.parse::<u32>()
-                        .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}"))?;
+                        .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}: {err}"))?;
 
                     Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
                 }
                 // Can be `1M` as well, with no decimal.
-                digit => match digit.trim_end_matches('M').parse::<u32>() {
-                    Ok(million) => Ok(million * 1_000_000),
-                    Err(err) => assumption!(
-                        "`webtoons.com` subscribers count ended with `M`, didn't have any `.` inside, which must mean its a whole number, yet failed to parse into a `u32`: {err}\n\n{digit}"
-                    ),
-                },
+                digit =>Ok(digit
+                    .trim_end_matches('M')
+                    .parse::<u32>()
+                    .map(|million| million * 1_000_000  )
+                    .assumption_for(|err|format!(  "`webtoons.com` subscribers count ended with `M`, didn't have any `.` inside, which must mean its a whole number, yet failed to parse into a `u32`: {err}\n\n{digit}"))?),
             }
         }
         thousands if thousands.contains(',') => {
             let (thousandth, hundreth) = thousands
                 .split_once(',')
-                .assumption(format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 subscribers is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
+                .with_assumption(|| format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 subscribers is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
 
             let thousands = thousandth.parse::<u32>()
-                .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the subscribers count should always fit in a `u32`, got: {thousandth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the subscribers count should always fit in a `u32`, got: {thousandth}: {err}"))?;
 
             let hundreds = hundreth.parse::<u32>()
-                .assumption(format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundreth}"))?;
+                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundreth}: {err}"))?;
 
             Ok((thousands * 1_000) + hundreds)
         }
-        hundreds => Ok(hundreds
-            .parse::<u32>()
-            .assumption(format!("`0..999` should fit into a `u32`, got: {hundreds}"))?),
+        hundreds => Ok(hundreds.parse::<u32>().assumption_for(|err| {
+            format!("`0..999` should fit into a `u32`, got: {hundreds}: {err}")
+        })?),
     }
 }
 
@@ -552,12 +551,13 @@ pub fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
 
     // Counts the episodes listed per page. This is needed as there can be varying
     // amounts: 9 or 10, for example.
-    let episodes_per_page = {
-        let count = html.select(&selector).count();
-        u16::try_from(count).assumption(format!(
-            "episodes per page count should be able to fit within a `u16`, got: {count}"
+    let episodes_per_page =
+        {
+            let count = html.select(&selector).count();
+            u16::try_from(count).assumption_for(|err| format!(
+            "episodes per page count should be able to fit within a `u16`, got: {count}: {err}"
         ))?
-    };
+        };
 
     let latest = html
         .select(&selector)
@@ -578,7 +578,7 @@ pub fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     let episode = latest
         .trim_start_matches('#')
         .parse::<u16>()
-        .assumption(format!("the maximum amount of episodes we should realistically see should be able to fit in a `u16`, got: {latest}"))?;
+        .assumption_for(|err| format!("the maximum amount of episodes we should realistically see should be able to fit in a `u16`, got: {latest}: {err}"))?;
 
     assumption!(episode > 0, "`webtoons.com` episode count starts at 1");
 
@@ -600,7 +600,7 @@ pub(super) fn episode(
 
     let number = data_episode_no
         .parse::<u16>()
-        .assumption(format!("`data-episode-no` on english `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}"))?;
+        .assumption_for(|err| format!("`data-episode-no` on english `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}: {err}"))?;
 
     let published = date(element)?;
 
@@ -668,7 +668,7 @@ fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
     // %b %d, %Y -> Jun 03, 2022
     // %F -> 2022-06-03 (ISO 8601)
     let date = NaiveDate::parse_from_str(text, "%b %e, %Y")
-        .assumption(format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}"))?;
+        .assumption_for(|err| format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}: {err}"))?;
 
     let time = NaiveTime::from_hms_opt(2, 0, 0) //
         .assumption("2:00:00 should be a valid `NaiveTime`")?;

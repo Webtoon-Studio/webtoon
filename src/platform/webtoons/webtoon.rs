@@ -28,7 +28,7 @@ use crate::{
     platform::webtoons::error::{InvalidWebtoonUrl, PostsError, RequestError, UserInfoError},
     stdx::{
         cache::{Cache, Store},
-        error::{Assume, assumption},
+        error::{Assume, AssumeFor, assumption},
         http::IRetry,
     },
 };
@@ -1038,7 +1038,7 @@ impl Webtoon {
 
         let url = response.url();
 
-        let mut segments = url.path_segments().assumption(
+        let mut segments = url.path_segments().with_assumption( ||
             format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
         )?;
 
@@ -1046,25 +1046,18 @@ impl Webtoon {
             .next()
             .assumption("`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`")?;
 
-        let language = match Language::from_str(lang) {
-            Ok(langauge) => langauge,
-            Err(err) => assumption!(
-                "first segement of the `webtoons.com` returned url provided an unexpected language: {err}"
-            ),
-        };
+        let language =  Language::from_str(lang)
+            .assumption_for(|err| format!("first segement of the `webtoons.com` returned url provided an unexpected language: {err}"))?;
 
         let scope = segments
             .next()
             .assumption("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
 
-        let scope = match Scope::from_str(scope) {
-            Ok(scope) => scope,
-            Err(err) => {
-                assumption!(
-                    "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
-                )
-            }
-        };
+        let scope = Scope::from_str(scope).assumption_for(|err| {
+            format!(
+                "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
+            )
+        })?;
 
         let slug = segments
             .next()
