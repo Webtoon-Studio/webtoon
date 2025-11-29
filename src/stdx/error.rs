@@ -46,6 +46,8 @@ pub trait Assume<T> {
     type Output;
 
     fn assumption(self, msg: impl Into<String>) -> Self::Output;
+
+    fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output;
 }
 
 impl<T> Assume<T> for Option<T> {
@@ -55,6 +57,10 @@ impl<T> Assume<T> for Option<T> {
     fn assumption(self, msg: impl Into<String>) -> Self::Output {
         self.ok_or_else(|| Assumption(msg.into()))
     }
+
+    fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output {
+        self.ok_or_else(|| Assumption(msg()))
+    }
 }
 
 impl<T, E> Assume<T> for Result<T, E> {
@@ -63,6 +69,10 @@ impl<T, E> Assume<T> for Result<T, E> {
     #[inline]
     fn assumption(self, msg: impl Into<String>) -> Self::Output {
         self.map_err(|_err: _| Assumption(msg.into()))
+    }
+
+    fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output {
+        self.map_err(|_err: _| Assumption(msg()))
     }
 }
 
