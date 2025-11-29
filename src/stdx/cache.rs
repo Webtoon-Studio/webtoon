@@ -55,11 +55,13 @@ impl<T> Store<T> {
     }
 }
 
+#[expect(dead_code, reason = "not using yet")]
 pub enum State<T> {
     Fresh(T),
     Stale,
 }
 
+#[expect(dead_code, reason = "not using yet")]
 impl<T> State<T> {
     pub fn is_fresh(&self) -> bool {
         matches!(self, Self::Fresh(_))

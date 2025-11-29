@@ -47,6 +47,7 @@ pub trait Assume<T> {
 
     fn assumption(self, msg: impl Into<String>) -> Self::Output;
 
+    #[expect(dead_code, reason = "not using yet")]
     fn with_assumption(self, msg: impl FnOnce() -> String) -> Self::Output;
 }
 
