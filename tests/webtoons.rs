@@ -304,7 +304,10 @@ async fn englsh_canvas_posts() {
     let posts = episode.posts().await.unwrap();
 
     for post in posts {
-        if client.has_valid_session().await.unwrap()
+        if client
+            .has_valid_session()
+            .await
+            .is_ok_and(|is_valid| is_valid)
             && post.poster().is_current_session_user()
             && post.body().contents() == "MESSAGE"
         {
@@ -318,7 +321,12 @@ async fn englsh_canvas_posts() {
             }
         }
 
-        if client.has_valid_session().await.unwrap() && post.poster().username() == "Nen19" {
+        if client
+            .has_valid_session()
+            .await
+            .is_ok_and(|is_valid| is_valid)
+            && post.poster().username() == "Nen19"
+        {
             let (upvotes, downvotes) = post.unvote().await.unwrap();
             assert_eq!(0, upvotes);
             assert_eq!(1, downvotes);
@@ -337,7 +345,11 @@ async fn englsh_canvas_posts() {
         }
     }
 
-    if client.has_valid_session().await.unwrap() {
+    if client
+        .has_valid_session()
+        .await
+        .is_ok_and(|is_valid| is_valid)
+    {
         // Clean up previous reply to post.
         //
         // This is needed as currently cannot get
@@ -370,7 +382,11 @@ async fn englsh_original_posts() {
         .unwrap()
         .expect("No episode for given number");
 
-    if client.has_valid_session().await.unwrap() {
+    if client
+        .has_valid_session()
+        .await
+        .is_ok_and(|is_valid| is_valid)
+    {
         // Post content and if its marked as a spoiler.
         episode.post("MESSAGE", false).await.unwrap();
     }
@@ -380,7 +396,11 @@ async fn englsh_original_posts() {
     for post in posts {
         for _reply in post.replies::<Posts>().await.unwrap() {}
 
-        if client.has_valid_session().await.unwrap() {
+        if client
+            .has_valid_session()
+            .await
+            .is_ok_and(|is_valid| is_valid)
+        {
             post.upvote().await.unwrap();
             post.downvote().await.unwrap();
             post.unvote().await.unwrap();
