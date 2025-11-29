@@ -337,17 +337,19 @@ async fn englsh_canvas_posts() {
         }
     }
 
-    // Clean up previous reply to post.
-    //
-    // This is needed as currently cannot get
-    // updated replies after getting a `Post`.
-    //
-    // This refreshes to get new data for posts
-    // and therefore can find all replies with `REPLY`.
-    for post in episode.posts().await.unwrap() {
-        for reply in post.replies::<Posts>().await.unwrap() {
-            if reply.body().contents() == "REPLY" {
-                reply.delete().await.unwrap();
+    if client.has_valid_session().await.unwrap() {
+        // Clean up previous reply to post.
+        //
+        // This is needed as currently cannot get
+        // updated replies after getting a `Post`.
+        //
+        // This refreshes to get new data for posts
+        // and therefore can find all replies with `REPLY`.
+        for post in episode.posts().await.unwrap() {
+            for reply in post.replies::<Posts>().await.unwrap() {
+                if reply.body().contents() == "REPLY" {
+                    reply.delete().await.unwrap();
+                }
             }
         }
     }
@@ -360,15 +362,15 @@ async fn englsh_original_posts() {
         _ => Client::new(),
     };
 
-    let webtoon = client.webtoon(1262, Type::Original).await.unwrap().unwrap();
+    let webtoon = client.webtoon(505, Type::Original).await.unwrap().unwrap();
 
     let episode = webtoon
-        .episode(2)
+        .episode(50)
         .await
         .unwrap()
         .expect("No episode for given number");
 
-    if client.has_valid_session().await.is_ok_and(|result| result) {
+    if client.has_valid_session().await.unwrap() {
         // Post content and if its marked as a spoiler.
         episode.post("MESSAGE", false).await.unwrap();
     }
@@ -378,7 +380,7 @@ async fn englsh_original_posts() {
     for post in posts {
         for _reply in post.replies::<Posts>().await.unwrap() {}
 
-        if client.has_valid_session().await.is_ok_and(|result| result) {
+        if client.has_valid_session().await.unwrap() {
             post.upvote().await.unwrap();
             post.downvote().await.unwrap();
             post.unvote().await.unwrap();
