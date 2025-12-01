@@ -15,6 +15,11 @@ use crate::{
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
+    // TODO: This might be more robust if this was calculated dynamically, but
+    // there isn't really a nice was of doing this.
+    //
+    // We could try to use 10 as a minimum, and of less than 10 episodes are found
+    // on a page, make `pages = 1`, this way the second loop doesn't run.
     const MAX_EPISODES_PER_PAGE: u16 = 10;
 
     #[expect(
@@ -97,7 +102,10 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
             });
         }
 
-        // QUESTION: Maybe dont need this?
+        // QUESTION: We might not need this anymore, with retries being done
+        // for the requests, but it's possible that `webtoons.com` doesn't
+        // return a correct 429 code and just returns 200 instead.
+        //
         // Sleep for one second to prevent getting a 429 response code for going between the pages too quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -112,9 +120,11 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
         }
     }
 
-    let mut episodes: Vec<Episode> = episodes.into_iter().collect();
-
-    episodes.sort_unstable_by_key(Episode::number);
+    let episodes = {
+        let mut episodes: Vec<Episode> = episodes.into_iter().collect();
+        episodes.sort_unstable_by_key(Episode::number);
+        episodes
+    };
 
     Ok(episodes)
 }
@@ -158,7 +168,7 @@ impl DashboardStatus {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error(
-    "failed to parse `{0}` into a `DashboardStatus` expected one of PUBLISHED, READY, DRAFT, IN_REVIEW, APPROVED, REMOVED, AD_ON, or AD_OFF"
+    "failed to parse `{0}` into a `DashboardStatus` expected one of PUBLISHED, READY, DRAFT, IN_REVIEW, APPROVED, REMOVED, DISAPPROVED, DISAPPROVED_AUTO, AD_ON, or AD_OFF"
 )]
 pub struct DashboardStatusParseError(String);
 
