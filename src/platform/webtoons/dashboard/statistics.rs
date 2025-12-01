@@ -43,6 +43,12 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
 
 fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     {
+        // NOTE:
+        // This is a sanity check. As values on the page are all numbers,
+        // there is no way to ensure that the column being gotten hasn't changed
+        // order; we check the column name and make sure it aligns with the
+        // value we are looking for.
+
         let selector = Selector::parse(r".col3>p") //
             .assumption("`.col3>p` should be a valid selector")?;
 
@@ -52,7 +58,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         .assumption("`.col3>p`, representing a category, is missing on `webtoons.com` Webtoon stats dashboard: should have an element which says what category its for, eg. `Subscribers`")?
         .text()
         .next()
-        .assumption("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category, but no text was present in element")?;
+        .assumption("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category(Subscribers), but no text was present in element")?;
 
         assumption!(
             category == "Subscribers",
@@ -72,6 +78,13 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         .assumption("`.col3>.num` on `webtoons.com` stats dashboard was found, but no text was present in element")?;
 
     let subscribers = match count {
+        // NOTE:
+        // It is *EXTREMELY* unlikely that a single Webtoon would have billions
+        // of subscribers. Therefore, we just care about millions and below.
+
+        // TODO: Haven't encountered a Webtoon to verify the actual shape this
+        // would have with a million subscribers, but presumably it could very
+        // well show the full count, without any abbreviations.
         millions if millions.ends_with('M') => {
             let (millionth, hundred_thousandth) = millions
                 .trim_end_matches('M')
@@ -86,11 +99,17 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 
             (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
-        // TODO: match on thousands and hundreds separately
-        thousand => thousand
+        // TODO: If the above `ends_with('M')` doesn't actually catch what would
+        // be a million+ subscribers, and in-fact the count is fully shown, e.g
+        // `1,123,394`, this would catch that branch.
+        //
+        // This could be a candidate to add an `assumption!` for, checking for
+        // more than 1 `,`, but as this fallback handles that as well, leave for
+        // now, until more is confirmed.
+        count => count
             .replace(',', "")
             .parse::<u32>()
-            .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, a thousands subscribers count should always fit in a `u32`, got: {thousand}: {err}"))?,
+            .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, subscribers count should always fit in a `u32`, got: {count}: {err}"))?,
     };
 
     Ok(subscribers)
