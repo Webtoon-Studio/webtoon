@@ -1,4 +1,4 @@
-//! Module representing the canvas story list as `www.webtoons.com/*/canvas/list`.
+//! Module representing the canvas story list at `www.webtoons.com/*/canvas/list`.
 //!
 //! # Example
 //!
@@ -19,15 +19,13 @@
 //! # }
 //! ```
 
-use scraper::Selector;
-use std::{fmt::Display, ops::RangeBounds};
-
+use super::{Client, Language, Webtoon};
 use crate::{
     platform::webtoons::error::CanvasError,
     stdx::error::{Assume, assumption},
 };
-
-use super::{Client, Language, Webtoon};
+use scraper::Selector;
+use std::{fmt::Display, ops::RangeBounds};
 
 pub(super) async fn scrape(
     client: &Client,
@@ -35,7 +33,7 @@ pub(super) async fn scrape(
     pages: impl RangeBounds<u16>,
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
-    // NOTE: currently all languages are the same
+    // NOTE: currently all languages follow the same pattern.
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
         .assumption("`div.challenge_lst>ul>li>a` should be a valid selector")?;
 
@@ -51,6 +49,8 @@ pub(super) async fn scrape(
         std::ops::Bound::Unbounded => 100,
     };
 
+    // For simplicity, and ensuring expected behavior, enforce that range used is
+    // always increasing, from left to right.
     if start > end {
         return Err(CanvasError::InvalidRange);
     }
@@ -88,7 +88,7 @@ pub(super) async fn scrape(
     Ok(webtoons)
 }
 
-/// Represents sorting options when scraping `www.webtoons.com/*/canvas/list`
+/// Represents sorting options when scraping `www.webtoons.com/*/canvas/list`.
 #[derive(Debug, Clone, Copy)]
 pub enum Sort {
     /// Sort by views.
@@ -101,6 +101,10 @@ pub enum Sort {
 
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // NOTE:
+        // This has already had an instance where the text representation has
+        // change, `READ_COUNT` -> `MANA`, but there isn't a nice way to test
+        // this. It must be kept in kind this can change!
         let sort = match self {
             Self::Popularity => "MANA",
             Self::Likes => "LIKEIT",
