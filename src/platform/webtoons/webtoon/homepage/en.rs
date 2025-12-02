@@ -170,7 +170,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                 language: Language::En,
                 profile: Some(profile.into()),
                 username,
-                homepage: Cache::new(None),
+                homepage: Cache::empty(),
             });
 
             // NOTE: While this is saying that the loop will only run once, we
@@ -218,7 +218,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                         language: Language::En,
                         profile: None,
                         username: username.trim().into(),
-                        homepage: Cache::new(None),
+                        homepage: Cache::empty(),
                     });
                 }
             }

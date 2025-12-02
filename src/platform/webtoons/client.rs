@@ -345,6 +345,7 @@ impl Client {
             language,
             profile: Some(profile.into()),
             username: page.username.clone(),
+            // TODO: Can this just be `Cache::new(page)`, without the `Option`?
             homepage: Cache::new(Some(page)),
         }))
     }
