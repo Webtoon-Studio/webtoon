@@ -4,14 +4,12 @@ mod dashboard;
 mod search;
 
 pub mod canvas;
+pub mod client;
 pub mod creator;
+pub mod error;
 pub mod meta;
 pub mod originals;
-
-pub mod client;
 pub mod webtoon;
-
-pub mod error;
 
 pub use client::{Client, ClientBuilder};
 pub use creator::Creator;
