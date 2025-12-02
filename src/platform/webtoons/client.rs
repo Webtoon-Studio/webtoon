@@ -127,6 +127,10 @@ impl ClientBuilder {
     /// # use webtoon::platform::webtoons::ClientBuilder;
     /// let builder = ClientBuilder::new().with_session("session-token");
     /// ```
+    ///
+    /// # Notes
+    ///
+    /// This is the `NEO_SES=` token in the cookie.
     #[inline]
     #[must_use]
     pub fn with_session(mut self, session: &str) -> Self {
@@ -159,7 +163,7 @@ impl ClientBuilder {
     ///
     /// # Errors
     ///
-    /// This method returns a [`ClientError`] if the underlying HTTP client could not be built,
+    /// This method returns a [`ClientBuilderError`] if the underlying HTTP client could not be built,
     /// such as when TLS initialization fails or the DNS resolver cannot load the system configuration.
     ///
     /// # Example
@@ -204,7 +208,6 @@ pub struct Client {
     pub(super) session: Session,
 }
 
-// Creation impls
 impl Client {
     /// Instantiates a new [`Client`] with the default user agent: (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`).
     ///
@@ -281,7 +284,6 @@ impl Client {
     }
 }
 
-// Public facing impls
 impl Client {
     /// Fetches info for the [`Creator`] of a given `profile`.
     ///
@@ -296,13 +298,14 @@ impl Client {
     /// support creator pages. As a result, this method will return an error, specifically
     /// [`CreatorError::UnsupportedLanguage`], when a creator page is requested in these languages.
     ///
-    /// For languages where a creator page is supported, the function returns an `Option<Creator>`:
+    /// # Returns
     ///
     /// - `Ok(Some(creator))`: A valid creator profile page was found, and the returned `Creator`
     ///   can be used for further interactions.
     /// - `Ok(None)`: No creator profile page exists for the given `profile` in the selected
     ///   supported language. In this case, even though the language is supported, the creator
     ///   does not have a profile page.
+    /// - [`CreatorError::DisabledByCreator`]: Profile for creator exists, but is disabled.
     ///
     /// # Example
     ///
@@ -316,6 +319,7 @@ impl Client {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
+    ///     Err(CreatorError::DisabledByCreator) => println!("Profile exists, but is disabled by creator."),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
     /// # Ok(())
@@ -667,8 +671,8 @@ impl Client {
 
     /// Constructs a [`Webtoon`] from the given `id` and [`Type`].
     ///
-    /// Both sides, `canvas` and `original`, have separate sets of `id`'s. This means that an original and a canvas story
-    /// could have the same numerical id. The `id`'s are unique across languages though, so this method supports any language.
+    /// `canvas` and `original` have separate sets of `id`'s. This means that an `original` and a `canvas` story
+    /// could have the same numerical id. The `id`'s are unique across languages.
     ///
     /// # Example
     ///
@@ -699,7 +703,7 @@ impl Client {
     ///
     /// - `https://www.webtoons.com/{language}/{scope}/{slug}/list?title_no={id}`
     ///
-    /// It is assumed that the webtoon will always exist given the URL. This simplifies usage and cleans up boilerplate.
+    /// It is assumed that the Webtoon will always exist, considering a URL is being passed.
     ///
     /// # Example
     ///
@@ -733,9 +737,9 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// // When no session, or an invalid session, is passed in, `is_logged_in()` will be false.
     /// let user_info = client.user_info_for_session("session").await?;
     ///
+    /// // When no session, or an invalid session, is passed in, `is_logged_in()` will be false.
     /// assert!(!user_info.is_logged_in());
     /// # Ok(())
     /// # }
@@ -817,9 +821,8 @@ impl Client {
     }
 }
 
-// Internal only impls
 impl Client {
-    pub(super) async fn get_originals_page(
+    pub(super) async fn originals_page(
         &self,
         language: Language,
         day: &str,
@@ -852,7 +855,7 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn get_canvas_page(
+    pub(super) async fn canvas_page(
         &self,
         language: Language,
         page: u16,
@@ -888,7 +891,7 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn get_creator_page(
+    pub(super) async fn creator_page(
         &self,
         language: Language,
         profile: &str,
@@ -928,7 +931,7 @@ impl Client {
         Ok(Some(html))
     }
 
-    pub(super) async fn get_creator_webtoons(
+    pub(super) async fn creator_webtoons(
         &self,
         profile: &str,
         language: Language,
@@ -963,7 +966,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn get_webtoon_page(
+    pub(super) async fn webtoon_page(
         &self,
         webtoon: &Webtoon,
         page: Option<u16>,
@@ -1093,7 +1096,7 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn get_episodes_dashboard(
+    pub(super) async fn episodes_dashboard(
         &self,
         webtoon: &Webtoon,
         page: u16,
@@ -1121,10 +1124,7 @@ impl Client {
         api::dashboard::episodes::parse(&response)
     }
 
-    pub(super) async fn get_stats_dashboard(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<Html, SessionError> {
+    pub(super) async fn stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, SessionError> {
         let session = self.session.validate(self).await?;
 
         let language = match webtoon.language {
@@ -1163,10 +1163,7 @@ impl Client {
     }
 
     #[cfg(feature = "rss")]
-    pub(super) async fn get_rss_for_webtoon(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<rss::Channel, WebtoonError> {
+    pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, WebtoonError> {
         let id = webtoon.id;
         let language = match webtoon.language {
             Language::En => "en",
@@ -1201,7 +1198,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn get_episode(
+    pub(super) async fn episode(
         &self,
         webtoon: &Webtoon,
         episode: u16,
@@ -1233,7 +1230,7 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn get_likes_for_episode(
+    pub(super) async fn episodes_likes(
         &self,
         episode: &Episode,
     ) -> Result<RawLikesResponse, LikesError> {
@@ -1277,7 +1274,7 @@ impl Client {
     pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let response = self.get_react_token().await?;
+        let response = self.react_token().await?;
 
         if response.success {
             let webtoon = episode.webtoon.id;
@@ -1323,7 +1320,7 @@ impl Client {
     pub(super) async fn unlike_episode(&self, episode: &Episode) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
-        let response = self.get_react_token().await?;
+        let response = self.react_token().await?;
 
         if response.success {
             let webtoon = episode.webtoon.id;
@@ -1366,7 +1363,7 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn get_posts_for_episode(
+    pub(super) async fn episode_posts(
         &self,
         episode: &Episode,
         cursor: Option<Id>,
@@ -1446,10 +1443,7 @@ impl Client {
         Ok(response.status() != 404)
     }
 
-    pub(super) async fn get_upvotes_and_downvotes_for_post(
-        &self,
-        post: &Post,
-    ) -> Result<Count, PostError> {
+    pub(super) async fn post_upvotes_and_downvotes(&self, post: &Post) -> Result<Count, PostError> {
         let scope = match post.episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1490,7 +1484,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn get_replies_for_post(
+    pub(super) async fn replies(
         &self,
         post: &Post,
         cursor: Option<Id>,
@@ -1562,7 +1556,7 @@ impl Client {
         );
 
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .post("https://www.webtoons.com/p/api/community/v2/post")
@@ -1605,7 +1599,7 @@ impl Client {
         ];
 
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .post("https://www.webtoons.com/p/api/community/v2/post")
@@ -1625,7 +1619,7 @@ impl Client {
 
     pub(super) async fn delete_post(&self, post: &Post) -> Result<(), DeletePostError> {
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .delete(format!(
@@ -1670,7 +1664,7 @@ impl Client {
         );
 
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .put(&url)
@@ -1715,7 +1709,7 @@ impl Client {
         );
 
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .delete(&url)
@@ -1755,7 +1749,7 @@ impl Client {
         ];
 
         let session = self.session.validate(self).await?;
-        let token = self.get_api_token(&session).await?;
+        let token = self.api_token(&session).await?;
 
         self.http
             .post(url)
@@ -1771,7 +1765,7 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn get_user_info_for_webtoon(
+    pub(super) async fn user_info(
         &self,
         webtoon: &Webtoon,
     ) -> Result<WebtoonUserInfo, UserInfoError> {
@@ -1808,7 +1802,7 @@ impl Client {
         }
     }
 
-    async fn get_react_token(&self) -> Result<ReactToken, ReactTokenError> {
+    async fn react_token(&self) -> Result<ReactToken, ReactTokenError> {
         let session = self.session.validate(self).await?;
 
         let response = self
@@ -1832,10 +1826,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn get_api_token(
-        &self,
-        session: &ValidSession,
-    ) -> Result<String, ApiTokenError> {
+    pub(super) async fn api_token(&self, session: &ValidSession) -> Result<String, ApiTokenError> {
         let response = self
             .http
             .get("https://www.webtoons.com/p/api/community/v1/api-token")

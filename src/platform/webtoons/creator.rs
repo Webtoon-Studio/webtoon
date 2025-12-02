@@ -257,11 +257,7 @@ impl Creator {
             return Ok(None);
         };
 
-        let response = match self
-            .client
-            .get_creator_webtoons(profile, self.language)
-            .await
-        {
+        let response = match self.client.creator_webtoons(profile, self.language).await {
             Ok(response) => response,
             // TODO: match on specific error variant that only represents that the profile used is wrong.
             // Err(CreatorWebtoonsError::WrongProfile) =>
@@ -278,7 +274,7 @@ impl Creator {
                 self.homepage.insert(homepage);
 
                 self.client
-                    .get_creator_webtoons(&profile, self.language)
+                    .creator_webtoons(&profile, self.language)
                     .await?
             } // TODO: Err(err) => return Err(err.into()),
         };
@@ -346,7 +342,7 @@ pub(super) async fn homepage(
     profile: &str,
     client: &Client,
 ) -> Result<Option<Homepage>, CreatorError> {
-    let Some(html) = client.get_creator_page(language, profile).await? else {
+    let Some(html) = client.creator_page(language, profile).await? else {
         return Ok(None);
     };
 

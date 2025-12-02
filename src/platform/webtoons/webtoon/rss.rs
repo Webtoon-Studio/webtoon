@@ -69,7 +69,7 @@ impl Rss {
 }
 
 pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
-    let channel = webtoon.client.get_rss_for_webtoon(webtoon).await?;
+    let channel = webtoon.client.rss(webtoon).await?;
 
     let mut episodes = Vec::new();
 

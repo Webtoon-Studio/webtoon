@@ -827,7 +827,7 @@ impl Post {
             .episode
             .webtoon
             .client
-            .get_upvotes_and_downvotes_for_post(self)
+            .post_upvotes_and_downvotes(self)
             .await?;
 
         let mut upvotes = 0;
@@ -975,7 +975,7 @@ impl Post {
             .episode
             .webtoon
             .client
-            .get_user_info_for_webtoon(&self.episode.webtoon)
+            .user_info(&self.episode.webtoon)
             .await?;
 
         // Only perform delete if current post is from current session's user or if they are the creator of the webtoon
@@ -1361,11 +1361,7 @@ impl Poster {
             return Err(BlockUserError::BlockSelf);
         }
 
-        let user = self
-            .webtoon
-            .client
-            .get_user_info_for_webtoon(&self.webtoon)
-            .await?;
+        let user = self.webtoon.client.user_info(&self.webtoon).await?;
 
         // Blocking can only be done on a Webtoon that user is creator of.
         if !user.is_webtoon_creator() {
@@ -1486,12 +1482,7 @@ impl Replies for Posts {
         )]
         let mut replies = HashSet::new();
 
-        let response = post
-            .episode
-            .webtoon
-            .client
-            .get_replies_for_post(post, None, 100)
-            .await?;
+        let response = post.episode.webtoon.client.replies(post, None, 100).await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
 
@@ -1506,7 +1497,7 @@ impl Replies for Posts {
                 .episode
                 .webtoon
                 .client
-                .get_replies_for_post(post, Some(cursor), 100)
+                .replies(post, Some(cursor), 100)
                 .await?;
 
             for reply in response.result.posts {

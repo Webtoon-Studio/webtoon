@@ -364,7 +364,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn views(&self) -> Result<u64, EpisodeError> {
-        match self.client.get_user_info_for_webtoon(self).await {
+        match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 let views = super::dashboard::episodes::scrape(self)
                     .await?
@@ -420,7 +420,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
-        match self.client.get_user_info_for_webtoon(self).await {
+        match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 let subscribers = super::dashboard::statistics::scrape(self)
                     .await?
@@ -663,7 +663,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
-        let episodes = match self.client.get_user_info_for_webtoon(self).await {
+        let episodes = match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
                 super::dashboard::episodes::scrape(self).await?
             }
@@ -912,7 +912,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn is_subscribed(&self) -> Result<bool, WebtoonError> {
-        Ok(self.client.get_user_info_for_webtoon(self).await?.favorite)
+        Ok(self.client.user_info(self).await?.favorite)
     }
 
     /// Subscribes the current user to the `Webtoon`, if not already subscribed.
@@ -949,7 +949,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn subscribe(&self) -> Result<(), WebtoonError> {
-        let user = self.client.get_user_info_for_webtoon(self).await?;
+        let user = self.client.user_info(self).await?;
 
         // Already subscribed
         if user.favorite {
@@ -995,7 +995,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn unsubscribe(&self) -> Result<(), WebtoonError> {
-        let title_user_info = self.client.get_user_info_for_webtoon(self).await?;
+        let title_user_info = self.client.user_info(self).await?;
 
         // Already not subscribed
         if !title_user_info.favorite {

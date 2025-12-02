@@ -39,7 +39,7 @@ pub struct Page {
 
 #[inline]
 pub async fn scrape(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
-    let html = webtoon.client.get_webtoon_page(webtoon, None).await?;
+    let html = webtoon.client.webtoon_page(webtoon, None).await?;
 
     let page = match webtoon.language {
         Language::En => en::page(&html, webtoon)?,
@@ -113,7 +113,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
     let mut episodes = Vec::with_capacity(pages as usize * 10);
 
     for page in 1..=pages {
-        let html = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
+        let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
 
         for element in html.select(&selector) {
             let episode = match webtoon.language {
@@ -161,7 +161,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
     let selector = Selector::parse("li._episodeItem") //
         .assumption("`li._episodeItem` should be a valid selector")?;
 
-    let html = webtoon.client.get_webtoon_page(webtoon, Some(page)).await?;
+    let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
 
     let mut first: Option<Episode> = None;
 

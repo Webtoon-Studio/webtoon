@@ -510,7 +510,7 @@ impl Episode {
     /// # }
     /// ```
     pub async fn likes(&self) -> Result<u32, EpisodeError> {
-        let response = self.webtoon.client.get_likes_for_episode(self).await?;
+        let response = self.webtoon.client.episodes_likes(self).await?;
 
         let contents = response //
             .result
@@ -557,7 +557,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::None)
+            .episode_posts(self, None, 1, PinRepresentation::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -604,7 +604,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -619,7 +619,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -633,7 +633,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
+            .episode_posts(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
@@ -693,7 +693,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -708,7 +708,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -729,7 +729,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
+            .episode_posts(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
@@ -786,7 +786,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -807,7 +807,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -878,7 +878,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -899,7 +899,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -1312,7 +1312,7 @@ impl Episode {
         let html = self
             .webtoon
             .client
-            .get_episode(&self.webtoon, self.number)
+            .episode(&self.webtoon, self.number)
             .await?;
 
         self.title.insert(title(&html)?);

@@ -31,7 +31,7 @@ pub(super) async fn scrape(
 
     // TODO: `Html` is not `Send`. Could add channels so that `scrape` becomes thread-safe.
     let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|day| async {
-        Ok::<Html, OriginalsError>(client.get_originals_page(language, day).await?)
+        Ok::<Html, OriginalsError>(client.originals_page(language, day).await?)
     }))
     .await?;
 

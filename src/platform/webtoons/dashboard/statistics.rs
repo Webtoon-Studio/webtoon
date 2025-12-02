@@ -32,7 +32,7 @@ pub struct Previous {
 }
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
-    let html = webtoon.client.get_stats_dashboard(webtoon).await?;
+    let html = webtoon.client.stats_dashboard(webtoon).await?;
 
     // TODO: For now only need subscribers from here, but could do the others as well.
     Ok(Stats {
