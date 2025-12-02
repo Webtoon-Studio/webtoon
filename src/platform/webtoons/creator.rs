@@ -1,16 +1,15 @@
 //! Module containing things related to a creator on `webtoons.com`.
 
+use super::{Client, Language, Webtoon, error::CreatorError};
+use crate::stdx::{
+    cache::{Cache, Store},
+    error::{Assume, AssumeFor, Assumption, assumption},
+};
 use core::fmt::{self, Debug};
 use futures::future;
-use parking_lot::RwLock;
 use scraper::{Html, Selector};
-use std::sync::Arc;
 
-use crate::stdx::error::{Assume, AssumeFor, Assumption, assumption};
-
-use super::{Client, Language, Webtoon, error::CreatorError};
-
-/// Represents a creator of a `Webtoon`.
+/// Represents a Creator of a `Webtoon`.
 ///
 /// More generally this represents an account on `webtoons.com`.
 ///
@@ -48,7 +47,7 @@ pub struct Creator {
     pub(super) username: String,
     // Originals authors might not have a profile: Korean, Chinese, German, and French
     pub(super) profile: Option<String>,
-    pub(super) homepage: Arc<RwLock<Option<Homepage>>>,
+    pub(super) homepage: Cache<Option<Homepage>>,
 }
 
 impl Debug for Creator {
@@ -70,7 +69,7 @@ impl Debug for Creator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct Homepage {
     pub username: String,
     pub followers: u32,
@@ -135,7 +134,7 @@ impl Creator {
     ///
     /// Sometimes this is just the [`profile()`](Creator::profile()) with the `_` prefix stripped.
     ///
-    /// If creator has no webtoon profile, then this will always return `None`.
+    /// If creator has no `webtoons.com` profile, then this will always return `None`.
     ///
     /// # Example
     ///
@@ -154,17 +153,19 @@ impl Creator {
     /// # }
     /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Some(homepage) = &*self.homepage.read() {
-            Ok(Some(homepage.id.clone()))
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.as_ref().map(|homepage| homepage.id.clone()))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
 
             let homepage = homepage(self.language, profile, &self.client).await?;
-            let followers = homepage.as_ref().map(|homepage| homepage.id.clone());
-            *self.homepage.write() = homepage;
-            Ok(followers)
+            let id = homepage.as_ref().map(|homepage| homepage.id.clone());
+
+            self.homepage.insert(homepage);
+
+            Ok(id)
         }
     }
 
@@ -193,8 +194,8 @@ impl Creator {
     /// # }
     /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Some(homepage) = &*self.homepage.read() {
-            Ok(Some(homepage.followers))
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.as_ref().map(|homepage| homepage.followers))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
@@ -202,7 +203,9 @@ impl Creator {
 
             let homepage = homepage(self.language, profile, &self.client).await?;
             let followers = homepage.as_ref().map(|page| page.followers);
-            *self.homepage.write() = homepage;
+
+            self.homepage.insert(homepage);
+
             Ok(followers)
         }
     }
@@ -254,8 +257,6 @@ impl Creator {
             return Ok(None);
         };
 
-        // TODO: if this fails it could be because the profile needs to be the other one on the homepage.
-        // Need to get that id and then try again.
         let response = match self
             .client
             .get_creator_webtoons(profile, self.language)
@@ -263,6 +264,7 @@ impl Creator {
         {
             Ok(response) => response,
             // TODO: match on specific error variant that only represents that the profile used is wrong.
+            // Err(CreatorWebtoonsError::WrongProfile) =>
             Err(_) => {
                 let homepage = homepage(self.language, profile, &self.client).await?;
 
@@ -273,12 +275,12 @@ impl Creator {
                         "failed to find creator profile property on creator homepage html",
                     )?;
 
-                *self.homepage.write() = homepage;
+                self.homepage.insert(homepage);
 
                 self.client
                     .get_creator_webtoons(&profile, self.language)
                     .await?
-            }
+            } // TODO: Err(err) => return Err(err.into()),
         };
 
         let webtoons =
@@ -289,7 +291,7 @@ impl Creator {
                     Err(err) => return Err(err.into()),
                 };
 
-                Ok::<_, CreatorError>(webtoon)
+                Ok::<Webtoon, CreatorError>(webtoon)
             })).await?;
 
         Ok(Some(webtoons))
@@ -322,8 +324,8 @@ impl Creator {
     /// # }
     /// ```
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Some(homepage) = &*self.homepage.read() {
-            Ok(Some(homepage.has_patreon))
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.as_ref().map(|homepage| homepage.has_patreon))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
@@ -331,7 +333,9 @@ impl Creator {
 
             let homepage = homepage(self.language, profile, &self.client).await?;
             let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
-            *self.homepage.write() = homepage;
+
+            self.homepage.insert(homepage);
+
             Ok(has_patreon)
         }
     }
@@ -405,8 +409,16 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
     );
 }
 
-// TODO: explain that the profile provided is not always the one that is needed
-// for operations and that this id can be found on the creator page hmtl in a script tag.
+// In general, the profile id found at the end of the creator page URL is what
+// is wanted. However, there are instances where there is a hidden backing profile
+// id that is what is needed instead.
+//
+// Luckily, this hidden id can be found on the profile page itself, in a script
+// tag in the HTML. This allows us to always take the public profile id and get
+// access to the hidden id, if needed.
+//
+// Going the other way, however, is generally not possible. Luckily this shouldn't
+// be needed.
 fn id(html: &Html) -> Result<String, CreatorError> {
     let selector = Selector::parse("script").assumption("`script` should be a valid selector")?;
 

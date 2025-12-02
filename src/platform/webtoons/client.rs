@@ -5,6 +5,21 @@ mod api;
 // TODO: Is this the best spot for this to be exported?
 pub use api::user_info::UserInfo;
 
+use super::{
+    Language, Type, Webtoon,
+    canvas::{self, Sort},
+    creator::{self, Creator},
+    error::{
+        CanvasError, ClientError, CreatorError, OriginalsError, PostError, SearchError,
+        WebtoonError,
+    },
+    meta::Scope,
+    originals::{self},
+    webtoon::{
+        episode::Episode,
+        post::{Post, Reaction},
+    },
+};
 use crate::{
     platform::webtoons::{
         client::api::{
@@ -25,27 +40,11 @@ use crate::{
         webtoon::post::{PinRepresentation, Poster, id::Id},
     },
     stdx::{
+        cache::Cache,
         error::{Assume, assumption},
         http::{DEFAULT_USER_AGENT, IRetry},
     },
 };
-
-use super::{
-    Language, Type, Webtoon,
-    canvas::{self, Sort},
-    creator::{self, Creator},
-    error::{
-        CanvasError, ClientError, CreatorError, OriginalsError, PostError, SearchError,
-        WebtoonError,
-    },
-    meta::Scope,
-    originals::{self},
-    webtoon::{
-        episode::Episode,
-        post::{Post, Reaction},
-    },
-};
-use parking_lot::RwLock;
 use scraper::Html;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Display, ops::RangeBounds, sync::Arc};
@@ -342,7 +341,7 @@ impl Client {
             language,
             profile: Some(profile.into()),
             username: page.username.clone(),
-            homepage: Arc::new(RwLock::new(Some(page))),
+            homepage: Cache::new(Some(page)),
         }))
     }
 
@@ -1000,6 +999,9 @@ impl Client {
             .text()
             .await
             .map_err(RequestError)?;
+
+        // TODO: Check response to see if wrong profile was used and use:
+        //     Err(CreatorWebtoonsError::WrongProfile)
 
         let html = Html::parse_document(&response);
 

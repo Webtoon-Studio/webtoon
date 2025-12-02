@@ -1,9 +1,7 @@
-use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-use parking_lot::RwLock;
-use scraper::{ElementRef, Html, Selector};
-use std::{str::FromStr, sync::Arc};
-use url::Url;
-
+use super::{
+    super::episode::{self, PublishedStatus},
+    Page,
+};
 use crate::{
     platform::webtoons::{
         Client, Language, Webtoon,
@@ -18,11 +16,10 @@ use crate::{
         math::MathExt,
     },
 };
-
-use super::{
-    super::episode::{self, PublishedStatus},
-    Page,
-};
+use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use scraper::{ElementRef, Html, Selector};
+use std::str::FromStr;
+use url::Url;
 
 pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {
     let page = match webtoon.scope {
@@ -173,7 +170,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                 language: Language::En,
                 profile: Some(profile.into()),
                 username,
-                homepage: Arc::new(RwLock::new(None)),
+                homepage: Cache::new(None),
             });
 
             // NOTE: While this is saying that the loop will only run once, we
@@ -221,7 +218,7 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                         language: Language::En,
                         profile: None,
                         username: username.trim().into(),
-                        homepage: Arc::new(RwLock::new(None)),
+                        homepage: Cache::new(None),
                     });
                 }
             }
