@@ -103,7 +103,7 @@ impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // NOTE:
         // This has already had an instance where the text representation has
-        // change, `READ_COUNT` -> `MANA`, but there isn't a nice way to test
+        // changed, `READ_COUNT` -> `MANA`, but there isn't a nice way to test
         // this. It must be kept in kind this can change!
         let sort = match self {
             Self::Popularity => "MANA",
