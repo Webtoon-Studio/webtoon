@@ -9,8 +9,9 @@ pub mod meta;
 pub mod originals;
 
 pub mod client;
-pub mod error;
 pub mod webtoon;
+
+pub mod error;
 
 pub use client::{Client, ClientBuilder};
 pub use creator::Creator;

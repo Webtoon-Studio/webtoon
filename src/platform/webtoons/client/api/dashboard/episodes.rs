@@ -23,18 +23,26 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
         html_escape::decode_html_entities(&cleaned).to_string()
     }
 
-    if let Some(json) = html
+    let mut line = html
         .lines()
         // PERF:
         // The wanted line is closer to the bottom
         // of the HTML so start there and work up.
         .rev()
-        .map(|line| line.trim_start())
-        // TODO: Add invariant check this is true.
+        .map(|line| line.trim_start());
+
+    let json = line
         // Only one line should match this condition.
         .find(|line| line.starts_with(START) && line.ends_with(END))
-        .map(|line| clean(line))
-    {
+        .map(|line| clean(line));
+
+    if let Some(line) = line.find(|line| line.starts_with(START) && line.ends_with(END)) {
+        assumption!(
+            "only one line on episode dashboard should start with `{START}` and end with `{END}`, yet found: `{line}` "
+        )
+    }
+
+    if let Some(json) = json {
         match serde_json::from_str::<Vec<DashboardEpisode>>(&json) {
             Ok(episodes) => return Ok(episodes),
             Err(err) => assumption!(
