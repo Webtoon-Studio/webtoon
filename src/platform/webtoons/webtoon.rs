@@ -5,10 +5,6 @@ mod homepage;
 pub mod episode;
 pub mod post;
 
-use core::fmt::{self, Debug};
-use std::str::FromStr;
-use std::sync::Arc;
-
 #[cfg(feature = "rss")]
 pub mod rss;
 #[cfg(feature = "rss")]
@@ -32,6 +28,9 @@ use crate::{
         http::IRetry,
     },
 };
+use core::fmt::{self, Debug};
+use std::str::FromStr;
+use std::sync::Arc;
 
 /// Represents a Webtoon from `webtoons.com`.
 ///
@@ -886,12 +885,6 @@ impl Webtoon {
 
     /// Checks if the current user session is subscribed to the `Webtoon`.
     ///
-    /// # Session
-    ///
-    /// This method requires a valid user session to perform actions on the Webtoon.
-    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
-    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
-    ///
     /// # Example
     ///
     /// ```no_run
@@ -916,18 +909,6 @@ impl Webtoon {
     }
 
     /// Subscribes the current user to the `Webtoon`, if not already subscribed.
-    ///
-    /// # Session
-    ///
-    /// This method requires a valid user session to perform actions on the Webtoon.
-    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
-    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
-    ///
-    /// # Behavior
-    ///
-    /// - **Creator Check**: Checks if the user is the creator of the Webtoon. If the user is the creator, the method does nothing and immediately returns `Ok(())`.
-    /// - **Subscription Status Check**: If the user is already subscribed, returns `Ok(())` without taking any further action.
-    /// - **Subscribing**: If successful, returns `Ok(())`.
     ///
     /// # Example
     ///
@@ -963,18 +944,6 @@ impl Webtoon {
 
     /// Unsubscribes the current user from the `Webtoon`, if currently subscribed.
     ///
-    /// # Session
-    ///
-    /// This method requires a valid user session to perform actions on the Webtoon.
-    ///   - If the session is invalid, it will return an error of type `Err(WebtoonError::ClientError(ClientError::InvalidSession))`.
-    ///   - If no session is provided, it will return an error of type `Err(WebtoonError(ClientError::NoSessionProvided))`.
-    ///
-    /// # Behavior
-    ///
-    /// - **Creator Check**: Checks if the user is the creator of the Webtoon. If the user is the creator, the method does nothing and returns `Ok(())`.
-    /// - **Subscription Status Check**: If the user is not subscribed, the method returns `Ok(())` without taking any further action.
-    /// - **Unsubscribing**: If successful, returns `Ok(())`.
-    ///
     /// # Example
     ///
     /// ```no_run
@@ -1008,7 +977,6 @@ impl Webtoon {
     }
 }
 
-// Internal use
 impl Webtoon {
     pub(super) async fn new_with_client(
         id: u32,
