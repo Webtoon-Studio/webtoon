@@ -66,6 +66,42 @@ async fn english_originals_page() {
 }
 
 #[tokio::test]
+async fn chinese_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::Zh).await.unwrap();
+}
+
+#[tokio::test]
+async fn thai_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::Th).await.unwrap();
+}
+
+#[tokio::test]
+async fn indonesian_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::Id).await.unwrap();
+}
+
+#[tokio::test]
+async fn spanish_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::Es).await.unwrap();
+}
+
+#[tokio::test]
+async fn french_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::Fr).await.unwrap();
+}
+
+#[tokio::test]
+async fn german_originals_page() {
+    let client = Client::new();
+    let _webtoons = client.originals(Language::De).await.unwrap();
+}
+
+#[tokio::test]
 async fn english_canvas_page() {
     let client = Client::new();
 
