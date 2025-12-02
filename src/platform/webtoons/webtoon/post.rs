@@ -1362,6 +1362,7 @@ impl From<Vec<Post>> for Posts {
 /// This was made so that `posts()` can have a single `replies` method, but provide the ability
 /// to get the posts themselves as well as the count without having to come up with another name
 /// for the function.
+#[doc(hidden)]
 pub trait Replies: Sized + Sealed {
     /// Returns the replies for a post.
     #[allow(async_fn_in_trait, reason = "internal use only")]

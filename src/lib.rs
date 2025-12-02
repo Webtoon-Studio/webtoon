@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![warn(
     missing_docs,
     rustdoc::broken_intra_doc_links,
@@ -51,8 +52,8 @@
     clippy::redundant_closure
 )]
 #![forbid(unsafe_code)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![doc = include_str!("../README.md")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod stdx;
 
 pub mod platform;

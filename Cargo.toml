@@ -15,7 +15,6 @@ keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 features = ["rss", "naver"]
 
 [package.metadata.docs.rs]
-features = ["rss", "download", "naver"]
 all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
