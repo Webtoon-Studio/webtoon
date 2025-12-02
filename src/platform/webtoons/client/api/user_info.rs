@@ -53,6 +53,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn is_logged_in(&self) -> bool {
         self.is_logged_in
     }
@@ -76,6 +77,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
     }
@@ -99,6 +101,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
