@@ -687,3 +687,29 @@ async fn english_canvas_rss() {
 
     assert_eq!("Nerd and Jock", rss.title());
 }
+
+#[tokio::test]
+async fn english_canvas_panel_pixels_non_zero_decimal() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1085313, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+
+    let length = episode.length().await.unwrap().unwrap();
+
+    assert_eq!(0, length);
+}
+
+#[tokio::test]
+async fn english_canvas_panel_pixels_height_more_than_1280() {
+    let client = Client::new();
+    let webtoon = client.webtoon(903679, Type::Canvas).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+
+    let length = episode.length().await.unwrap().unwrap();
+
+    assert_eq!(0, length);
+}

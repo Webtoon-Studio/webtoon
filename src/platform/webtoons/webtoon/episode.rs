@@ -1,5 +1,16 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
+use super::{
+    Webtoon,
+    post::{PinRepresentation, Posts},
+};
+use crate::platform::webtoons::{
+    dashboard::episodes::DashboardStatus,
+    error::{ClientError, EpisodeError, PostsError, SessionError},
+    webtoon::post::{Post, id::Id},
+};
+use crate::stdx::cache::{Cache, Store};
+use crate::stdx::error::{Assume, Assumption, assumption};
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
@@ -8,16 +19,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 use url::Url;
 
-use super::Webtoon;
-use super::post::{PinRepresentation, Posts};
-use crate::platform::webtoons::{
-    dashboard::episodes::DashboardStatus,
-    error::{ClientError, EpisodeError, PostsError, SessionError},
-    webtoon::post::{Post, id::Id},
-};
-use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{Assume, Assumption, assumption};
-
+// TODO: Remove and just use `Vec<Episode>`. Doing sop means some rework about how episodes are retrieved.
 /// Represents a collection of episodes.
 ///
 /// This type is not constructed directly, but via [`Webtoon::episodes()`].
@@ -71,6 +73,7 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn count(&self) -> u16 {
         self.count
@@ -95,6 +98,7 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
         // PERF: If in the process of making the Vec we can insert into the index
@@ -366,7 +370,7 @@ impl Episode {
     /// Returns the sum of the vertical length in pixels.
     ///
     /// If the page cannot be viewed publicly, for example its behind fast-pass, it will return `None`. It can also be
-    /// `None` for some episodes that have audio or GIFs.
+    /// `None` for some episodes that have audio or GIFs, as this viewer is unsupported.
     ///
     /// # Example
     ///
@@ -440,6 +444,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn published(&self) -> Option<i64> {
         self.published.map(|datetime| datetime.timestamp_millis())
@@ -522,7 +527,10 @@ impl Episode {
             .reactions
             .first()
             .map(|likes| likes.count)
-            // TODO: Explain why this is fine to default to `0`.
+            // NOTE: A like count starts at zero. Given that an `Episode` must
+            // be gotten, we know the episode is a valid episode, and thus if
+            // the reactions count is empty, we can safely assume that the there
+            // is no likes yet, and thus should just default to `0`.
             .unwrap_or_default();
 
         Ok(likes)
@@ -566,11 +574,11 @@ impl Episode {
         Ok((comments, replies))
     }
 
-    /// Retrieves the direct (top-level) comments for the episode, sorted from newest to oldest.
+    /// Retrieves the direct (top-level) comments for the episode, sorted from newest-to-oldest.
     ///
     /// There are no duplicate comments, and only direct replies (top-level) are fetched, not the nested replies.
     ///
-    /// Direct replies that have been deleted (but have replies) will still be included with a message indicating the deletion. Comments deleted without replies will not be included.
+    /// Direct replies that have been deleted (but have replies) will still be included. Comments deleted without replies will not be included.
     ///
     /// # Example
     ///
@@ -652,7 +660,7 @@ impl Episode {
         Ok(posts)
     }
 
-    /// Iterates over all direct (top-level) comments for the episode and applies a callback function to each post.
+    /// Iterates through all direct (top-level) comments for the episode and applies a callback function to each post.
     ///
     /// This method is useful in scenarios where memory constraints are an issue, as it avoids loading all posts into memory at once. Instead, each post is processed immediately as it is retrieved, making it more memory-efficient than [`posts()`](Episode::posts()).
     ///
@@ -739,6 +747,7 @@ impl Episode {
         Ok(())
     }
 
+    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
     /// Retrieves the direct (top-level) comments for the episode until the specified post `id` is encountered.
     ///
     /// This method can be used for fetching the most recent posts for an episode, with the assumption that the post
@@ -835,6 +844,7 @@ impl Episode {
         Ok(posts)
     }
 
+    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
     /// Retrieves the direct (top-level) comments for the episode until posts older than the specified `date` are encountered.
     ///
     /// This method can be used as an optimization to get only the most recent posts from a given date onward.
@@ -1050,7 +1060,7 @@ impl Episode {
     /// Returns the episode's current ad status.
     ///
     /// This information is only available if a session is provided, and the Webtoon in question was created by the user of the session.
-    /// In any other scenario, this method returns `None`. To retrieve this data, the `episodes` function must be used when getting episode data.
+    /// In any other scenario, this method returns `None`. To retrieve this data, [`Webtoon::episodes()`] must be used when getting episode data.
     ///
     /// The possible states are:
     /// - [`Yes`](variant@AdStatus::Yes) - The episode is currently behind an ad.
@@ -1101,13 +1111,10 @@ impl Episode {
 
     /// Likes the episode on behalf of the user associated with the current session.
     ///
-    /// Allows the user (via their session) to like a specific episode. If no session is present, or is invalid, will return an [`EpisodeError`].
-    ///
     /// If episode is already liked, it will do nothing.
     ///
     /// # Behavior:
     /// - **Session Required**: The method will attempt to like the episode on behalf of the user tied to the current session.
-    /// - **Webtoon Ownership**: If the episode belongs to the current user’s own Webtoon, it will still process the request without issue.
     ///
     /// # Example
     ///
@@ -1141,13 +1148,10 @@ impl Episode {
 
     /// Unlikes the episode on behalf of the user associated with the current session.
     ///
-    /// Allows the user (via their session) to unlike a specific episode. If no session is present, or is invalid, will return an [`EpisodeError`].
-    ///
     /// If episode is already not liked, it will do nothing.
     ///
     /// # Behavior:
     /// - **Session Required**: The method will attempt to unlike the episode on behalf of the user tied to the current session.
-    /// - **Webtoon Ownership**: If the episode belongs to the current user’s own Webtoon, it will still process the request without issue.
     ///
     /// # Example
     ///
@@ -1216,7 +1220,7 @@ impl Episode {
         Ok(())
     }
 
-    /// Will download the panels of episode.
+    /// Will download the panels of the episode.
     ///
     /// This returns a [`Panels`], which offers ways to save to disk.
     ///
@@ -1279,7 +1283,6 @@ impl Episode {
     }
 }
 
-// Internal use only
 impl Episode {
     pub(crate) fn new(webtoon: &Webtoon, number: u16) -> Self {
         Self {
@@ -1307,7 +1310,6 @@ impl Episode {
         }
     }
 
-    /// Scrapes episode page, getting `note`, `length`, `title`, `thumbnail` and the urls for the panels.
     async fn scrape(&self) -> Result<(), EpisodeError> {
         let html = self
             .webtoon
@@ -1324,7 +1326,6 @@ impl Episode {
         Ok(())
     }
 
-    /// Returns `true` id episode exists, `false` if not. Returns `PostError` if there was an error.
     pub(super) async fn exists(&self) -> Result<bool, ClientError> {
         self.webtoon.client.check_if_episode_exists(self).await
     }
@@ -1477,10 +1478,10 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
 }
 
 fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
-    // TODO: Canvas: 1085313, Episode 1:
-    // Width can be an integer: 800
-    // Height isn't always a float that end in `0`: 1203.8240917782027
-    // Should assume that height can also be a whole number
+    // NOTE:
+    // Most panel pixels end in a `.0`, but this is not guaranteed. The values
+    // also have the potential to be a whole number, with no `.`. This is true
+    // for both height and width.
 
     if is_audio_reader(html)? {
         return Ok(None);
@@ -1579,6 +1580,14 @@ fn is_audio_reader(html: &Html) -> Result<bool, Assumption> {
 }
 
 fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
+    // TODO: Unsure how best to handle the fractional values, as in theory they can
+    // increase the total by at least a full pixel, which would impact the final height
+    // value. This seems like it would have the most noticeable impact when building
+    // the single image, as the layers will be slightly overlapped.
+    //
+    // It might be possible to store as a f32, but then when building the images
+    // we just accept that there is going to be some inaccuracy.
+
     let value = img.value().attr("height").assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let height = match value {
@@ -1621,7 +1630,7 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
 
     assumption!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
-        // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this.
+        // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this, as it breaks the stated limits.
         height <= 1280,
         "`webtoons.com` enforces strict limits of `1280` pixels in height"
     );
@@ -1630,6 +1639,8 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
 }
 
 fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
+    // NOTE: See `height` and `length` for more info on the possible range of values.
+
     let value = img
         .value()
         .attr("width")
@@ -1674,6 +1685,7 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
 
     assumption!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+        // TODO: There is a stated limit, but with height as an example, this, too, could be violated on the site.
         width <= 800,
         "`webtoons.com` enforces strict limits of `800` pixels in width"
     );
@@ -1683,9 +1695,8 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
 
 /// Represents a single panel for an episode.
 ///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`](Episode::panels()).
-// Not all fields are used with the base feature set.
-#[allow(unused)]
+/// This type is not constructed directly, but gotten via [`Episode::panels()`].
+#[allow(unused)] // Not all fields are used with the base feature set.
 #[derive(Debug, Clone)]
 pub struct Panel {
     url: Url,
@@ -1774,7 +1785,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
         assumption!(
             ["jpeg", "png", "jpg"]
                 .into_iter()
-                .any(|format| format != ext),
+                .any(|format| format == ext),
             "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`) and PNG(`png`), but found: `{ext}`"
         );
 
@@ -1782,7 +1793,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
             url,
 
             episode,
-            // Enumerate starts at 0, so add +1 so that it starts at one.
+            // Enumerate starts at 0, so add +1 so that it starts at 1.
             number: u16::try_from(number + 1)
                 .assumption("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
             height: height(img)?,
@@ -1802,7 +1813,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
 
 /// Represents all the panels for an episode.
 ///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`](crate::platform::webtoons::webtoon::episode::Episode::panels()).
+/// This type is not constructed directly, but gotten via [`Episode::panels()`].
 ///
 /// # Example
 ///
@@ -1825,8 +1836,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
 /// # Ok(())
 /// # }
 /// ```
-// Not all fields are used with the base feature set.
-#[allow(unused)]
+#[allow(unused)] // Not all fields are used with the base feature set.
 #[derive(Debug, Clone)]
 pub struct Panels {
     images: Vec<Panel>,
