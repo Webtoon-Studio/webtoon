@@ -1,10 +1,6 @@
 //! Module containing things related to posts and their posters.
 
-use chrono::{DateTime, Utc};
-use core::fmt::{self, Debug};
-use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
-use thiserror::Error;
-
+use super::Episode;
 use crate::{
     platform::webtoons::{
         Webtoon,
@@ -14,115 +10,12 @@ use crate::{
     private::Sealed,
     stdx::{cache::Cache, error::assumption},
 };
+use chrono::{DateTime, Utc};
+use core::fmt::{self, Debug};
+use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
+use thiserror::Error;
 
-use super::Episode;
-
-//Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
-
-// GIF search
-// https://www.webtoons.com/p/api/community/v1/gifs/search?q=happy&offset=0&limit=10
-
-// POST GIF comment
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "GIF Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "GIPHY",
-//         "data": {
-//           "giphyId": "fUQ4rhUZJYiQsas6WD"
-//         }
-//       }
-//     ]
-//   }
-// }
-
-// POST for comment with sticker
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Sticker Comment 2",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "STICKER",
-//         "data": {
-//           "stickerPackId": "wt_001",
-//           "stickerId": "wt_001-v2-1"
-//         }
-//       }
-//     ]
-//   }
-// }
-
-// POST webtoon comment
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Webtoon Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "95"
-//         }
-//       }
-//     ]
-//   }
-// }
-// Multiple webtoons(only one that can be multiple)
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Multiple Webtoon Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "5557"
-//         }
-//       },
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "95"
-//         }
-//       }
-//     ]
-//   }
-// }
-// contentSubType can also be "CHALLENGE"
-
+// TODO: Remove and just use `Vec<Post>`.
 /// Represents a collection of posts.
 ///
 /// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`].
@@ -133,12 +26,14 @@ pub struct Posts {
 
 impl Posts {
     /// Returns the first post, or `None` if it is empty.
+    #[inline]
     #[must_use]
     pub fn first(&self) -> Option<&Post> {
         self.posts.first()
     }
 
     /// Returns the last post, or `None` if it is empty.
+    #[inline]
     #[must_use]
     pub fn last(&self) -> Option<&Post> {
         self.posts.last()
@@ -150,6 +45,7 @@ impl Posts {
     /// Given an element the closure must return `true` or `false`. The returned
     /// iterator will yield only the elements for which the closure returns
     /// true.
+    #[inline]
     pub fn filter<P>(self, predicate: P) -> impl Iterator<Item = Post>
     where
         P: FnMut(&Post) -> bool,
@@ -162,6 +58,7 @@ impl Posts {
     ///
     /// This sort is unstable (i.e., may reorder equal elements), in-place (i.e., does not
     /// allocate), and *O*(*n* \* log(*n*)) worst-case.
+    #[inline]
     pub fn sort_unstable_by<F>(&mut self, compare: F)
     where
         F: FnMut(&Post, &Post) -> Ordering,
@@ -169,43 +66,46 @@ impl Posts {
         self.posts.sort_unstable_by(compare);
     }
 
-    /// Performs an inplace, unstable sort of the post episode number in an descending order.
+    /// Performs an in-place, unstable sort of the post episode number in a descending order.
+    #[inline]
     pub fn sort_by_episode_desc(&mut self) {
         self.posts
             .sort_unstable_by(|a, b| b.episode.number.cmp(&a.episode.number));
     }
 
-    /// Performs an inplace, unstable sort of the post episode number in an ascending order.
+    /// Performs an in-place, unstable sort of the post episode number in an ascending order.
+    #[inline]
     pub fn sort_by_episode_asc(&mut self) {
         self.posts
             .sort_unstable_by(|a, b| a.episode.number.cmp(&b.episode.number));
     }
 
-    /// Performs an inplace, unstable sort of the post date, from newest to oldest.
+    /// Performs an in-place, unstable sort of the post date, from newest to oldest.
+    #[inline]
     pub fn sort_by_newest(&mut self) {
         self.posts.sort_unstable_by(|a, b| b.posted.cmp(&a.posted));
     }
 
-    /// Performs an inplace, unstable sort of the post date, from oldest to newest.
+    /// Performs an in-place, unstable sort of the post date, from oldest to newest.
+    #[inline]
     pub fn sort_by_oldest(&mut self) {
         self.posts.sort_unstable_by(|a, b| a.posted.cmp(&b.posted));
     }
 
-    /// Performs an inplace, unstable sort of the upvotes , from largest to smallest.
+    /// Performs an in-place, unstable sort of the upvotes , from largest to smallest.
+    #[inline]
     pub fn sort_by_upvotes(&mut self) {
         self.posts
             .sort_unstable_by(|a, b| b.upvotes.cmp(&a.upvotes));
     }
 
     /// Return the underlying `Vec<Post>` as a slice.
+    #[inline]
     #[must_use]
     pub fn as_slice(&self) -> &[Post] {
         &self.posts
     }
 }
-
-// Replies for post
-//GET https://www.webtoons.com/p/api/community/v2/post/GW-epicom:0-c_843910_1-k/child-posts?sort=oldest&displayBlindCommentAsService=false&prevSize=0&nextSize=10&withCursor=false&offsetPostId=
 
 /// Represents a post on `webtoons.com`, either a reply or a top-level comment.
 ///
@@ -283,6 +183,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn poster(&self) -> &Poster {
         &self.poster
@@ -318,6 +219,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn id(&self) -> Id {
         self.id
@@ -350,6 +252,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn parent_id(&self) -> Id {
         self.parent_id
@@ -381,6 +284,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn body(&self) -> &Body {
         &self.body
@@ -410,6 +314,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn upvotes(&self) -> u32 {
         self.upvotes
@@ -439,6 +344,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn downvotes(&self) -> u32 {
         self.downvotes
@@ -468,6 +374,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn is_comment(&self) -> bool {
         self.id == self.parent_id
@@ -497,6 +404,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn is_reply(&self) -> bool {
         self.id != self.parent_id
@@ -526,6 +434,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn is_top(&self) -> bool {
         self.is_top
@@ -536,7 +445,7 @@ impl Post {
     /// One thing to keep in mind is that if a top-level post was deleted and no replies were left,
     /// or if all replies were themselves deleted, it won't be returned in the [`Episode::posts()`](super::Episode::posts()) response.
     ///
-    /// This will only return `true` if there is a top-level post that has replies on it. Otherwise will return `false`.
+    /// This will only return `true` if there is a top-level post that has replies on it. Otherwise, will return `false`.
     ///
     /// # Example
     ///
@@ -560,6 +469,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn is_deleted(&self) -> bool {
         self.is_deleted
@@ -589,6 +499,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn episode(&self) -> u16 {
         self.episode.number()
@@ -618,6 +529,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn posted(&self) -> i64 {
         self.posted.timestamp_millis()
@@ -1006,6 +918,7 @@ pub struct Body {
 
 impl Body {
     /// Returns contents of the post body.
+    #[inline]
     #[must_use]
     pub fn contents(&self) -> &str {
         &self.contents
@@ -1014,12 +927,14 @@ impl Body {
     /// Returns the optional [`Flare`] a post can have.
     ///
     /// This can be a list of Webtoons, a single sticker, or a single giphy gif.
+    #[inline]
     #[must_use]
     pub fn flare(&self) -> Option<&Flare> {
         self.flare.as_ref()
     }
 
     /// Returns whether this post was marked as a spoiler.
+    #[inline]
     #[must_use]
     pub fn is_spoiler(&self) -> bool {
         self.is_spoiler
@@ -1052,6 +967,7 @@ impl Sticker {
     /// Returns the sticker's pack id as a String.
     ///
     /// Example: "`wt_001`"
+    #[inline]
     #[must_use]
     pub fn pack_id(&self) -> String {
         format!("{}_{:03}", self.pack, self.pack_number)
@@ -1060,6 +976,7 @@ impl Sticker {
     /// Returns the sticker's id as a String.
     ///
     /// Example: "`wt_001-v2-1`" (version is optional: "`wt_001-1`")
+    #[inline]
     #[must_use]
     pub fn id(&self) -> String {
         match self.version {
@@ -1176,24 +1093,28 @@ pub struct Giphy {
 
 impl Giphy {
     /// Make a new Giphy from a Giphy id.
+    #[inline]
     #[must_use]
     pub fn new(id: String) -> Self {
         Self { id }
     }
 
     /// Returns the Giphy id.
+    #[inline]
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
     /// Returns a thumbnail quality URL for the GIF.
+    #[inline]
     #[must_use]
     pub fn thumbnail(&self) -> String {
         format!("https://media2.giphy.com/media/{}/giphy_s.gif", self.id)
     }
 
     /// Returns a render quality URL for the GIF.
+    #[inline]
     #[must_use]
     pub fn render(&self) -> String {
         format!("https://media1.giphy.com/media/{}/giphy.gif", self.id)
@@ -1255,12 +1176,14 @@ impl Poster {
     /// Returns the posters `CUID`.
     ///
     /// Not to be confused with a `UUID`: [cuid2](https://github.com/paralleldrive/cuid2).
+    #[inline]
     #[must_use]
     pub fn cuid(&self) -> &str {
         &self.cuid
     }
 
     /// Returns the profile segment for poster in `webtoons.com/*/creator/{profile}`.
+    #[inline]
     #[must_use]
     pub fn profile(&self) -> &str {
         &self.profile
@@ -1291,6 +1214,7 @@ impl Poster {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[must_use]
     pub fn username(&self) -> &str {
         &self.username
@@ -1299,6 +1223,7 @@ impl Poster {
     /// Returns if the session user reacted to post.
     ///
     /// Returns `true` if the user reacted, `false` if not.
+    #[inline]
     #[must_use]
     pub fn reacted(&self) -> bool {
         matches!(
@@ -1310,6 +1235,7 @@ impl Poster {
     /// Returns if current session user is creator of post.
     ///
     /// If there is no session provided, this is always `false`.
+    #[inline]
     #[must_use]
     pub fn is_current_session_user(&self) -> bool {
         self.is_current_session_user
@@ -1319,18 +1245,21 @@ impl Poster {
     ///
     /// This doesn't mean they are the creator of the current Webtoon, just that they are a creator, though it could be of the current Webtoon.
     /// For that info use [`Poster::is_current_webtoon_creator`].
+    #[inline]
     #[must_use]
     pub fn is_creator(&self) -> bool {
         self.is_creator
     }
 
     /// Returns if the session user is the creator of the current webtoon.
+    #[inline]
     #[must_use]
     pub fn is_current_webtoon_creator(&self) -> bool {
         self.is_current_webtoon_creator
     }
 
     /// Returns if the poster left a super like for the posts' episode.
+    #[inline]
     #[must_use]
     pub fn did_super_like_episode(&self) -> bool {
         self.super_like.is_some()
@@ -1340,6 +1269,7 @@ impl Poster {
     ///
     /// Will return `None` if the poster didn't super like the episode, otherwise
     /// returns `Some` with the amount they did.
+    #[inline]
     #[must_use]
     pub fn super_like(&self) -> Option<u32> {
         self.super_like
@@ -1535,10 +1465,11 @@ pub(crate) mod id {
         ParseNumber { id: String, error: ParseIntError },
     }
 
+    // TODO: Make generic enough to be used by `naver` as well, removing any `webtoons.com` references.
     /// Represents a unique identifier for a post or comment on a Webtoon episode.
     ///
     /// The `Id` struct follows a specific format to uniquely identify a post or a reply in a Webtoon episode's comment
-    /// section. The format contains multiple components, each representing a different aspect of the Webtoon, episode,
+    /// section. The format contains multiple components, representing a different aspect of the Webtoon, episode,
     /// post, and any potential reply. It also provides information about the chronological order of the comments.
     ///
     /// ### Structure:
@@ -2095,3 +2026,109 @@ pub(crate) mod id {
         }
     }
 }
+
+//Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
+
+// GIF search
+// https://www.webtoons.com/p/api/community/v1/gifs/search?q=happy&offset=0&limit=10
+
+// POST GIF comment
+// {
+//   "pageId": "c_843910_1",
+//   "settings": {
+//     "reply": "ON",
+//     "reaction": "ON",
+//     "spoilerFilter": "OFF"
+//   },
+//   "title": "",
+//   "body": "GIF Comment",
+//   "sectionGroup": {
+//     "sections": [
+//       {
+//         "sectionType": "GIPHY",
+//         "data": {
+//           "giphyId": "fUQ4rhUZJYiQsas6WD"
+//         }
+//       }
+//     ]
+//   }
+// }
+
+// POST for comment with sticker
+// {
+//   "pageId": "c_843910_1",
+//   "settings": {
+//     "reply": "ON",
+//     "reaction": "ON",
+//     "spoilerFilter": "OFF"
+//   },
+//   "title": "",
+//   "body": "Sticker Comment 2",
+//   "sectionGroup": {
+//     "sections": [
+//       {
+//         "sectionType": "STICKER",
+//         "data": {
+//           "stickerPackId": "wt_001",
+//           "stickerId": "wt_001-v2-1"
+//         }
+//       }
+//     ]
+//   }
+// }
+
+// POST webtoon comment
+// {
+//   "pageId": "c_843910_1",
+//   "settings": {
+//     "reply": "ON",
+//     "reaction": "ON",
+//     "spoilerFilter": "OFF"
+//   },
+//   "title": "",
+//   "body": "Webtoon Comment",
+//   "sectionGroup": {
+//     "sections": [
+//       {
+//         "sectionType": "CONTENT_META",
+//         "data": {
+//           "contentType": "TITLE",
+//           "contentSubType": "WEBTOON",
+//           "contentId": "95"
+//         }
+//       }
+//     ]
+//   }
+// }
+// Multiple webtoons(only one that can be multiple)
+// {
+//   "pageId": "c_843910_1",
+//   "settings": {
+//     "reply": "ON",
+//     "reaction": "ON",
+//     "spoilerFilter": "OFF"
+//   },
+//   "title": "",
+//   "body": "Multiple Webtoon Comment",
+//   "sectionGroup": {
+//     "sections": [
+//       {
+//         "sectionType": "CONTENT_META",
+//         "data": {
+//           "contentType": "TITLE",
+//           "contentSubType": "WEBTOON",
+//           "contentId": "5557"
+//         }
+//       },
+//       {
+//         "sectionType": "CONTENT_META",
+//         "data": {
+//           "contentType": "TITLE",
+//           "contentSubType": "WEBTOON",
+//           "contentId": "95"
+//         }
+//       }
+//     ]
+//   }
+// }
+// contentSubType can also be "CHALLENGE"
