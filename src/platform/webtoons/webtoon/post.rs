@@ -1527,11 +1527,10 @@ impl Replies for Posts {
 }
 
 pub(crate) mod id {
+    use crate::stdx::base36::Base36;
     use serde::{Deserialize, Serialize};
     use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
     use thiserror::Error;
-
-    use crate::{platform::webtoons::meta::ParseLetterError, stdx::base36::Base36};
 
     type Result<T, E = ParseIdError> = core::result::Result<T, E>;
 
@@ -1541,8 +1540,6 @@ pub(crate) mod id {
         /// Error for an invalid id format.
         #[error("failed to parse `{id}` into `Id`: {context}")]
         InvalidFormat { id: String, context: String },
-        #[error("failed to parse `{id}` into `Id`: {error}")]
-        InvalidTypeLetter { id: String, error: ParseLetterError },
         #[error("failed to parse `{id}` into `Id`: {error}")]
         ParseNumber { id: String, error: ParseIntError },
     }

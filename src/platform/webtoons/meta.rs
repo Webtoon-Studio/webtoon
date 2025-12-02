@@ -1,4 +1,4 @@
-//! Contains metadata implementations for webtoons.com.
+//! Contains metadata implementations for `webtoons.com`.
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
@@ -13,9 +13,7 @@ use thiserror::Error;
 pub struct ParseLanguageError(String);
 
 /// Represents the languages that `webtoons.com` has.
-#[derive(
-    Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash,
-)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     /// English
     #[default]
@@ -51,13 +49,13 @@ impl FromStr for Language {
     }
 }
 
-/// Represents the type a webtoon can be on webtoons.com.
+/// Represents the type a Webtoon can be on `webtoons.com`.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-    /// An Original webtoon.
+    /// An Original Webtoon.
     #[serde(alias = "WEBTOON")]
     Original,
-    /// A Canvas webtoon.
+    /// A Canvas Webtoon.
     #[serde(alias = "CHALLENGE")]
     Canvas,
 }
@@ -76,6 +74,7 @@ impl FromStr for Type {
     }
 }
 
+// TODO: Remove when refactoring `naver` platform.
 /// An Error that can occur when parsing a letter to a [`Type`].
 ///
 /// Only `w` and `c` are valid.
@@ -122,7 +121,7 @@ impl FromStr for Scope {
     }
 }
 
-/// Represents a genre on the webtoons.com platform.
+/// Represents a genre on `webtoons.com`.
 #[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
@@ -226,7 +225,6 @@ pub struct ParseGenreError(String);
 impl FromStr for Genre {
     type Err = ParseGenreError;
 
-    // Doing only official ones here. Custom will be done at the source.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "COMEDY" | "Comedy" | "comedy" | "ตลก" | "komedi" | "Comedia" | "Comédie" => {
