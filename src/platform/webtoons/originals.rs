@@ -1,21 +1,20 @@
 //! Represents an abstraction for `https://www.webtoons.com/*/originals`.
 
-use std::str::FromStr;
-
 // mod genres;
-use scraper::{Html, Selector};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
-use crate::stdx::error::{Assume, assumption};
 
 use super::{Client, Language, Webtoon, error::OriginalsError};
+use crate::stdx::error::{Assume, assumption};
+use scraper::{Html, Selector};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use thiserror::Error;
 
 pub(super) async fn scrape(
     client: &Client,
     language: Language,
 ) -> Result<Vec<Webtoon>, OriginalsError> {
-    // NOTE: Currently all languages follow this pattern
+    // NOTE: Currently all languages follow this pattern.
+    // TODO: Add tests for all languages.
     let selector = Selector::parse("ul.webtoon_list>li>a") //
         .assumption("`ul.webtoon_list>li>a` should be a valid selector")?;
 
@@ -30,6 +29,7 @@ pub(super) async fn scrape(
         "complete",
     ];
 
+    // TODO: `Html` is not `Send`. Could add channels so that `scrape` becomes thread-safe.
     let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|day| async {
         Ok::<Html, OriginalsError>(client.get_originals_page(language, day).await?)
     }))
@@ -66,7 +66,7 @@ pub(super) async fn scrape(
 ///
 /// For the days of the week, a Webtoon can have multiple.
 ///
-/// If its not a day of the week, it can only be either `Daily` or `Completed`, alone.
+/// If it's not a day of the week, it can only be either `Daily` or `Completed`, alone.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Schedule {
     /// Released on a single day of the week
@@ -117,13 +117,14 @@ pub enum Weekday {
     Saturday,
 }
 
-/// An error which can happen when parsing a string to a release type.
+/// An error which can happen when parsing a string to a schedule type.
 #[derive(Debug, Error)]
-#[error("failed to parse `{0}` into a `Release`")]
+#[error("failed to parse `{0}` into a `Schedule`")]
 pub struct ParseScheduleError(String);
 
 impl FromStr for Weekday {
     type Err = ParseScheduleError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "MONDAY"
@@ -219,6 +220,7 @@ impl FromStr for Weekday {
 
 impl FromStr for Schedule {
     type Err = ParseScheduleError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => Ok(Self::Daily),
