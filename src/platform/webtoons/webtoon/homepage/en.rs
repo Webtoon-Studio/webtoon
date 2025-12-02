@@ -285,24 +285,28 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
         "views element(`em.cnt`) on english `webtoons.com` Webtoon homepage should never be empty"
     );
 
-    // TODO: Might need to support `1B` and `3M` values, whereas currently we only support floats here, `1.0B` and `3.0M`.
     match views.as_str() {
         billions if billions.ends_with('B') => {
             let number = billions.trim_end_matches('B');
 
             match number.split_once('.') {
-                    Some((b, m)) => {
-                        let billion = b.parse::<u64>()
+                Some((b, m)) => {
+                    let billion = b.parse::<u64>()
                             .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the billions part of the views count should always fit in a `u64`, got: {b}: {err}"))?;
 
-                        let hundred_million = m.parse::<u64>()
+                    let hundred_million = m.parse::<u64>()
                             .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred millions part of the views count should always fit in a `u64`, got: {m}: {err}"))?;
 
-                        Ok((billion * 1_000_000_000) + (hundred_million * 100_000_000))
-                    },
-                    None => Ok(number.parse::<u64>()
-                        .assumption_for(|err| format!("on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"))?),
+                    Ok((billion * 1_000_000_000) + (hundred_million * 100_000_000))
                 }
+                // If there is `1B`, this should just be `1` here, and thus we multiply by 1 billion.
+                None => match number.parse::<u64>() {
+                    Ok(digit) => Ok(digit * 1_000_000_000),
+                    Err(err) => assumption!(
+                        "on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into single digit repesentation, got: {number}: {err}"
+                    ),
+                },
+            }
         }
         millions if millions.ends_with('M') => {
             let number = millions.trim_end_matches('M');
@@ -316,9 +320,14 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
                         .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u64`, got: {t}: {err}"))?;
 
                     Ok((million * 1_000_000) + (hundred_thousand * 100_000))
+                }
+                // If there is `1M`, this should just be `1` here, and thus we multiply by 1 million.
+                None => match number.parse::<u64>() {
+                    Ok(digit) => Ok(digit * 1_000_000),
+                    Err(err) => assumption!(
+                        "on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"
+                    ),
                 },
-                None => Ok(number.parse::<u64>()
-                        .assumption_for(|err| format!("on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"))?),
             }
         }
         thousands if thousands.contains(',') => {
