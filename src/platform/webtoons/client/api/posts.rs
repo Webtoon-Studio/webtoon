@@ -1,7 +1,3 @@
-use chrono::DateTime;
-use serde::Deserialize;
-use std::{str::FromStr, sync::Arc};
-
 use crate::{
     platform::webtoons::{
         error::PostsError,
@@ -15,6 +11,9 @@ use crate::{
         error::{Assume, assumption},
     },
 };
+use chrono::DateTime;
+use serde::Deserialize;
+use std::{str::FromStr, sync::Arc};
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -334,8 +333,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         let is_spoiler = post.settings.spoiler_filter == "ON";
         let mut super_like: Option<u32> = None;
 
+        // QUESTION: Super likes might be able to exist along with other flare?
         // Only Webtoon flare can have multiple.
-        // Super likes might be able to exist along with other flare?
         let flare = if post.section_group.sections.len() > 1 {
             let mut webtoons = Vec::new();
             for section in post.section_group.sections {
@@ -408,8 +407,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
 
                         Some(Flare::Webtoons(vec![webtoon]))
                     }
-                    // TODO: Examine this and document more about the control here.
-                    // Ignore super likes
+                    // Assign super likes, but as far as being a flare, as it's
+                    // unknown if it exists as a flare in `webtoons.com`.
                     Section::SuperLike { data, .. } => {
                         super_like = Some(data.super_like_count);
                         None
