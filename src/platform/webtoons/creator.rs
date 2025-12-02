@@ -153,8 +153,8 @@ impl Creator {
     /// # }
     /// ```
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.as_ref().map(|homepage| homepage.id.clone()))
+        if let Store::Value(Some(homepage)) = self.homepage.get() {
+            Ok(Some(homepage.id))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
@@ -194,8 +194,8 @@ impl Creator {
     /// # }
     /// ```
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.as_ref().map(|homepage| homepage.followers))
+        if let Store::Value(Some(homepage)) = self.homepage.get() {
+            Ok(Some(homepage.followers))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
@@ -320,8 +320,8 @@ impl Creator {
     /// # }
     /// ```
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.as_ref().map(|homepage| homepage.has_patreon))
+        if let Store::Value(Some(homepage)) = self.homepage.get() {
+            Ok(Some(homepage.has_patreon))
         } else {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);

@@ -357,7 +357,7 @@ async fn english_webtoon_original() {
         [creator] => {
             assert_eq!("Sejji", creator.username());
             assert_eq!(Some("08x59"), creator.profile());
-            assert!(creator.has_patreon().await.unwrap().unwrap());
+            assert_eq!(Some(true), creator.has_patreon().await.unwrap());
         }
     }
 
@@ -700,7 +700,7 @@ async fn english_canvas_panel_pixels_non_zero_decimal() {
 
     let length = episode.length().await.unwrap().unwrap();
 
-    assert_eq!(0, length);
+    assert_eq!(36012, length);
 }
 
 #[tokio::test]
@@ -711,5 +711,5 @@ async fn english_canvas_panel_pixels_height_more_than_1280() {
 
     let length = episode.length().await.unwrap().unwrap();
 
-    assert_eq!(0, length);
+    assert_eq!(3384, length);
 }

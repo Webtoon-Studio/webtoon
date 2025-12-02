@@ -1628,12 +1628,12 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
         },
     };
 
-    assumption!(
-        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
-        // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this, as it breaks the stated limits.
-        height <= 1280,
-        "`webtoons.com` enforces strict limits of `1280` pixels in height"
-    );
+    // assumption!(
+    //     // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+    //     // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this, as it breaks the stated limits.
+    //     height <= 1280,
+    //     "`webtoons.com` enforces strict limits of `1280` pixels in height"
+    // );
 
     Ok(height)
 }
