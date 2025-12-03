@@ -6,15 +6,12 @@ use thiserror::Error;
 #[cfg(feature = "download")]
 pub use _inner::DownloadError;
 
-// pub(crate) use _inner::RssError;
 pub use _inner::{
-    BlockUserError, CanvasError, ClientBuilderError, ClientError, CreatorError, DeletePostError,
-    EpisodeError, EpisodesError, Error, LikesError, OriginalsError, PostError, PostsError,
-    ReplyError, RssError, SearchError, SessionError, SubscribersError, UserInfoError, ViewsError,
-    WebtoonError,
+    BlockUserError, CanvasError, ClientBuilderError, CreatorError, DeletePostError, EpisodeError,
+    EpisodesError, Error, LikesError, OriginalsError, PostError, PostsError, ReplyError, RssError,
+    SearchError, SessionError, SubscribersError, UserInfoError, ViewsError, WebtoonError,
 };
 
-#[allow(missing_docs)]
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct RequestError(#[from] pub(crate) reqwest::Error);
@@ -81,47 +78,30 @@ mod _inner {
 
         WebtoonError := Base || ClientError
 
+        RssError :=  Base || ClientError
+
         EpisodeError := {
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
         } || Base || ClientError
 
-        PostsError := {
-            #[display("session invalid or expired")]
-            InvalidSession
+        PostsError := Base || ClientError || InvalidSession
+
+        LikesError := Base || ClientError || InvalidSession
+
+        ViewsError := Base || ClientError || InvalidSession
+
+        SubscribersError := Base || ClientError || InvalidSession
+
+        EpisodesError :=  Base || ClientError || InvalidSession
+
+        DownloadError := {
+            IoError(std::io::Error),
         } || Base || ClientError
 
-        LikesError := {
-            #[display("session invalid or expired")]
-            InvalidSession
-        } || Base || ClientError
+        PostError := Base || ClientError || SessionError
 
-        ViewsError := {
-            #[display("session invalid or expired")]
-            InvalidSession
-        } || Base || ClientError
-
-        SubscribersError := {
-            #[display("session invalid or expired")]
-            InvalidSession
-        } || Base || ClientError
-
-        EpisodesError := {
-            #[display("session invalid or expired")]
-            InvalidSession
-        } || Base || ClientError
-
-        RssError :=  Base || ClientError
-
-        PostError := {
-            #[display("insufficient permissions (not creator or poster)")]
-            InvalidPermissions,
-        } || Base || ClientError || SessionError
-
-        DeletePostError := {
-            #[display("insufficient permissions (not creator or poster)")]
-            InvalidPermissions,
-        } || Base || ClientError || SessionError
+        DeletePostError := Base || ClientError || SessionError || InvalidPermissions
 
         ReplyError := {
             #[display("cannot reply to a deleted post")]
@@ -135,25 +115,33 @@ mod _inner {
             NotCreator,
         } || Base || ClientError || SessionError
 
-        DownloadError := {
-            IoError(std::io::Error),
-        } || Base || ClientError
-
-        SessionError := {
-            #[display("session not provided")]
-            NoSessionProvided,
-            #[display("session invalid or expired")]
-            InvalidSession,
-        } || Base || ClientError
+        SessionError :=  Base || ClientError || NoSessionProvided || InvalidSession
 
         UserInfoError := Base || ClientError
 
-        ClientError := {
-            RequestFailed(super::RequestError),
-        }
-
         ClientBuilderError := {
             BuildFailed,
+        }
+
+        // --- Internal ---
+
+        InvalidSession := {
+            #[display("session invalid or expired")]
+            InvalidSession,
+        }
+
+        NoSessionProvided := {
+            #[display("session not provided")]
+            NoSessionProvided,
+        }
+
+        InvalidPermissions := {
+            #[display("insufficient permissions (not creator or poster)")]
+            InvalidPermissions,
+        }
+
+        ClientError := {
+            RequestFailed(super::RequestError),
         }
 
         Base := {

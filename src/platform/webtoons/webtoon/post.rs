@@ -4,7 +4,7 @@ use super::Episode;
 use crate::{
     platform::webtoons::{
         Webtoon,
-        error::{BlockUserError, PostError, PostsError, ReplyError},
+        error::{BlockUserError, DeletePostError, PostError, PostsError, ReplyError},
         webtoon::post::id::Id,
     },
     private::Sealed,
@@ -882,7 +882,7 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn delete(&self) -> Result<(), PostError> {
+    pub async fn delete(&self) -> Result<(), DeletePostError> {
         let user = self
             .episode
             .webtoon
@@ -892,7 +892,7 @@ impl Post {
 
         // Only perform delete if current post is from current session's user or if they are the creator of the webtoon
         if !(self.poster.is_current_session_user || user.is_webtoon_creator()) {
-            return Err(PostError::InvalidPermissions);
+            return Err(DeletePostError::InvalidPermissions);
         }
 
         // Return early if already deleted
