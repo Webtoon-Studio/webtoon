@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     platform::webtoons::{
-        error::EpisodeError,
+        error::SessionError,
         webtoon::{
             Webtoon,
             episode::{self, AdStatus, Episode},
@@ -14,7 +14,7 @@ use crate::{
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
-pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, EpisodeError> {
+pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     // TODO: This might be more robust if this was calculated dynamically, but
     // there isn't really a nice was of doing this.
     //

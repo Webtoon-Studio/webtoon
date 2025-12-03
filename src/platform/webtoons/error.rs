@@ -3,6 +3,17 @@
 
 use thiserror::Error;
 
+#[cfg(feature = "download")]
+pub use _inner::DownloadError;
+
+// pub(crate) use _inner::RssError;
+pub use _inner::{
+    BlockUserError, CanvasError, ClientBuilderError, ClientError, CreatorError, DeletePostError,
+    EpisodeError, EpisodesError, Error, LikesError, OriginalsError, PostError, PostsError,
+    ReplyError, RssError, SearchError, SessionError, SubscribersError, UserInfoError, ViewsError,
+    WebtoonError,
+};
+
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -23,20 +34,8 @@ impl InvalidWebtoonUrl {
     }
 }
 
-#[cfg(feature = "download")]
-pub use _inner::DownloadError;
-
-pub(crate) use _inner::{
-    ApiTokenError, CreatorWebtoonsError, ReactTokenError, StatsDashboardError, UserInfoError,
-};
-pub use _inner::{
-    BlockUserError, CanvasError, ClientBuilderError, ClientError, CreatorError, DeletePostError,
-    EpisodeError, Error, LikesError, OriginalsError, PostError, PostsError, ReplyError,
-    SearchError, SessionError, WebtoonError,
-};
-
 mod _inner {
-    use crate::{platform::webtoons::webtoon::post::id::ParseIdError, stdx::error::Assumption};
+    use crate::stdx::error::Assumption;
     use error_set::error_set;
 
     error_set! {
@@ -71,32 +70,50 @@ mod _inner {
             InvalidRange,
         } || Base || ClientError
 
-        SearchError := Base || ClientError || WebtoonError
+        SearchError := Base || ClientError
 
         CreatorError := {
             #[display("`webtoons.com` does not support creator profiles for this language")]
             UnsupportedLanguage,
             #[display("profile page disabled by creator")]
             DisabledByCreator,
-        } || Base || ClientError || WebtoonError
+        } || Base || ClientError
 
-        WebtoonError := Base || ClientError || StatsDashboardError
-
-        StatsDashboardError := Base || ClientError || SessionError
+        WebtoonError := Base || ClientError
 
         EpisodeError := {
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
-        } || Base || ClientError || SessionError
+        } || Base || ClientError
 
         PostsError := {
-            ParseIdError(ParseIdError)
-        } || Base || ClientError || SessionError
+            #[display("session invalid or expired")]
+            InvalidSession
+        } || Base || ClientError
 
-        LikesError :=  Base || ClientError || SessionError
+        LikesError := {
+            #[display("session invalid or expired")]
+            InvalidSession
+        } || Base || ClientError
+
+        ViewsError := {
+            #[display("session invalid or expired")]
+            InvalidSession
+        } || Base || ClientError
+
+        SubscribersError := {
+            #[display("session invalid or expired")]
+            InvalidSession
+        } || Base || ClientError
+
+        EpisodesError := {
+            #[display("session invalid or expired")]
+            InvalidSession
+        } || Base || ClientError
+
+        RssError :=  Base || ClientError
 
         PostError := {
-            // TODO: This variant might be subsumed through other errors
             #[display("insufficient permissions (not creator or poster)")]
             InvalidPermissions,
         } || Base || ClientError || SessionError
@@ -118,11 +135,6 @@ mod _inner {
             NotCreator,
         } || Base || ClientError || SessionError
 
-        UserInfoError := Base || ClientError || SessionError
-        ReactTokenError := Base || ClientError || SessionError
-        ApiTokenError := Base || ClientError || SessionError
-        CreatorWebtoonsError := Base || ClientError
-
         DownloadError := {
             IoError(std::io::Error),
         } || Base || ClientError
@@ -133,6 +145,8 @@ mod _inner {
             #[display("session invalid or expired")]
             InvalidSession,
         } || Base || ClientError
+
+        UserInfoError := Base || ClientError
 
         ClientError := {
             RequestFailed(super::RequestError),

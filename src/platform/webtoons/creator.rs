@@ -354,7 +354,7 @@ pub(super) async fn homepage(
     }))
 }
 
-fn username(html: &Html) -> Result<String, CreatorError> {
+fn username(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse("h3").assumption("`h3` should be a valid selector")?;
 
     for element in html.select(&selector) {
@@ -374,7 +374,7 @@ fn username(html: &Html) -> Result<String, CreatorError> {
     );
 }
 
-fn followers(html: &Html) -> Result<u32, CreatorError> {
+fn followers(html: &Html) -> Result<u32, Assumption> {
     let selector = Selector::parse("span").assumption("`span` should be a valid selector")?;
 
     if let Some(element) = html
@@ -395,9 +395,9 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
             .assumption("follower count element on `weboons.com` creator homepage was empty")?
             .replace(',', "");
 
-        return Ok(count
+        return count
                     .parse::<u32>()
-                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"))?);
+                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"));
     }
 
     assumption!(
@@ -415,7 +415,7 @@ fn followers(html: &Html) -> Result<u32, CreatorError> {
 //
 // Going the other way, however, is generally not possible. Luckily this shouldn't
 // be needed.
-fn id(html: &Html) -> Result<String, CreatorError> {
+fn id(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse("script").assumption("`script` should be a valid selector")?;
 
     for element in html.select(&selector) {

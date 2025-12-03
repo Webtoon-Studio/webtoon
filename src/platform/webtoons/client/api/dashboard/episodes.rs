@@ -2,11 +2,11 @@ use serde::Deserialize;
 use std::hash::Hash;
 
 use crate::{
-    platform::webtoons::{dashboard::episodes::DashboardStatus, error::EpisodeError},
-    stdx::error::assumption,
+    platform::webtoons::dashboard::episodes::DashboardStatus,
+    stdx::error::{Assumption, assumption},
 };
 
-pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, EpisodeError> {
+pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Assumption> {
     const START: &str = "dashboardEpisodeList: ";
     const END: char = ',';
 

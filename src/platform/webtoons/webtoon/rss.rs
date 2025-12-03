@@ -5,7 +5,7 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::{
-    platform::webtoons::{Language, creator::Creator},
+    platform::webtoons::{Language, creator::Creator, error::RssError},
     stdx::{
         cache::Cache,
         error::{Assume, Assumption, assumption},
@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    Webtoon, WebtoonError,
+    Webtoon,
     episode::{Episode, PublishedStatus},
 };
 
@@ -68,7 +68,7 @@ impl Rss {
     }
 }
 
-pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
+pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
     let channel = webtoon.client.rss(webtoon).await?;
 
     let mut episodes = Vec::new();

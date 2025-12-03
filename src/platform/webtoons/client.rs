@@ -9,10 +9,7 @@ use super::{
     Language, Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
-    error::{
-        CanvasError, ClientError, CreatorError, OriginalsError, PostError, SearchError,
-        WebtoonError,
-    },
+    error::{CanvasError, CreatorError, OriginalsError, SearchError, WebtoonError},
     meta::Scope,
     originals::{self},
     webtoon::{
@@ -32,9 +29,8 @@ use crate::{
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
-            ApiTokenError, BlockUserError, ClientBuilderError, CreatorWebtoonsError,
-            DeletePostError, EpisodeError, InvalidWebtoonUrl, LikesError, PostsError,
-            ReactTokenError, RequestError, SessionError, UserInfoError,
+            ClientBuilderError, EpisodeError, InvalidWebtoonUrl, LikesError, PostsError,
+            RequestError, SessionError, UserInfoError,
         },
         search::Item,
         webtoon::post::{PinRepresentation, Poster, id::Id},
@@ -49,6 +45,8 @@ use scraper::Html;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Display, ops::RangeBounds, sync::Arc};
 
+#[cfg(feature = "rss")]
+use crate::platform::webtoons::error::RssError;
 #[cfg(feature = "rss")]
 use std::str::FromStr;
 
@@ -745,7 +743,7 @@ impl Client {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, SessionError> {
+    pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, UserInfoError> {
         let response = self
             .http
             .get("https://www.webtoons.com/en/member/userInfo")
@@ -827,7 +825,7 @@ impl Client {
         &self,
         language: Language,
         day: &str,
-    ) -> Result<Html, ClientError> {
+    ) -> Result<Html, RequestError> {
         let language = match language {
             Language::En => "en",
             Language::Zh => "zh-hant",
@@ -861,7 +859,7 @@ impl Client {
         language: Language,
         page: u16,
         sort: Sort,
-    ) -> Result<Html, ClientError> {
+    ) -> Result<Html, RequestError> {
         let language = match language {
             Language::En => "en",
             Language::Zh => "zh-hant",
@@ -936,7 +934,7 @@ impl Client {
         &self,
         profile: &str,
         language: Language,
-    ) -> Result<CreatorWebtoons, CreatorWebtoonsError> {
+    ) -> Result<CreatorWebtoons, WebtoonError> {
         let language = match language {
             Language::En => "ENGLISH",
             Language::Zh => "TRADITIONAL_CHINESE",
@@ -971,7 +969,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
         page: Option<u16>,
-    ) -> Result<Html, ClientError> {
+    ) -> Result<Html, RequestError> {
         let id = webtoon.id;
         let language = match webtoon.language {
             Language::En => "en",
@@ -1101,7 +1099,7 @@ impl Client {
         &self,
         webtoon: &Webtoon,
         page: u16,
-    ) -> Result<Vec<DashboardEpisode>, EpisodeError> {
+    ) -> Result<Vec<DashboardEpisode>, SessionError> {
         let session = self.session.validate(self).await?;
 
         // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
@@ -1122,7 +1120,9 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        api::dashboard::episodes::parse(&response)
+        let episodes = api::dashboard::episodes::parse(&response)?;
+
+        Ok(episodes)
     }
 
     pub(super) async fn stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, SessionError> {
@@ -1164,7 +1164,7 @@ impl Client {
     }
 
     #[cfg(feature = "rss")]
-    pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, WebtoonError> {
+    pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, RssError> {
         let id = webtoon.id;
         let language = match webtoon.language {
             Language::En => "en",
@@ -1252,7 +1252,9 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(err) => return Err(err.into()),
+            Err(SessionError::InvalidSession) => return Err(LikesError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
 
         let response = request
@@ -1396,7 +1398,9 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(err) => return Err(err.into()),
+            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
 
         let response = request
@@ -1420,7 +1424,7 @@ impl Client {
     pub(super) async fn check_if_episode_exists(
         &self,
         episode: &Episode,
-    ) -> Result<bool, ClientError> {
+    ) -> Result<bool, RequestError> {
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1444,7 +1448,10 @@ impl Client {
         Ok(response.status() != 404)
     }
 
-    pub(super) async fn post_upvotes_and_downvotes(&self, post: &Post) -> Result<Count, PostError> {
+    pub(super) async fn post_upvotes_and_downvotes(
+        &self,
+        post: &Post,
+    ) -> Result<Count, PostsError> {
         let scope = match post.episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1464,7 +1471,9 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(err) => return Err(err.into()),
+            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
 
         let response = request
@@ -1505,7 +1514,9 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(err) => return Err(err.into()),
+            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
 
         let response = request
@@ -1618,7 +1629,7 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn delete_post(&self, post: &Post) -> Result<(), DeletePostError> {
+    pub(super) async fn delete_post(&self, post: &Post) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
         let token = self.api_token(&session).await?;
 
@@ -1642,7 +1653,7 @@ impl Client {
         &self,
         post: &Post,
         reaction: Reaction,
-    ) -> Result<(), PostError> {
+    ) -> Result<(), SessionError> {
         let reaction = match reaction {
             Reaction::Upvote => "like",
             Reaction::Downvote => "dislike",
@@ -1687,7 +1698,7 @@ impl Client {
         &self,
         post: &Post,
         reaction: Reaction,
-    ) -> Result<(), PostError> {
+    ) -> Result<(), SessionError> {
         let reaction = match reaction {
             Reaction::Upvote => "like",
             Reaction::Downvote => "dislike",
@@ -1729,7 +1740,7 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn block_user(&self, poster: &Poster) -> Result<(), BlockUserError> {
+    pub(super) async fn block_user(&self, poster: &Poster) -> Result<(), SessionError> {
         let scope = match poster.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1769,7 +1780,7 @@ impl Client {
     pub(super) async fn user_info(
         &self,
         webtoon: &Webtoon,
-    ) -> Result<WebtoonUserInfo, UserInfoError> {
+    ) -> Result<WebtoonUserInfo, SessionError> {
         let session = self.session.validate(self).await?;
 
         let id = webtoon.id;
@@ -1803,7 +1814,7 @@ impl Client {
         }
     }
 
-    async fn react_token(&self) -> Result<ReactToken, ReactTokenError> {
+    async fn react_token(&self) -> Result<ReactToken, SessionError> {
         let session = self.session.validate(self).await?;
 
         let response = self
@@ -1827,7 +1838,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn api_token(&self, session: &ValidSession) -> Result<String, ApiTokenError> {
+    pub(super) async fn api_token(&self, session: &ValidSession) -> Result<String, SessionError> {
         let response = self
             .http
             .get("https://www.webtoons.com/p/api/community/v1/api-token")
@@ -1849,7 +1860,7 @@ impl Client {
     }
 
     #[cfg(feature = "download")]
-    pub(super) async fn download_panel(&self, url: &reqwest::Url) -> Result<Vec<u8>, ClientError> {
+    pub(super) async fn download_panel(&self, url: &reqwest::Url) -> Result<Vec<u8>, RequestError> {
         let bytes = self
             .http
             .get(url.as_str())

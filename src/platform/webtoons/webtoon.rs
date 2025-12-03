@@ -8,6 +8,8 @@ pub mod post;
 #[cfg(feature = "rss")]
 pub mod rss;
 #[cfg(feature = "rss")]
+use crate::platform::webtoons::error::RssError;
+#[cfg(feature = "rss")]
 use rss::Rss;
 
 use self::{
@@ -21,7 +23,10 @@ use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 use crate::{
-    platform::webtoons::error::{InvalidWebtoonUrl, PostsError, RequestError, UserInfoError},
+    platform::webtoons::error::{
+        EpisodesError, InvalidWebtoonUrl, LikesError, PostsError, RequestError, SessionError,
+        SubscribersError, ViewsError,
+    },
     stdx::{
         cache::{Cache, Store},
         error::{Assume, AssumeFor, assumption},
@@ -362,20 +367,31 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn views(&self) -> Result<u64, EpisodeError> {
+    pub async fn views(&self) -> Result<u64, ViewsError> {
         match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let views = super::dashboard::episodes::scrape(self)
-                    .await?
-                    .into_iter()
+                let episodes = match super::dashboard::episodes::scrape(self).await {
+                    Ok(episodes) => episodes,
+                    Err(SessionError::Internal(err)) => return Err(err.into()),
+                    Err(SessionError::RequestFailed(err)) => return Err(err.into()),
+                    Err(SessionError::InvalidSession) => return Err(ViewsError::InvalidSession),
+                    Err(SessionError::NoSessionProvided) => assumption!(
+                        "`user_info` should have taken the `Err(SessionError::NoSessionProvided)` branch already, never entering this `Ok` branch"
+                    ),
+                };
+
+                let views = episodes
+                    .iter()
                     .filter_map(|episode| episode.views.map(u64::from))
                     .sum::<u64>();
 
                 return Ok(views);
             }
             // Fallback to public data
-            Ok(_) | Err(UserInfoError::NoSessionProvided) => {}
-            Err(err) => return Err(err.into()),
+            Ok(_) | Err(SessionError::NoSessionProvided) => {}
+            Err(SessionError::InvalidSession) => return Err(ViewsError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         }
 
         if let Store::Value(page) = self.page.get() {
@@ -418,17 +434,30 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn subscribers(&self) -> Result<u32, WebtoonError> {
+    pub async fn subscribers(&self) -> Result<u32, SubscribersError> {
         match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                let subscribers = super::dashboard::statistics::scrape(self)
-                    .await?
-                    .subscribers;
+                let stats = match super::dashboard::statistics::scrape(self).await {
+                    Ok(stats) => stats,
+                    Err(SessionError::Internal(err)) => return Err(err.into()),
+                    Err(SessionError::RequestFailed(err)) => return Err(err.into()),
+                    Err(SessionError::InvalidSession) => {
+                        return Err(SubscribersError::InvalidSession);
+                    }
+                    Err(SessionError::NoSessionProvided) => assumption!(
+                        "`user_info` should have taken the `Err(SessionError::NoSessionProvided)` branch already, never entering this `Ok` branch"
+                    ),
+                };
+
+                let subscribers = stats.subscribers;
+
                 return Ok(subscribers);
             }
             // Fallback to public data
-            Ok(_) | Err(UserInfoError::NoSessionProvided) => {}
-            Err(err) => return Err(err.into()),
+            Ok(_) | Err(SessionError::NoSessionProvided) => {}
+            Err(SessionError::InvalidSession) => return Err(SubscribersError::InvalidSession),
+            Err(SessionError::Internal(err)) => return Err(err.into()),
+            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         }
 
         if let Store::Value(page) = self.page.get() {
@@ -469,6 +498,10 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<Option<String>, WebtoonError> {
+        if self.is_original() {
+            return Ok(None);
+        }
+
         if let Store::Value(page) = self.page.get() {
             Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
         } else {
@@ -517,7 +550,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn schedule(&self) -> Result<Option<Schedule>, WebtoonError> {
-        if self.r#type() == Type::Canvas {
+        if self.is_canvas() {
             return Ok(None);
         }
 
@@ -554,7 +587,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn is_completed(&self) -> Result<bool, WebtoonError> {
-        if self.r#type() == Type::Canvas {
+        if self.is_canvas() {
             return Ok(false);
         }
 
@@ -597,7 +630,7 @@ impl Webtoon {
     /// # }
     /// ```
     pub async fn banner(&self) -> Result<Option<String>, WebtoonError> {
-        if self.scope == Scope::Canvas {
+        if self.is_canvas() {
             return Ok(None);
         }
 
@@ -661,14 +694,28 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn episodes(&self) -> Result<Episodes, EpisodeError> {
+    pub async fn episodes(&self) -> Result<Episodes, EpisodesError> {
         let episodes = match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
-                super::dashboard::episodes::scrape(self).await?
+                match super::dashboard::episodes::scrape(self).await {
+                    Ok(episodes) => episodes,
+                    Err(SessionError::InvalidSession) => return Err(EpisodesError::InvalidSession),
+                    Err(SessionError::RequestFailed(err)) => {
+                        return Err(EpisodesError::RequestFailed(err));
+                    }
+                    Err(SessionError::Internal(err)) => return Err(EpisodesError::Internal(err)),
+                    Err(SessionError::NoSessionProvided) => assumption!(
+                        "if there is no session, `user_info` should enter the Err(SessionError::NoSessionProvided) branch"
+                    ),
+                }
             }
             // Fallback to public data
-            Ok(_) | Err(UserInfoError::NoSessionProvided) => homepage::episodes(self).await?,
-            Err(err) => return Err(err.into()),
+            Ok(_) | Err(SessionError::NoSessionProvided) => homepage::episodes(self).await?,
+            Err(SessionError::InvalidSession) => return Err(EpisodesError::InvalidSession),
+            Err(SessionError::RequestFailed(err)) => {
+                return Err(EpisodesError::RequestFailed(err));
+            }
+            Err(SessionError::Internal(err)) => return Err(EpisodesError::Internal(err)),
         };
 
         let count = u16::try_from(episodes.len())
@@ -716,7 +763,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn episode(&self, number: u16) -> Result<Option<Episode>, EpisodeError> {
+    pub async fn episode(&self, number: u16) -> Result<Option<Episode>, WebtoonError> {
         let episode = Episode::new(self, number);
 
         if !episode.exists().await? {
@@ -785,7 +832,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, EpisodeError> {
+    pub async fn likes(&self) -> Result<u32, LikesError> {
         let mut likes = 0;
         for number in 1.. {
             if let Some(episode) = self.episode(number).await? {
@@ -834,15 +881,7 @@ impl Webtoon {
             match self.episode(number).await {
                 Ok(Some(episode)) => posts.extend_from_slice(episode.posts().await?.as_slice()),
                 Ok(None) => break,
-                Err(err) => match err {
-                    EpisodeError::RequestFailed(err) => return Err(PostsError::RequestFailed(err)),
-                    EpisodeError::NoSessionProvided => return Err(PostsError::NoSessionProvided),
-                    EpisodeError::InvalidSession => return Err(PostsError::InvalidSession),
-                    EpisodeError::Internal(err) => return Err(err.into()),
-                    EpisodeError::NotViewable => assumption!(
-                        "`NotViewable` for a `webtoons.com` episode means you cannot see the panels through normal means; getting posts has no dependency on viewability"
-                    ),
-                },
+                Err(err) => return Err(err.into()),
             }
         }
 
@@ -879,7 +918,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[cfg(feature = "rss")]
-    pub async fn rss(&self) -> Result<Rss, WebtoonError> {
+    pub async fn rss(&self) -> Result<Rss, RssError> {
         rss::feed(self).await
     }
 
@@ -904,7 +943,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn is_subscribed(&self) -> Result<bool, WebtoonError> {
+    pub async fn is_subscribed(&self) -> Result<bool, SessionError> {
         Ok(self.client.user_info(self).await?.favorite)
     }
 
@@ -929,7 +968,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn subscribe(&self) -> Result<(), WebtoonError> {
+    pub async fn subscribe(&self) -> Result<(), SessionError> {
         let user = self.client.user_info(self).await?;
 
         // Already subscribed
@@ -963,7 +1002,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn unsubscribe(&self) -> Result<(), WebtoonError> {
+    pub async fn unsubscribe(&self) -> Result<(), SessionError> {
         let title_user_info = self.client.user_info(self).await?;
 
         // Already not subscribed

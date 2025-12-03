@@ -1,11 +1,8 @@
 use scraper::{Html, Selector};
 
 use crate::{
-    platform::webtoons::{
-        Webtoon,
-        error::{StatsDashboardError, WebtoonError},
-    },
-    stdx::error::{Assume, AssumeFor, assumption},
+    platform::webtoons::{Webtoon, error::SessionError},
+    stdx::error::{Assume, AssumeFor, Assumption, assumption},
 };
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
@@ -31,7 +28,7 @@ pub struct Previous {
     pub average_views_per_update: Option<u32>,
 }
 
-pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
+pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, SessionError> {
     let html = webtoon.client.stats_dashboard(webtoon).await?;
 
     // TODO: For now only need subscribers from here, but could do the others as well.
@@ -41,7 +38,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, StatsDashboardError> {
     })
 }
 
-fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
+fn subscribers(html: &Html) -> Result<u32, Assumption> {
     {
         // NOTE:
         // This is a sanity check. As values on the page are all numbers,

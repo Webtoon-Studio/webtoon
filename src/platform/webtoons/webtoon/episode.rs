@@ -6,7 +6,7 @@ use super::{
 };
 use crate::platform::webtoons::{
     dashboard::episodes::DashboardStatus,
-    error::{ClientError, EpisodeError, PostsError, SessionError},
+    error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
     webtoon::post::{Post, id::Id},
 };
 use crate::stdx::cache::{Cache, Store};
@@ -16,7 +16,6 @@ use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::str::FromStr;
 use url::Url;
 
 // TODO: Remove and just use `Vec<Episode>`. Doing sop means some rework about how episodes are retrieved.
@@ -514,10 +513,10 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, EpisodeError> {
+    pub async fn likes(&self) -> Result<u32, LikesError> {
         let response = self.webtoon.client.episodes_likes(self).await?;
 
-        let contents = response //
+        let contents = response
             .result
             .contents
             .first()
@@ -783,9 +782,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_id(&self, id: &str) -> Result<Posts, PostsError> {
-        let id = Id::from_str(id)?;
-
+    pub async fn posts_till_id(&self, id: Id) -> Result<Posts, PostsError> {
         #[allow(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
@@ -1212,7 +1209,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), PostsError> {
+    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), SessionError> {
         self.webtoon
             .client
             .post_comment(self, body, is_spoiler)
@@ -1288,6 +1285,7 @@ impl Episode {
         Self {
             webtoon: webtoon.clone(),
             number,
+
             season: Cache::empty(),
             title: Cache::empty(),
             // NOTE:
@@ -1326,7 +1324,7 @@ impl Episode {
         Ok(())
     }
 
-    pub(super) async fn exists(&self) -> Result<bool, ClientError> {
+    pub(super) async fn exists(&self) -> Result<bool, RequestError> {
         self.webtoon.client.check_if_episode_exists(self).await
     }
 }
@@ -1457,7 +1455,7 @@ impl From<DashboardStatus> for PublishedStatus {
     }
 }
 
-fn title(html: &Html) -> Result<String, EpisodeError> {
+fn title(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse("div.subj_info>.subj_episode") //
         .assumption("`div.subj_info>.subj_episode` should be a valid selector")?;
 
@@ -1477,7 +1475,7 @@ fn title(html: &Html) -> Result<String, EpisodeError> {
     Ok(html_escape::decode_html_entities(title).to_string())
 }
 
-fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
+fn length(html: &Html) -> Result<Option<u32>, Assumption> {
     // NOTE:
     // Most panel pixels end in a `.0`, but this is not guaranteed. The values
     // also have the potential to be a whole number, with no `.`. This is true
@@ -1499,7 +1497,7 @@ fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
     Ok(Some(length))
 }
 
-fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
+fn note(html: &Html) -> Result<Option<String>, Assumption> {
     let selector = Selector::parse(r".creator_note>.author_text") //
         .assumption("`.creator_note>.author_text` should be a valid selector")?;
 
@@ -1743,13 +1741,13 @@ impl Panel {
     async fn download(
         &mut self,
         client: &crate::platform::webtoons::Client,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), RequestError> {
         self.bytes = client.download_panel(&self.url).await?;
         Ok(())
     }
 }
 
-fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
+fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
     if is_audio_reader(html)? {
         return Ok(Vec::new());
     }
