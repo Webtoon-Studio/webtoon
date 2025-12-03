@@ -920,7 +920,7 @@ impl Client {
         }
 
         if response.status() == 400 {
-            return Err(CreatorError::DisabledByCreator);
+            return Err(CreatorError::PageDisabledByCreator);
         }
 
         let document = response.text().await.map_err(RequestError)?;

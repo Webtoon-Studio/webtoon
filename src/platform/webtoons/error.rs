@@ -76,7 +76,7 @@ mod _inner {
             #[display("`webtoons.com` does not support creator profiles for this language")]
             UnsupportedLanguage,
             #[display("profile page disabled by creator")]
-            DisabledByCreator,
+            PageDisabledByCreator,
         } || Base || ClientError
 
         WebtoonError := Base || ClientError
