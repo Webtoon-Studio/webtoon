@@ -303,7 +303,7 @@ impl Client {
     /// - `Ok(None)`: No creator profile page exists for the given `profile` in the selected
     ///   supported language. In this case, even though the language is supported, the creator
     ///   does not have a profile page.
-    /// - [`CreatorError::DisabledByCreator`]: Profile for creator exists, but is disabled.
+    /// - [`CreatorError::PageDisabledByCreator`]: Profile for creator exists, but is disabled.
     ///
     /// # Example
     ///
@@ -317,7 +317,7 @@ impl Client {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
-    ///     Err(CreatorError::DisabledByCreator) => println!("Profile exists, but is disabled by creator."),
+    ///     Err(CreatorError::PageDisabledByCreator) => println!("Profile exists, but is disabled by creator."),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
     /// # Ok(())

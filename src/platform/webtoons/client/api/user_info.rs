@@ -3,7 +3,7 @@ use serde::Deserialize;
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///
 /// This can be used to get the username and profile, as well as check if user is logged in. This type is not constructed
-/// directly, but gotten through [`Client::user_info_for_session()`].
+/// directly, but gotten through [`Client::user_info_for_session()`](crate::platform::webtoons::client::Client).
 ///
 /// # Example
 ///

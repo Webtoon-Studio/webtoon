@@ -18,7 +18,7 @@ use self::{
     post::Posts,
 };
 use super::Type;
-use super::error::{EpisodeError, WebtoonError};
+use super::error::WebtoonError;
 use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};

@@ -1275,12 +1275,12 @@ impl Poster {
         self.super_like
     }
 
-    /// Will block poster for current webtoon.
+    /// Will block poster for current Webtoon.
     ///
-    /// Session user must be creator of the webtoon to moderate it. If this is not the case
-    /// [`PosterError::InvalidPermissions`] will be returned.
+    /// Session user must be Creator of the Webtoon to moderate it. If this is not the case
+    /// [`BlockUserError::NotCreator`] will be returned.
     ///
-    /// If attempting to block self, [`PosterError::BlockSelf`] will be returned.
+    /// If attempting to block self, [`BlockUserError::BlockSelf`] will be returned.
     pub async fn block(&self) -> Result<(), BlockUserError> {
         // Return early if already blocked.
         if self.is_blocked {
@@ -1448,15 +1448,16 @@ impl Replies for Posts {
     }
 }
 
-pub(crate) mod id {
+pub mod id {
+    //! Module representing the post id format on `webtoons.com`.
+
     use crate::stdx::base36::Base36;
     use serde::{Deserialize, Serialize};
     use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
     use thiserror::Error;
 
-    type Result<T, E = ParseIdError> = core::result::Result<T, E>;
-
     /// Represents possible errors when parsing a posts id.
+    #[allow(missing_docs)]
     #[derive(Error, Debug)]
     pub enum ParseIdError {
         /// Error for an invalid id format.
@@ -1520,6 +1521,15 @@ pub(crate) mod id {
     /// - `reply`:
     ///   An optional **Base36**-encoded identifier for a reply to the post. If `None`, the ID refers to a top-level comment.
     ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use webtoon::platform::webtoons::webtoon::post::id::{Id, ParseIdError};
+    /// # use std::str::FromStr;
+    /// let id = Id::from_str("GW-epicom:0-w_95_1-1d-z")?;
+    /// # Ok::<(), ParseIdError>(())
+    /// ```
+    ///
     /// ### Notes:
     ///
     /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
@@ -1541,7 +1551,7 @@ pub(crate) mod id {
         type Err = ParseIdError;
 
         #[allow(clippy::too_many_lines)]
-        fn from_str(str: &str) -> Result<Self> {
+        fn from_str(str: &str) -> Result<Self, Self::Err> {
             // In some instances a string can be prefixed like `1:3595:`. We only
             // care about the part after, so if we encounter multiple `:`, we trim
             // the prefix off.

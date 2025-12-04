@@ -414,7 +414,7 @@ impl Episode {
     ///
     /// - **Original vs Canvas Episodes**:
     ///   - **Original Webtoons**: For episodes from an Original series, this method will always return `Some` for free episodes, since Originals follow a standard publishing schedule.
-    ///   - **Canvas Webtoons (No Session)**: For Canvas episodes, if no session is provided to the [`Client`], it will also return `Some` for the publicly available episodes.
+    ///   - **Canvas Webtoons (No Session)**: For Canvas episodes, if no session is provided to the [`Client`](crate::platform::webtoons::client::Client), it will also return `Some` for the publicly available episodes.
     ///   - **Canvas Webtoons (With Session)**: If a valid creator session is provided for a Canvas webtoon, it may return `None` if the episode is unpublished (i.e., still in draft form).
     ///
     /// - **Important Caveat**:
@@ -763,7 +763,8 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type, webtoon::post::id::Id};
+    /// # use std::str::FromStr;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -773,7 +774,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     for post in episode.posts_till_id("GW-epicom:0-c_843910_1-g").await? {
+    ///     for post in episode.posts_till_id(Id::from_str("GW-epicom:0-c_843910_1-g")?).await? {
     ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
     ///     }
     ///     # return Ok(());
@@ -1187,7 +1188,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{error::{Error, PostsError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error,SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1199,8 +1200,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.post("Loved this episode!", false).await {
     ///         Ok(_) => println!("Left comment on episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(PostsError::NoSessionProvided) => println!("Provide a session!"),
-    ///         Err(PostsError::InvalidSession) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());

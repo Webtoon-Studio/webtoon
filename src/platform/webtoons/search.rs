@@ -1,3 +1,5 @@
+//! Module representing `webtoons.com` search.
+
 use crate::{
     platform::webtoons::{Client, Type, Webtoon, error::WebtoonError},
     stdx::error::assumption,
@@ -5,12 +7,12 @@ use crate::{
 
 /// Represents a single item in the search result.
 pub struct Item {
-    pub client: Client,
-    pub id: u32,
-    pub r#type: Type,
-    pub title: String,
-    pub thumbnail: String,
-    pub creator: String,
+    pub(crate) client: Client,
+    pub(crate) id: u32,
+    pub(crate) r#type: Type,
+    pub(crate) title: String,
+    pub(crate) thumbnail: String,
+    pub(crate) creator: String,
 }
 
 impl Item {
