@@ -79,11 +79,8 @@ impl FromStr for Type {
 ///
 /// Only `w` and `c` are valid.
 #[derive(Debug, Error)]
-pub enum ParseLetterError {
-    /// An invalid letter was found
-    #[error("`{0}` is an invalid letter, should only be `w` or `c`")]
-    InvalidLetter(String),
-}
+#[error("`{0}` is an invalid letter, should only be `w` or `c`")]
+pub struct ParseLetterError(String);
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum Scope {
