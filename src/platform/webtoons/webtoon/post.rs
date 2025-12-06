@@ -854,7 +854,7 @@ impl Post {
 
     /// Deletes post if the user has permissions to do so.
     ///
-    /// If post is already deleted it will short-circuit and return `Ok`.
+    /// Returns `Ok` If post is already deleted and cannot fail.
     ///
     /// # Permissions
     /// **Own-post**: If the post is from the sessions user, then has permission to delete.
@@ -883,6 +883,11 @@ impl Post {
     /// # }
     /// ```
     pub async fn delete(&self) -> Result<(), DeletePostError> {
+        // Return early if already deleted
+        if self.is_deleted {
+            return Ok(());
+        }
+
         let user = self
             .episode
             .webtoon
@@ -893,11 +898,6 @@ impl Post {
         // Only perform delete if current post is from current session's user or if they are the creator of the webtoon
         if !(self.poster.is_current_session_user || user.is_webtoon_creator()) {
             return Err(DeletePostError::InvalidPermissions);
-        }
-
-        // Return early if already deleted
-        if self.is_deleted {
-            return Ok(());
         }
 
         self.episode.webtoon.client.delete_post(self).await?;
