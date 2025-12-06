@@ -863,8 +863,8 @@ impl Post {
     /// Returns `Ok` If post is already deleted and cannot fail.
     ///
     /// # Permissions
-    /// **Own-post**: If the post is from the sessions user, then has permission to delete.
-    /// **Webtoon-Owner**: If the current user is the creator of the Webtoon the post is on, and thus has moderation capability.
+    /// - **Own-post**: If the post is from the sessions user, then has permission to delete.
+    /// - **Webtoon-Owner**: If the current user is the creator of the Webtoon the post is on, and thus has moderation capability.
     ///
     /// # Example
     ///
@@ -1178,6 +1178,7 @@ impl Debug for Poster {
     }
 }
 
+// TODO: Can probaly do better her with what is returned when some info is not known.
 impl Poster {
     /// Returns the posters `CUID`.
     ///
@@ -1228,7 +1229,7 @@ impl Poster {
 
     /// Returns if the session user reacted to post.
     ///
-    /// Returns `true` if the user reacted, `false` if not.
+    /// Returns `true` if the user reacted, `false` if not or if no session was provided.
     #[inline]
     #[must_use]
     pub fn reacted(&self) -> bool {
@@ -1247,10 +1248,13 @@ impl Poster {
         self.is_current_session_user
     }
 
+    // TODO: This to see if poster is creator of the webtoon, I think this data
+    // exists in the returned response. Need to check.
     /// Returns if poster is a creator on the Webtoons platform.
     ///
-    /// This doesn't mean they are the creator of the current Webtoon, just that they are a creator, though it could be of the current Webtoon.
-    /// For that info use [`Poster::is_current_webtoon_creator`].
+    /// # Note
+    ///
+    /// This doesn't mean they are the creator of the current Webtoon, just that they are a creator. Though it could be of the current Webtoon.
     #[inline]
     #[must_use]
     pub fn is_creator(&self) -> bool {
