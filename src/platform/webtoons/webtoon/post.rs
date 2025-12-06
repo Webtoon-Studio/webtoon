@@ -1189,6 +1189,8 @@ impl Poster {
         &self.cuid
     }
 
+    // TODO: Need to see what this returns on other languages, as not all languages
+    // have profile pages, but maybe still have "profiles"?
     /// Returns the profile segment for poster in `webtoons.com/*/creator/{profile}`.
     #[inline]
     #[must_use]
