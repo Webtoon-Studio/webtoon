@@ -1483,8 +1483,7 @@ pub mod id {
     // TODO: Make generic enough to be used by `naver` as well, removing any `webtoons.com` references.
     /// Represents a unique identifier for a post or comment on a Webtoon episode.
     ///
-    /// The `Id` struct follows a specific format to uniquely identify a post or a reply in a Webtoon episode's comment
-    /// section. The format contains multiple components, representing a different aspect of the Webtoon, episode,
+    /// The format contains multiple components, representing a different aspect of the Webtoon, episode,
     /// post, and any potential reply. It also provides information about the chronological order of the comments.
     ///
     /// ### Structure:
@@ -1513,26 +1512,6 @@ pub mod id {
     ///
     /// - **`z`**:
     ///   Represents a reply to a post. If this component is missing, the ID refers to a top-level post. If present, it indicates the reply to a specific post, also encoded in **Base36**.
-    ///
-    /// ### Fields:
-    ///
-    /// - `tag`:
-    ///   An unknown field that is part of the ID structure but its exact purpose is not fully understood. It is included for completeness.
-    ///
-    /// - `scope`:
-    ///   A string representing whether the Webtoon is an **Original** or **Canvas** series (`w` or `c`).
-    ///
-    /// - `webtoon`:
-    ///   The unique ID for the Webtoon series.
-    ///
-    /// - `episode`:
-    ///   The episode number within the Webtoon series.
-    ///
-    /// - `post`:
-    ///   The **Base36**-encoded identifier for the specific post.
-    ///
-    /// - `reply`:
-    ///   An optional **Base36**-encoded identifier for a reply to the post. If `None`, the ID refers to a top-level comment.
     ///
     /// # Example
     ///
@@ -1681,6 +1660,7 @@ pub mod id {
                 }
             };
 
+            // TODO: Check that is `NonZero`
             // parse `1` to u16
             let episode = match page_id_parts.next() {
                 Some(episode) => {
@@ -1717,6 +1697,7 @@ pub mod id {
                 });
             };
 
+            // TODO: Check that is `NonZero`
             // parse `1d` to `Base36`
             let post = second
                 .parse::<Base36>()
@@ -1725,6 +1706,7 @@ pub mod id {
                     error: err,
                 })?;
 
+            // TODO: Check that is `NonZero`
             // if exists parse `z` to `Base36`
             let reply = match parts.next() {
                 Some(reply) => {
