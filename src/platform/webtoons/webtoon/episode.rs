@@ -1235,6 +1235,7 @@ impl Episode {
         Ok(())
     }
 
+    // TODO: If this is an alternate reader, this can fail. Should return `Option`.
     /// Will download the panels of the episode.
     ///
     /// This returns a [`Panels`], which offers ways to save to disk.
@@ -1899,6 +1900,7 @@ use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
 use tokio::io::AsyncWriteExt;
 
+// TODO: Make `no_run` and add integration tests instead that covers canvas and original.
 // TODO: technically this should not have `DownloadError` as panels are already
 // downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
