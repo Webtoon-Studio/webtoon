@@ -934,7 +934,7 @@ impl Client {
         &self,
         profile: &str,
         language: Language,
-    ) -> Result<CreatorWebtoons, WebtoonError> {
+    ) -> Result<CreatorWebtoons, CreatorError> {
         let language = match language {
             Language::En => "ENGLISH",
             Language::Zh => "TRADITIONAL_CHINESE",
