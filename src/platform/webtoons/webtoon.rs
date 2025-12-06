@@ -852,6 +852,9 @@ impl Webtoon {
 
     /// Retrieves all posts (top level comments) for every episode of the current `Webtoon`.
     ///
+    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
+    /// for the poster, which can be used for determining if, for example, a post was left by session user.
+    ///
     /// # Behavior
     ///
     /// This method can return more posts than what is publicly available on the episode page, as it includes certain deleted posts, as well as those visible to all users.

@@ -579,6 +579,9 @@ impl Episode {
     ///
     /// Direct replies that have been deleted (but have replies) will still be included. Comments deleted without replies will not be included.
     ///
+    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
+    /// for the poster, which can be used for determining if, for example, a post was left by session user.
+    ///
     /// # Example
     ///
     /// ```
@@ -662,6 +665,9 @@ impl Episode {
     /// Iterates through all direct (top-level) comments for the episode and applies a callback function to each post.
     ///
     /// This method is useful in scenarios where memory constraints are an issue, as it avoids loading all posts into memory at once. Instead, each post is processed immediately as it is retrieved, making it more memory-efficient than [`posts()`](Episode::posts()).
+    ///
+    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
+    /// for the poster, which can be used for determining if, for example, a post was left by session user.
     ///
     /// # Limitations
     ///
