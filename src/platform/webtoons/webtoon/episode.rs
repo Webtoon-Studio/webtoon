@@ -249,6 +249,10 @@ impl Episode {
 
     /// Returns the title of the episode.
     ///
+    /// If the episode was gotten via [`Webtoon::episode()`](crate::platform::webtoons::webtoon::Webtoon::episode), this can
+    /// potentially return a `EpisodeError::NotViewable`, as it could reference a hidden or deleted episode who's title is
+    /// impossible to get.
+    ///
     /// # Example
     ///
     /// ```
@@ -366,6 +370,12 @@ impl Episode {
         }
     }
 
+    // TODO: Need to see if `NotViewable` will be returned from `length`. If so,
+    // need to remove the document stating that None will be returned any situation
+    // that isn't the alternate reader.
+    //
+    // Might even be worth to remove the Option and just return an error on the alternate reader.
+    //
     /// Returns the sum of the vertical length in pixels.
     ///
     /// If the page cannot be viewed publicly, for example its behind fast-pass, it will return `None`. It can also be
@@ -406,6 +416,7 @@ impl Episode {
         }
     }
 
+    // TODO: Rework with new `Published` type, and then return `Option<Published>`.
     /// Returns the published timestamp of the episode.
     ///
     /// It returns as `Some` if the episode is publicly available or has a set publish date. Otherwise, it returns `None` if the episode is unpublished.
@@ -1818,7 +1829,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 
 /// Represents all the panels for an episode.
 ///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`].
+/// This type is not constructed directly, but gotten via [`Episode::download()`].
 ///
 /// # Example
 ///
@@ -1841,7 +1852,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 /// # Ok(())
 /// # }
 /// ```
-#[allow(unused)] // Not all fields are used with the base feature set.
+#[cfg(feature = "download")]
 #[derive(Debug, Clone)]
 pub struct Panels {
     images: Vec<Panel>,
@@ -1849,6 +1860,7 @@ pub struct Panels {
     width: u32,
 }
 
+#[cfg(feature = "download")]
 impl Panels {
     /// Returns how many `Panels` are on the episode.
     ///
@@ -1887,6 +1899,8 @@ use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
 use tokio::io::AsyncWriteExt;
 
+// TODO: technically this should not have `DownloadError` as panels are already
+// downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
 impl Panels {
     /// Saves all the panels of an episode as a single long image file in PNG format.
