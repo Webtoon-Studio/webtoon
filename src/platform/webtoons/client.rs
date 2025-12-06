@@ -1090,6 +1090,8 @@ impl Client {
         Ok(())
     }
 
+    // TODO: If a session is valid, but does not belong to the Webtoon, then
+    // should return `InvalidPermissions`.
     pub(super) async fn episodes_dashboard(
         &self,
         webtoon: &Webtoon,

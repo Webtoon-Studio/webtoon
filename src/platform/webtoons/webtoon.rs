@@ -370,6 +370,8 @@ impl Webtoon {
     pub async fn views(&self) -> Result<u64, ViewsError> {
         match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
+                // TODO: When this also returns `InvalidPermissions`, then need to update docs to explain
+                // what happens when a session is valid, but the session is not connected to the webtoon.
                 let episodes = match super::dashboard::episodes::scrape(self).await {
                     Ok(episodes) => episodes,
                     Err(SessionError::Internal(err)) => return Err(err.into()),
@@ -437,6 +439,7 @@ impl Webtoon {
     pub async fn subscribers(&self) -> Result<u32, SubscribersError> {
         match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
+                // TODO: Need to do the same for this as views, as a session could be valid, but not for this Webtoon.
                 let stats = match super::dashboard::statistics::scrape(self).await {
                     Ok(stats) => stats,
                     Err(SessionError::Internal(err)) => return Err(err.into()),
@@ -697,6 +700,8 @@ impl Webtoon {
     pub async fn episodes(&self) -> Result<Episodes, EpisodesError> {
         let episodes = match self.client.user_info(self).await {
             Ok(user) if user.is_webtoon_creator() && self.language == Language::En => {
+                // TODO: Same as for views and subscribes, a session could be valid, but they are not the
+                // creator of this specific Webtoon. Need to add an `InvalidPermissions` error variant.
                 match super::dashboard::episodes::scrape(self).await {
                     Ok(episodes) => episodes,
                     Err(SessionError::InvalidSession) => return Err(EpisodesError::InvalidSession),

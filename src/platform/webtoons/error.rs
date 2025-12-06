@@ -93,6 +93,8 @@ mod _inner {
 
         LikesError := Base || ClientError || InvalidSession
 
+        // TODO: Need to add `InvalidPermissions` as session provided might be a valid
+        // one, but not the one needed for the specific webtoon.
         ViewsError := Base || ClientError || InvalidSession
 
         SubscribersError := Base || ClientError || InvalidSession
