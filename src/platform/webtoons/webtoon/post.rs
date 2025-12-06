@@ -1469,6 +1469,7 @@ pub mod id {
     use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
     use thiserror::Error;
 
+    // TODO: Make just a tuple struct that takes a `String`.
     /// Represents possible errors when parsing a posts id.
     #[allow(missing_docs)]
     #[derive(Error, Debug)]
