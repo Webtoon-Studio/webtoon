@@ -1855,6 +1855,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 /// ```
 #[cfg(feature = "download")]
 #[derive(Debug, Clone)]
+// TODO: rename to `DownloadedPanels` as this is the only function it serves.
 pub struct Panels {
     images: Vec<Panel>,
     height: u32,

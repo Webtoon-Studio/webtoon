@@ -157,8 +157,20 @@ impl Debug for Post {
     }
 }
 
+// TODO: Make `parent_id` private and create a new `Reply` type where this would
+// be exposed. Post would then only represent top level posts, and `parent_id
+// on a top-level posts are always the same as its `id`, making it redundant to
+// have.
+//
+// TODO: Remove `replies()` and split into `reply_count` and `replies`.
+//
+// TODO: remove `upvotes` and `downvotes` in favor up `upvotes_and_downvotes`.
 impl Post {
     /// Returns the [`Poster`] of post.
+    ///
+    /// If a valid session is passed to the client, this will contain some extra
+    /// metadata, which can be used for determining if, for example, a post was
+    /// left by session user.
     ///
     /// # Example
     ///
@@ -190,12 +202,6 @@ impl Post {
     }
 
     /// Returns the unique [`Id`] for the post.
-    ///
-    /// The returned [`Id`] contains all the necessary information to uniquely identify the post
-    /// in the context of a specific Webtoon episode. This includes the Webtoon ID,
-    /// episode number, post identifier, and optionally a reply identifier if the post is a reply.
-    ///
-    /// The [`Id`] is a composite structure that reflects the internal format used by Webtoon's system.
     ///
     /// # Example
     ///
