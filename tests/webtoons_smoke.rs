@@ -15,7 +15,7 @@ async fn smoke() {
     assert_eq!(20, canvas.len());
 
     for webtoon in canvas {
-        eprintln!("Checking webtoon {}", webtoon.id());
+        eprintln!("\nChecking webtoon {}", webtoon.id());
 
         let _title = webtoon.title().await.unwrap();
 
