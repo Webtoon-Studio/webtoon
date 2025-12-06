@@ -1248,8 +1248,6 @@ impl Poster {
         self.is_current_session_user
     }
 
-    // TODO: This to see if poster is creator of the webtoon, I think this data
-    // exists in the returned response. Need to check.
     /// Returns if poster is a creator on the Webtoons platform.
     ///
     /// # Note
@@ -1261,6 +1259,9 @@ impl Poster {
         self.is_creator
     }
 
+    // TODO: This should really be if the poster is the creator of the current webtoon
+    // not that the session user is the current webtoon creator. Need to check what this is
+    // checking.
     /// Returns if the session user is the creator of the current webtoon.
     #[inline]
     #[must_use]
