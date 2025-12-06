@@ -1005,6 +1005,7 @@ impl Client {
         Ok(html)
     }
 
+    // TODO: For both this and unsubscribe, check Webtoon user info to see if already subscribed or not.
     pub(super) async fn subscribe_to_webtoon(&self, webtoon: &Webtoon) -> Result<(), SessionError> {
         let session = self.session.validate(self).await?;
 
