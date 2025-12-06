@@ -749,3 +749,19 @@ async fn english_canvas_panel_pixels_height_more_than_1280() {
 
     assert_eq!(3384, length);
 }
+
+#[tokio::test]
+#[allow(nonstandard_style, reason = "test is checking for `JPEG` vs `jpeg`")]
+async fn english_canvas_panel_JPEG_ext() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1081912, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+
+    let title = episode.title().await.unwrap();
+
+    assert_eq!("Episode 1", title);
+}

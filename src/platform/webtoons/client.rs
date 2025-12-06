@@ -45,11 +45,6 @@ use scraper::Html;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Display, ops::RangeBounds, sync::Arc};
 
-#[cfg(feature = "rss")]
-use crate::platform::webtoons::error::RssError;
-#[cfg(feature = "rss")]
-use std::str::FromStr;
-
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///
 /// The `ClientBuilder` provides an API for fine-tuning various aspects of the `Client`
@@ -1164,7 +1159,12 @@ impl Client {
     }
 
     #[cfg(feature = "rss")]
-    pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, RssError> {
+    pub(super) async fn rss(
+        &self,
+        webtoon: &Webtoon,
+    ) -> Result<rss::Channel, crate::platform::webtoons::error::RssError> {
+        use std::str::FromStr;
+
         let id = webtoon.id;
         let language = match webtoon.language {
             Language::En => "en",

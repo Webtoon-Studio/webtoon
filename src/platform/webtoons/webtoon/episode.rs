@@ -1782,7 +1782,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
         };
 
         assumption!(
-            ["jpeg", "png", "jpg"]
+            ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG"]
                 .into_iter()
                 .any(|format| format == ext),
             "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`) and PNG(`png`), but found: `{ext}`"
