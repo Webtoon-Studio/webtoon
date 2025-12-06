@@ -1254,6 +1254,8 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
+            // TODO: I think we can just ignore any session issues here?
+            // We don't really get anything with the session, as far as I can tell.
             Err(SessionError::InvalidSession) => return Err(LikesError::InvalidSession),
             Err(SessionError::Internal(err)) => return Err(err.into()),
             Err(SessionError::RequestFailed(err)) => return Err(err.into()),
