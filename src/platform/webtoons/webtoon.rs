@@ -757,7 +757,7 @@ impl Webtoon {
     /// };
     ///
     /// // Known hidden episode.
-    /// if let Some(episode) = webtoon.episode(121).await? {
+    /// if let Some(episode) = webtoon.episode(221).await? {
     ///     assert_eq!("[Season 2] Ep. 41", episode.title().await?);
     /// }
     /// # Ok(())
