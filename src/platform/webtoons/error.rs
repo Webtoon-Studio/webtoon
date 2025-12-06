@@ -71,6 +71,9 @@ mod _inner {
         SearchError := Base || ClientError
 
         CreatorError := {
+            // TODO: This is really only used for `Client::creator`. Currently,
+            // this is also included for all the `Creator` methods, even though
+            // this would never be encountered through them.
             #[display("`webtoons.com` does not support creator profiles for this language")]
             UnsupportedLanguage,
             #[display("profile page disabled by creator")]
