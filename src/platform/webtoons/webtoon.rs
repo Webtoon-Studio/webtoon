@@ -751,6 +751,8 @@ impl Webtoon {
     ///
     /// # Example
     ///
+    /// ## Viewable Episode
+    ///
     /// ```
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
@@ -761,9 +763,31 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
+    /// if let Some(episode) = webtoon.episode(222).await? {
+    ///     assert_eq!("[Season 2] Ep. 141", episode.title().await?);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Hidden Episode
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::{Error, EpisodeError}};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
     /// // Known hidden episode.
     /// if let Some(episode) = webtoon.episode(221).await? {
-    ///     assert_eq!("[Season 2] Ep. 41", episode.title().await?);
+    ///     match episode.title().await {
+    ///         Err(EpisodeError::NotViewable) => assert!(true),
+    ///         _ => unreachable!("episode is known non-viewable"),
+    ///     }
     /// }
     /// # Ok(())
     /// # }
