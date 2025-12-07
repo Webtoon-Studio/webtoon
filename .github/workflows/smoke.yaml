@@ -1,0 +1,19 @@
+name: Smoke Test
+
+on:
+  schedule:
+    # Every 3 hours
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Run randomized live smoke test
+        run:  cargo test --all-features --no-fail-fast --profile test --test webtoons_smoke -- --include-ignored
