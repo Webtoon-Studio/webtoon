@@ -60,6 +60,11 @@ async fn smoke() {
 
         let _summary = webtoon.summary().await.unwrap();
 
+        // TODO: Add a `random_episode` (or some way to get a random episode)
+        // so that tests extend beyond just the first episode.
+        //
+        // Also need to handle an episode not being viewable. Currently it just
+        // panics.
         let episode = webtoon.first_episode().await.unwrap();
         eprintln!("episode {}", episode.number());
 
