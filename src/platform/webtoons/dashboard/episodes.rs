@@ -7,7 +7,7 @@ use crate::{
         error::SessionError,
         webtoon::{
             Webtoon,
-            episode::{self, AdStatus, Episode},
+            episode::{self, AdStatus, Episode, Published},
         },
     },
     stdx::{cache::Cache, error::assumption, math::MathExt},
@@ -47,7 +47,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
 
     for episode in dashboard_episodes {
         let published = match episode.published.map(DateTime::from_timestamp_millis) {
-            Some(Some(published)) => Some(published),
+            Some(Some(published)) => Some(Published::from(published)),
             Some(None) => assumption!(
                 "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
                 episode.published
@@ -77,7 +77,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
 
         for episode in dashboard_episodes {
             let published = match episode.published.map(DateTime::from_timestamp_millis) {
-                Some(Some(published)) => Some(published),
+                Some(Some(published)) => Some(Published::from(published)),
                 Some(None) => assumption!(
                     "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
                     episode.published

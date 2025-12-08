@@ -8,7 +8,10 @@ use crate::{
         creator::Creator,
         meta::{Genre, Scope},
         originals::Schedule,
-        webtoon::{WebtoonError, episode::Episode},
+        webtoon::{
+            WebtoonError,
+            episode::{Episode, Published},
+        },
     },
     stdx::{
         cache::Cache,
@@ -16,7 +19,7 @@ use crate::{
         math::MathExt,
     },
 };
-use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use chrono::NaiveDate;
 use scraper::{ElementRef, Html, Selector};
 use std::str::FromStr;
 use url::Url;
@@ -631,14 +634,14 @@ pub(super) fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Epi
         .parse::<u16>()
         .assumption_for(|err| format!("`data-episode-no` on english `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}: {err}"))?;
 
-    let published = date(element)?;
+    let date = date(element)?;
 
     Ok(Episode {
         webtoon: webtoon.clone(),
         season: Cache::new(episode::season(&title)?),
         title: Cache::new(title),
         number,
-        published: Some(published),
+        published: Some(Published::from(date)),
         published_status: Some(PublishedStatus::Published),
 
         length: Cache::empty(),
@@ -678,9 +681,7 @@ pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, Assumption>
     Ok(html_escape::decode_html_entities(title).to_string())
 }
 
-// NOTE: Currently forces all dates to be at 02:00 UTC as that's when Originals
-// get released. For more accurate times, must have a session.
-fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, Assumption> {
+fn date(episode: &ElementRef<'_>) -> Result<NaiveDate, Assumption> {
     let selector = Selector::parse("span.date") //
         .assumption("`span.date` should be a valid selector")?;
 
@@ -699,11 +700,5 @@ fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, Assumption> {
     let date = NaiveDate::parse_from_str(text, "%b %e, %Y")
         .assumption_for(|err| format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}: {err}"))?;
 
-    let time = NaiveTime::from_hms_opt(2, 0, 0) //
-        .assumption("2:00:00 should be a valid `NaiveTime`")?;
-
-    Ok(DateTime::from_naive_utc_and_offset(
-        date.and_time(time),
-        Utc,
-    ))
+    Ok(date)
 }

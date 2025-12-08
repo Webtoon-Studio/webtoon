@@ -4,14 +4,17 @@ use super::{
     Webtoon,
     post::{PinRepresentation, Posts},
 };
-use crate::platform::webtoons::{
-    dashboard::episodes::DashboardStatus,
-    error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
-    webtoon::post::{Post, id::Id},
-};
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{Assume, Assumption, assumption};
-use chrono::{DateTime, Utc};
+use crate::{
+    platform::webtoons::{
+        dashboard::episodes::DashboardStatus,
+        error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
+        webtoon::post::{Post, id::Id},
+    },
+    stdx::time::DateOrDateTime,
+};
+use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashSet;
@@ -168,7 +171,7 @@ pub struct Episode {
     // TODO: Need to store? Should be pretty cheap to compute on the fly as title is most likely cached.
     pub(crate) season: Cache<Option<u8>>,
     pub(crate) title: Cache<String>,
-    pub(crate) published: Option<DateTime<Utc>>,
+    pub(crate) published: Option<Published>,
     pub(crate) length: Cache<Option<u32>>,
     pub(crate) views: Option<u32>,
     pub(crate) thumbnail: Cache<Url>,
@@ -416,21 +419,36 @@ impl Episode {
         }
     }
 
-    // TODO: Rework with new `Published` type, and then return `Option<Published>`.
-    /// Returns the published timestamp of the episode.
+    /// Returns the [`Published`] information for this episode.
     ///
-    /// It returns as `Some` if the episode is publicly available or has a set publish date. Otherwise, it returns `None` if the episode is unpublished.
+    /// This method returns:
+    /// - `Some(Published)` if the episode is publicly available or has a known publish date.
+    /// - `None` if the episode is unpublished.
     ///
     /// # Behavior
     ///
-    /// - **Original vs Canvas Episodes**:
-    ///   - **Original Webtoons**: For episodes from an Original series, this method will always return `Some` for free episodes, since Originals follow a standard publishing schedule.
-    ///   - **Canvas Webtoons (No Session)**: For Canvas episodes, if no session is provided to the [`Client`](crate::platform::webtoons::client::Client), it will also return `Some` for the publicly available episodes.
-    ///   - **Canvas Webtoons (With Session)**: If a valid creator session is provided for a Canvas webtoon, it may return `None` if the episode is unpublished (i.e., still in draft form).
+    /// ## Original series
+    /// For episodes from an Original series, this method always returns `Some` for free episodes.
+    /// However, [`Published`] will only include date information (`day`, `month`, `year`) because
+    /// full time precision is not provided.
     ///
-    /// - **Important Caveat**:
-    ///   - This method **only returns a value** when the episode is accessed via the [`Webtoon::episodes()`] method, which retrieves all episodes, including unpublished ones when available. If the episode is retrieved using [`Webtoon::episode()`], this method will always return `None`, even if the episode is published.
-    ///   - Using [`Webtoon::episodes()`] ensures that published episodes return accurate timestamps. For episodes retrieved without a valid creator session, the published time will be available but may default to **2:00 AM UTC** on the publication date due to webtoon page limitations.
+    /// ## Canvas series
+    /// *Without a session:*
+    /// Publicly available Canvas episodes also return `Some`, with the same limited
+    /// date-only (`day`, `month`, `year`) information.
+    ///
+    /// *With a valid creator session:*
+    /// - Returns `None` for unpublished (draft) episodes.
+    /// - Returns full `Published` data, including time-of-day, for published episodes.
+    ///
+    /// # Notes
+    ///
+    /// This method **only returns values** when the episode is obtained via:
+    /// - [`Webtoon::episodes()`], which can load all episodes when used with a session, or
+    /// - [`Webtoon::rss()`], which includes full publish timestamps for recent episodes.
+    ///
+    /// When an episode is retrieved using [`Webtoon::episode()`], this method will always return
+    /// `None`, even if the episode is published. This behavior may change in the future.
     ///
     /// # Example
     ///
@@ -446,8 +464,11 @@ impl Episode {
     ///
     /// let mut episodes = webtoon.episodes().await?.into_iter();
     ///
-    /// if let Some(episode) = episodes.next() {
-    ///     assert_eq!(Some(1745892000000), episode.published());
+    /// if let Some(episode) = episodes.next()
+    /// && let Some(published) = episode.published()  {
+    ///     assert_eq!(29, published.day());
+    ///     assert_eq!(4, published.month());
+    ///     assert_eq!(2025, published.year());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -456,8 +477,8 @@ impl Episode {
     /// ```
     #[inline]
     #[must_use]
-    pub fn published(&self) -> Option<i64> {
-        self.published.map(|datetime| datetime.timestamp_millis())
+    pub fn published(&self) -> Option<Published> {
+        self.published
     }
 
     /// Returns the view count for the episode.
@@ -1708,6 +1729,115 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
     );
 
     Ok(width)
+}
+
+/// Represents an episode’s published date or datetime.
+///
+/// A `Published` value may contain either:
+/// - a calendar date with no time component, or
+/// - a full datetime with time-of-day precision.
+///
+/// The level of precision depends on how the [`Episode`] was obtained:
+///
+/// - When fetched via [`Webtoon::episodes()`] **without** a matching session for
+///   the corresponding `Webtoon` (i.e., public access only), the published value
+///   includes only `year`, `month`, and `day`.
+///
+/// - When a valid session **is** provided, the published value includes full
+///   time-of-day precision.
+///
+/// - When fetched via [`Webtoon::rss()`], full datetime information is also
+///   provided (when available from the RSS feed).
+#[derive(Debug, Clone, Copy)]
+pub struct Published(DateOrDateTime);
+
+impl From<NaiveDate> for Published {
+    #[inline]
+    fn from(date: NaiveDate) -> Self {
+        Self(date.into())
+    }
+}
+
+impl From<DateTime<Utc>> for Published {
+    #[inline]
+    fn from(datetime: DateTime<Utc>) -> Self {
+        Self(datetime.into())
+    }
+}
+
+impl Published {
+    /// Returns the day of the month.
+    ///
+    /// This is always available, regardless of whether the underlying value
+    /// contains only a date or a full datetime.
+    #[inline]
+    #[must_use]
+    pub fn day(&self) -> u32 {
+        self.0.day()
+    }
+
+    /// Returns the month.
+    ///
+    /// This is always available, regardless of whether the underlying value
+    /// contains only a date or a full datetime.
+    #[inline]
+    #[must_use]
+    pub fn month(&self) -> u32 {
+        self.0.month()
+    }
+
+    /// Returns the year.
+    ///
+    /// This is always available, regardless of whether the underlying value
+    /// contains only a date or a full datetime.
+    #[inline]
+    #[must_use]
+    pub fn year(&self) -> i32 {
+        self.0.year()
+    }
+
+    /// Returns the hour, if available.
+    ///
+    /// If the underlying value contains only a date (no time-of-day), this
+    /// returns `None`. Otherwise, it returns the hour in 24-hour format.
+    #[inline]
+    #[must_use]
+    pub fn hour(&self) -> Option<u32> {
+        self.0.hour()
+    }
+
+    /// Returns the minute, if available.
+    ///
+    /// If the underlying value contains only a date (no time-of-day), this
+    /// returns `None`. Otherwise, it returns the minute within the hour.
+    #[inline]
+    #[must_use]
+    pub fn minute(&self) -> Option<u32> {
+        self.0.minute()
+    }
+
+    /// Returns the second, if available.
+    ///
+    /// If the underlying value contains only a date (no time-of-day), this
+    /// returns `None`. Otherwise, it returns the second within the minute.
+    #[inline]
+    #[must_use]
+    pub fn second(&self) -> Option<u32> {
+        self.0.second()
+    }
+
+    /// Returns the Unix timestamp, if available.
+    ///
+    /// A timestamp is only available when the underlying value contains a full
+    /// datetime; date-only values return `None`.
+    ///
+    /// The timestamp is expressed as the number of non-leap seconds since
+    /// the Unix epoch (1970-01-01 00:00:00 UTC).
+    #[inline]
+    #[must_use]
+    pub fn timestamp(&self) -> Option<i64> {
+        self.0.timestamp()
+    }
 }
 
 /// Represents a single panel for an episode.
