@@ -207,7 +207,7 @@ pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, Webtoon
         "`webtoons.com` Webtoon homepage should always have at least one episode for which to get an episode element for a `random` episode"
     );
 
-    let idx = fastrand::usize(1..elements.len());
+    let idx = fastrand::usize(0..elements.len());
     let element = elements[idx];
 
     let episode = match webtoon.language {
