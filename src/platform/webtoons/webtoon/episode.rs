@@ -1799,6 +1799,10 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             ),
         };
 
+        // TODO: `gif` is a supported format in some instances, despite wording that states
+        // only JPEG and PNG are accepted. Need to figure out how to save the image when
+        // saving as a single image. Multiple images should be fine as can just save each
+        // separately with their own ext.
         assumption!(
             ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG"]
                 .into_iter()

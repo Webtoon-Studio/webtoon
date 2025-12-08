@@ -780,3 +780,92 @@ async fn english_canvas_comma_in_username_should_be_ok() {
         [_creator] => {}
     }
 }
+
+#[tokio::test]
+async fn english_canvas_space_in_username_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(910844, Type::Canvas).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [_first, _second, _rest @ ..] => {
+            unreachable!("canvas stories can only have one creator: {creators:#?}")
+        }
+        [_creator] => {}
+    }
+}
+
+#[tokio::test]
+async fn english_originals_space_in_username_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(1499, Type::Original).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [_first, _second, _rest @ ..] => {
+            unreachable!("this original should can only have one creator: {creators:#?}")
+        }
+        [_creator] => {}
+    }
+}
+
+#[tokio::test]
+async fn english_originals_multi_korean_creators_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(2135, Type::Original).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [first, second, third] => {
+            assert_eq!("SUMPUL", first.username());
+            assert_eq!("HereLee", second.username());
+            assert_eq!("Alphatart", third.username());
+        }
+        _ => unreachable!("this webtoon has three creators: {creators:#?}"),
+    }
+}
+
+#[tokio::test]
+async fn english_originals_multi_english_creators_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(1881, Type::Original).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [first, second] => {
+            assert_eq!("Anne Delseit", first.username());
+            assert_eq!("Marissa Delbressine", second.username());
+        }
+        _ => unreachable!("this webtoon has two creators: {creators:#?}"),
+    }
+}
+
+#[tokio::test]
+async fn english_originals_korean_creator_with_spaces_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(6670, Type::Original).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [creator] => {
+            assert_eq!("kang eun young", creator.username());
+        }
+        _ => unreachable!("this webtoon has one creators: {creators:#?}"),
+    }
+}
+
+#[tokio::test]
+#[ignore = "need to figure out how to handle saving gifs to disk when saving as a single image"]
+async fn english_originals_with_gif() {
+    let client = Client::new();
+    let webtoon = client.webtoon(2757, Type::Original).await.unwrap().unwrap();
+
+    let episode = webtoon.episode(25).await.unwrap().unwrap();
+
+    let _length = episode.length().await.unwrap();
+}
