@@ -16,4 +16,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Run randomized live smoke test
-        run:  cargo test --all-features --no-fail-fast --profile test --test webtoons_smoke -- --include-ignored
+        run:  cargo test --all-features --profile test --test webtoons_smoke -- --include-ignored --no-capture --test-threads 1
