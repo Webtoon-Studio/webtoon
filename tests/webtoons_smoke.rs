@@ -2,10 +2,10 @@ use webtoon::platform::webtoons::{Client, Language, canvas::Sort, webtoon::post:
 
 #[tokio::test]
 #[ignore]
-async fn smoke() {
+async fn canvas() {
     let client = Client::new();
 
-    let page = fastrand::u16(1..=1000);
+    let page = fastrand::u16(1..=10000);
 
     let canvas = client
         .canvas(Language::En, page..=page, Sort::Popularity)
@@ -54,24 +54,18 @@ async fn smoke() {
 
         let _views = webtoon.views().await.unwrap();
 
-        let _likes = webtoon.likes().await.unwrap();
-
         let _subscribers = webtoon.subscribers().await.unwrap();
 
         let _summary = webtoon.summary().await.unwrap();
 
-        // TODO: Add a `random_episode` (or some way to get a random episode)
-        // so that tests extend beyond just the first episode.
-        //
-        // Also need to handle an episode not being viewable. Currently it just
-        // panics.
-        let episode = webtoon.first_episode().await.unwrap();
+        let episode = webtoon.random_episode().await.unwrap();
         eprintln!("episode {}", episode.number());
 
         let _title = episode.title().await.unwrap();
         let _season = episode.season().await.unwrap();
         let _thumbnail = episode.thumbnail().await.unwrap();
         let _length = episode.length().await.unwrap();
+        let _likes = episode.likes().await.unwrap();
 
         episode
             .posts_for_each(async |post| {

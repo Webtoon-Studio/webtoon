@@ -2,7 +2,7 @@ test $RUSTFLAGS="-Zthreads=8":
     cargo +nightly test --all-features --no-fail-fast --profile test --all
 
 smoke $RUSTFLAGS="-Zthreads=8":
-    cargo +nightly test --all-features --no-fail-fast --profile test --test webtoons_smoke -- --include-ignored
+    cargo +nightly test --all-features --no-fail-fast --profile test --test webtoons_smoke -- --include-ignored --no-capture
 
 clippy $RUSTFLAGS="-Zthreads=8":
     cargo +nightly clippy --all-features

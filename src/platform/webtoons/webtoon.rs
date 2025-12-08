@@ -833,6 +833,36 @@ impl Webtoon {
         homepage::first_episode(self).await
     }
 
+    /// A specialization for quickly getting a random publicly published episode.
+    ///
+    /// - Differing from `episodes` in that it doesn't traverse other pages to get the episode.
+    /// - Differing from `episode` this gets episode data like the published date.
+    ///
+    /// This is most useful for trying to get random samples for a Webtoon, either for statistical
+    /// use or for testing.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(487522, Type::Canvas).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let episode = webtoon.random_episode().await?;
+    ///
+    /// assert!(!episode.title().await?.is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn random_episode(&self) -> Result<Episode, WebtoonError> {
+        homepage::random_episode(self).await
+    }
+
     /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
     ///
     /// # Behavior

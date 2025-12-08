@@ -190,3 +190,35 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
         }
     }
 }
+
+pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonError> {
+    let page = fastrand::u16(1..=scrape(webtoon).await?.pages);
+
+    // NOTE: currently all languages use this for the list element; this could change.
+    let selector = Selector::parse("li._episodeItem") //
+        .assumption("`li._episodeItem` should be a valid selector")?;
+
+    let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
+
+    let elements: Vec<ElementRef<'_>> = html.select(&selector).collect();
+
+    assumption!(
+        !elements.is_empty(),
+        "`webtoons.com` Webtoon homepage should always have at least one episode for which to get an episode element for a `random` episode"
+    );
+
+    let idx = fastrand::usize(1..elements.len());
+    let element = elements[idx];
+
+    let episode = match webtoon.language {
+        Language::En => en::episode(&element, webtoon)?,
+        Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
+        Language::Th => todo!(), // th::episode(&element, webtoon)?,
+        Language::Id => todo!(), // id::episode(&element, webtoon)?,
+        Language::Es => todo!(), // es::episode(&element, webtoon)?,
+        Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
+        Language::De => todo!(), // de::episode(&element, webtoon)?,
+    };
+
+    Ok(episode)
+}
