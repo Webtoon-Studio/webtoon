@@ -12,7 +12,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, AssumeFor, assumption},
+        error::{Assume, AssumeFor, Assumption, assumption},
         math::MathExt,
     },
 };
@@ -591,10 +591,7 @@ pub fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     Ok(episode.in_bucket_of(episodes_per_page))
 }
 
-pub(super) fn episode(
-    element: &ElementRef<'_>,
-    webtoon: &Webtoon,
-) -> Result<Episode, WebtoonError> {
+pub(super) fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Episode, Assumption> {
     let title = episode_title(element)?;
 
     let data_episode_no = element
@@ -634,7 +631,7 @@ pub(super) fn episode(
     })
 }
 
-pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, WebtoonError> {
+pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, Assumption> {
     let selector = Selector::parse("span.subj>span") //
         .assumption("`span.subj>span` should be a valid selector")?;
 
@@ -657,7 +654,7 @@ pub(super) fn episode_title(html: &ElementRef<'_>) -> Result<String, WebtoonErro
 
 // NOTE: Currently forces all dates to be at 02:00 UTC as that's when Originals
 // get released. For more accurate times, must have a session.
-fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, WebtoonError> {
+fn date(episode: &ElementRef<'_>) -> Result<DateTime<Utc>, Assumption> {
     let selector = Selector::parse("span.date") //
         .assumption("`span.date` should be a valid selector")?;
 

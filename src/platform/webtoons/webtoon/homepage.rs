@@ -6,7 +6,7 @@ mod en;
 // mod th;
 // mod zh;
 
-use scraper::Selector;
+use scraper::{ElementRef, Selector};
 use std::time::Duration;
 use url::Url;
 
@@ -17,7 +17,7 @@ use crate::{
         meta::{Genre, Language},
         originals::Schedule,
     },
-    stdx::error::{Assume, assumption},
+    stdx::error::{Assume, Assumption, assumption},
 };
 
 use super::{WebtoonError, episode::Episode};
@@ -163,21 +163,23 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
 
     let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
 
-    let mut first: Option<Episode> = None;
+    let first = html
+        .select(&selector)
+        .next_back()
+        .map(|element| {
+            let episode = match webtoon.language {
+                Language::En => en::episode(&element, webtoon)?,
+                Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
+                Language::Th => todo!(), // th::episode(&element, webtoon)?,
+                Language::Id => todo!(), // id::episode(&element, webtoon)?,
+                Language::Es => todo!(), // es::episode(&element, webtoon)?,
+                Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
+                Language::De => todo!(), // de::episode(&element, webtoon)?,
+            };
 
-    for element in html.select(&selector) {
-        let episode = match webtoon.language {
-            Language::En => en::episode(&element, webtoon)?,
-            Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
-            Language::Th => todo!(), // th::episode(&element, webtoon)?,
-            Language::Id => todo!(), // id::episode(&element, webtoon)?,
-            Language::Es => todo!(), // es::episode(&element, webtoon)?,
-            Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
-            Language::De => todo!(), // de::episode(&element, webtoon)?,
-        };
-
-        first = Some(episode);
-    }
+            Ok::<Episode, Assumption>(episode)
+        })
+        .transpose()?;
 
     match first {
         Some(first) => Ok(first),
