@@ -31,7 +31,7 @@ regex = "1" # Used for getting the URL from the CSS of the thumbnail and the sea
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4",default-features = false, features = ["std", "serde"] }
-scraper = "0.24"
+scraper = "0.25"
 html-escape = "0.2"
 parking_lot = "0.12"
 fastrand = "2"
