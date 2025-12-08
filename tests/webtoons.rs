@@ -5,7 +5,6 @@ use webtoon::platform::webtoons::{
     originals::{Schedule, Weekday},
     webtoon::post::Posts,
 };
-// TODO: add coverage for original and canvas genres to make sure there is full coverage.
 
 #[tokio::test]
 async fn user_info_should_deserialize_even_with_invalid_session() {
