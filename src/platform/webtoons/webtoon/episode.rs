@@ -1238,7 +1238,7 @@ impl Episode {
     // TODO: If this is an alternate reader, this can fail. Should return `Option`.
     /// Will download the panels of the episode.
     ///
-    /// This returns a [`Panels`], which offers ways to save to disk.
+    /// This returns a [`DownloadedPanels`], which offers ways to save to disk.
     ///
     /// # Example
     ///
@@ -1262,7 +1262,7 @@ impl Episode {
     /// # }
     /// ```
     #[cfg(feature = "download")]
-    pub async fn download(&self) -> Result<Panels, EpisodeError> {
+    pub async fn download(&self) -> Result<DownloadedPanels, EpisodeError> {
         use tokio::sync::Semaphore;
 
         let mut panels = self.panels().await?;
@@ -1291,7 +1291,7 @@ impl Episode {
             width = width.max(panel.width);
         }
 
-        Ok(Panels {
+        Ok(DownloadedPanels {
             images: panels,
             height,
             width,
@@ -1857,16 +1857,15 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 /// ```
 #[cfg(feature = "download")]
 #[derive(Debug, Clone)]
-// TODO: rename to `DownloadedPanels` as this is the only function it serves.
-pub struct Panels {
+pub struct DownloadedPanels {
     images: Vec<Panel>,
     height: u32,
     width: u32,
 }
 
 #[cfg(feature = "download")]
-impl Panels {
-    /// Returns how many `Panels` are on the episode.
+impl DownloadedPanels {
+    /// Returns how many panels are on the episode.
     ///
     /// # Example
     ///
@@ -1906,7 +1905,7 @@ use tokio::io::AsyncWriteExt;
 // TODO: technically this should not have `DownloadError` as panels are already
 // downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
-impl Panels {
+impl DownloadedPanels {
     /// Saves all the panels of an episode as a single long image file in PNG format.
     ///
     /// # Behavior
