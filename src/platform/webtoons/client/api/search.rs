@@ -1,21 +1,22 @@
 //! Module for webtoons.com search API.
+#![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct RawSearch {
     pub result: SearchResult,
     pub status: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub challenge_title_list: Option<Canvas>,
     pub webtoon_title_list: Option<Originals>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Originals {
     pub data: Vec<Data>,
@@ -23,7 +24,7 @@ pub struct Originals {
     pub total_count: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Canvas {
     pub data: Vec<Data>,
@@ -31,10 +32,11 @@ pub struct Canvas {
     pub total_count: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Data {
-    pub content_id: String,
+    #[serde(deserialize_with = "crate::stdx::serde::u32_from_string")]
+    pub content_id: u32,
     pub content_sub_type: String,
     pub extra: Extra,
     pub name: String,
@@ -42,28 +44,28 @@ pub struct Data {
     pub thumbnail: Thumbnail,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct Illustrator {
     pub nickname: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct Writer {
     pub nickname: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct Thumbnail {
     pub domain: String,
     pub path: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct Pagination {
     pub next: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Extra {
     pub illustrator: Illustrator,

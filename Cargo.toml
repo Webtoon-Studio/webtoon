@@ -12,61 +12,53 @@ description = "Client for interacting with various webtoon websites."
 keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 
 [package.metadata.playground]
-features = ["rss"]
+features = ["rss", "naver"]
 
 [package.metadata.docs.rs]
-features = ["rss"]
 all-features = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Currently using `Mutex`, `sleep`, and `Semaphore`.
-# When `feature = "download"` in enabled, it also uses `fs`.
-tokio = { version = "1", features = ["sync", "time"] }
+# Currently using `sleep`.
+# When `feature = "download"` in enabled, it also uses `fs` and `sync`(Semaphore).
+tokio = { version = "1", features = ["time"] }
 futures = "0.3"
-
 url = "2"
-# Used when the session needs to be sent in a URL
-urlencoding = "2"
+urlencoding = "2" # Used when the session needs to be sent in a URL
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "json", "rustls-tls"]}
-
-# Used for getting the URL from the CSS of the thumbnail and the season numbers from the title
-regex = "1"
-
+regex = "1" # Used for getting the URL from the CSS of the thumbnail and the season numbers from the title
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-chrono = { version = "0.4",default-features = false, features = ["clock", "oldtime", "std", "serde"] }
-
+chrono = { version = "0.4",default-features = false, features = ["std", "serde"] }
 scraper = "0.24"
 html-escape = "0.2"
-
 parking_lot = "0.12"
-
 fastrand = "2"
-
 anyhow = "1"
 thiserror = "2"
+error_set = "0.9.0"
 
 # feature = `download`
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"], optional = true}
-
-# `feature = "rss"` and `feature = "naver"`
-rss = { version = "2", optional = true }
+# `feature = "rss"`
+rss = { version = "2", optional = true, default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1"
 tokio = { version = "1", features = ["full"] }
+chrono = "0.4"
 
 [features]
 default = []
 rss = ["dep:rss"]
-download = ["dep:image", "tokio/fs"]
+# `tokio/sync` is currently needed for `Semaphore`.
+download = ["dep:image", "tokio/sync", "tokio/fs"]
 # `image` is needed as currently the only way to get the size of the episodes is
 # to download the panels and then convert them to an image and use the metadata
 # to get the sizes.
-naver = ["dep:image"]
+# `tokio/sync` is currently needed for `Semaphore`.
+naver = ["dep:image", "tokio/sync"]
 
 # `webtoons.com`
 [[example]]
@@ -137,3 +129,90 @@ required-features = ["naver", "download"]
 name = "naver-creator"
 path = "examples/naver/creator.rs"
 required-features = ["naver"]
+
+[profile.test]
+inherits = "dev"
+# `image` can be extremely slow.
+opt-level = 3
+
+[workspace.lints.rust]
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+macro_use_extern_crate = "warn"
+missing_abi = "warn"
+missing_docs = "warn"
+noop_method_call = "warn"
+single_use_lifetimes = "warn"
+unit_bindings = "warn"
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+allow_attributes = "warn"
+as_conversions = "warn"
+as_pointer_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+dbg_macro = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+format_push_string = "warn"
+get_unwrap = "warn"
+if_then_some_else_none = "warn"
+impl_trait_in_params = "warn"
+infinite_loop = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+mem_forget = "warn"
+missing_assert_message = "warn"
+missing_docs_in_private_items = "warn"
+mod_module_files = "warn"
+multiple_inherent_impl = "warn"
+mutex_atomic = "warn"
+negative_feature_names = "warn"
+non_zero_suggestions = "warn"
+pathbuf_init_then_push = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_feature_names = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+string_to_string = "warn"
+suspicious_xor_used_as_pow = "warn"
+tests_outside_test_module = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+wildcard_dependencies = "warn"

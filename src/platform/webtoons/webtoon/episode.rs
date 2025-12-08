@@ -1,29 +1,24 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
-use anyhow::{Context, anyhow};
+use super::{
+    Webtoon,
+    post::{PinRepresentation, Posts},
+};
+use crate::platform::webtoons::{
+    dashboard::episodes::DashboardStatus,
+    error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
+    webtoon::post::{Post, id::Id},
+};
+use crate::stdx::cache::{Cache, Store};
+use crate::stdx::error::{Assume, Assumption, assumption};
 use chrono::{DateTime, Utc};
-use parking_lot::RwLock;
 use regex::Regex;
-use scraper::{Html, Selector};
-use serde_json::json;
+use scraper::{ElementRef, Html, Selector};
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::str::FromStr;
-use std::sync::Arc;
 use url::Url;
 
-use super::post::{PinRepresentation, Posts};
-
-use super::Webtoon;
-use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
-use crate::platform::webtoons::webtoon::post::Post;
-use crate::platform::webtoons::webtoon::post::id::Id;
-use crate::platform::webtoons::{
-    client::Client,
-    errors::{ClientError, EpisodeError, PostError},
-    meta::Scope,
-};
-
+// TODO: Remove and just use `Vec<Episode>`. Doing sop means some rework about how episodes are retrieved.
 /// Represents a collection of episodes.
 ///
 /// This type is not constructed directly, but via [`Webtoon::episodes()`].
@@ -31,7 +26,7 @@ use crate::platform::webtoons::{
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+/// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -62,7 +57,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -77,6 +72,8 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn count(&self) -> u16 {
         self.count
     }
@@ -85,7 +82,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, errors::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -100,9 +97,12 @@ impl Episodes {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn episode(&self, episode: u16) -> Option<&Episode> {
-        // PERF: If in the process of making the Vec we can insert into the index that the number is, then we can use
-        // `get(episode)` instead. As of now, the episodes can be in any order, so we have to search through and find
+        // PERF: If in the process of making the Vec we can insert into the index
+        // that the number is, then we can use `get(episode)` instead. As of now,
+        // the episodes can be in any order, so we have to search through and find
         // the wanted one
 
         self.episodes
@@ -111,12 +111,15 @@ impl Episodes {
     }
 }
 
-impl From<Vec<Episode>> for Episodes {
-    fn from(value: Vec<Episode>) -> Self {
-        Self {
-            count: u16::try_from(value.len()).expect("max episode number should fit within `u16`"),
+impl TryFrom<Vec<Episode>> for Episodes {
+    type Error = Assumption;
+
+    fn try_from(value: Vec<Episode>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            count: u16::try_from(value.len())
+                .assumption("largest episode number on `webtoons.com` should fit within `u16`")?,
             episodes: value,
-        }
+        })
     }
 }
 
@@ -141,7 +144,7 @@ impl IntoIterator for Episodes {
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+/// # use webtoon::platform::webtoons::{error::Error, Client, Type};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -162,36 +165,48 @@ impl IntoIterator for Episodes {
 pub struct Episode {
     pub(crate) webtoon: Webtoon,
     pub(crate) number: u16,
-    pub(crate) season: Arc<RwLock<Option<u8>>>,
-    pub(crate) title: Arc<RwLock<Option<String>>>,
+    // TODO: Need to store? Should be pretty cheap to compute on the fly as title is most likely cached.
+    pub(crate) season: Cache<Option<u8>>,
+    pub(crate) title: Cache<String>,
     pub(crate) published: Option<DateTime<Utc>>,
-    // NOTE: The wrapper Option is to indicate if it has been scraped before, and if so, the inner Option is the actual
-    // value.
-    pub(crate) length: Arc<RwLock<Option<Option<u32>>>>,
+    pub(crate) length: Cache<Option<u32>>,
     pub(crate) views: Option<u32>,
-    pub(crate) thumbnail: Arc<RwLock<Option<Url>>>,
-    pub(crate) note: Arc<RwLock<Option<Option<String>>>>,
+    pub(crate) thumbnail: Cache<Url>,
+    pub(crate) note: Cache<Option<String>>,
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
-    pub(crate) panels: Arc<RwLock<Option<Vec<Panel>>>>,
+    pub(crate) panels: Cache<Vec<Panel>>,
 }
 
-#[expect(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for Episode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            webtoon: _,
+            number,
+            season,
+            title,
+            published,
+            length,
+            views,
+            thumbnail,
+            note,
+            ad_status,
+            published_status,
+            panels,
+        } = self;
+
         f.debug_struct("Episode")
-            // omitting `webtoon`
-            .field("number", &self.number)
-            .field("season", &self.season)
-            .field("title", &self.title)
-            .field("published", &self.published)
-            .field("length", &self.length)
-            .field("views", &self.views)
-            .field("thumbnail", &self.thumbnail)
-            .field("note", &self.note)
-            .field("ad_status", &self.ad_status)
-            .field("published_status", &self.published_status)
-            .field("panels", &self.panels)
+            .field("number", number)
+            .field("season", season)
+            .field("title", title)
+            .field("published", published)
+            .field("length", length)
+            .field("views", views)
+            .field("thumbnail", thumbnail)
+            .field("note", note)
+            .field("ad_status", ad_status)
+            .field("published_status", published_status)
+            .field("panels", panels)
             .finish()
     }
 }
@@ -207,7 +222,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -227,16 +242,21 @@ impl Episode {
     ///
     /// [`episode_no=25`]: https://www.webtoons.com/en/fantasy/the-roguish-guard-in-a-medieval-fantasy/episode-25/viewer?title_no=7370&episode_no=25
     #[inline]
+    #[must_use]
     pub fn number(&self) -> u16 {
         self.number
     }
 
     /// Returns the title of the episode.
     ///
+    /// If the episode was gotten via [`Webtoon::episode()`](crate::platform::webtoons::webtoon::Webtoon::episode), this can
+    /// potentially return a `EpisodeError::NotViewable`, as it could reference a hidden or deleted episode who's title is
+    /// impossible to get.
+    ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -254,19 +274,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn title(&self) -> Result<String, EpisodeError> {
-        if let Some(title) = &*self.title.read() {
-            Ok(title.clone())
+        if let Store::Value(title) = self.title.get() {
+            Ok(title)
         } else {
             self.scrape().await?;
 
-            let title = self
-                .title
-                .read()
-                .as_deref()
-                .map(|title| title.to_string())
-                .context("title should have been scraped with the page scrape")?;
-
-            Ok(title)
+            match self.title.get() {
+                Store::Value(title) => Ok(title),
+                Store::Empty => assumption!(
+                    "`webtoons.com` episode `title` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -285,7 +303,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -304,8 +322,10 @@ impl Episode {
     /// ```
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
-        let season = self::season(&title);
-        *self.season.write() = season;
+
+        let season = self::season(&title)?;
+        self.season.insert(season);
+
         Ok(season)
     }
 
@@ -316,7 +336,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -336,26 +356,35 @@ impl Episode {
     /// # }
     /// ```
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
-        if let Some(note) = &*self.note.read() {
-            Ok(note.clone())
+        if let Store::Value(note) = self.note.get() {
+            Ok(note)
         } else {
             self.scrape().await?;
-            match self.note.read().as_ref() {
-                Some(Some(note)) => Ok(Some(note.clone())),
-                None | Some(None) => Ok(None),
+
+            match self.note.get() {
+                Store::Value(note) => Ok(note),
+                Store::Empty => assumption!(
+                    "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
             }
         }
     }
 
+    // TODO: Need to see if `NotViewable` will be returned from `length`. If so,
+    // need to remove the document stating that None will be returned any situation
+    // that isn't the alternate reader.
+    //
+    // Might even be worth to remove the Option and just return an error on the alternate reader.
+    //
     /// Returns the sum of the vertical length in pixels.
     ///
     /// If the page cannot be viewed publicly, for example its behind fast-pass, it will return `None`. It can also be
-    /// `None` for some episodes that have audio or GIFs.
+    /// `None` for some episodes that have audio or GIFs, as this viewer is unsupported.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -373,21 +402,21 @@ impl Episode {
     /// # }
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
-        // TODO: This can be None even when it has scraped before. Might need to make Option<Option<>>?
-        if let Some(length) = *self.length.read() {
+        if let Store::Value(length) = self.length.get() {
             Ok(length)
         } else {
             self.scrape().await?;
 
-            let length = self
-                .length
-                .read()
-                .context("length should have been scraped with the page scrape")?;
-
-            Ok(length)
+            match self.length.get() {
+                Store::Value(length) => Ok(length),
+                Store::Empty => assumption!(
+                    "`webtoons.com` episode `length` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
+    // TODO: Rework with new `Published` type, and then return `Option<Published>`.
     /// Returns the published timestamp of the episode.
     ///
     /// It returns as `Some` if the episode is publicly available or has a set publish date. Otherwise, it returns `None` if the episode is unpublished.
@@ -396,7 +425,7 @@ impl Episode {
     ///
     /// - **Original vs Canvas Episodes**:
     ///   - **Original Webtoons**: For episodes from an Original series, this method will always return `Some` for free episodes, since Originals follow a standard publishing schedule.
-    ///   - **Canvas Webtoons (No Session)**: For Canvas episodes, if no session is provided to the [`Client`], it will also return `Some` for the publicly available episodes.
+    ///   - **Canvas Webtoons (No Session)**: For Canvas episodes, if no session is provided to the [`Client`](crate::platform::webtoons::client::Client), it will also return `Some` for the publicly available episodes.
     ///   - **Canvas Webtoons (With Session)**: If a valid creator session is provided for a Canvas webtoon, it may return `None` if the episode is unpublished (i.e., still in draft form).
     ///
     /// - **Important Caveat**:
@@ -406,7 +435,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -425,6 +454,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn published(&self) -> Option<i64> {
         self.published.map(|datetime| datetime.timestamp_millis())
     }
@@ -446,7 +477,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
@@ -465,6 +496,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn views(&self) -> Option<u32> {
         self.views
     }
@@ -474,7 +507,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -491,17 +524,23 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, EpisodeError> {
-        let response = self.webtoon.client.get_likes_for_episode(self).await?;
+    pub async fn likes(&self) -> Result<u32, LikesError> {
+        let response = self.webtoon.client.episodes_likes(self).await?;
 
-        let contents = response.result.contents.first().context(
-            "`contents` field in likes api didn't have a 0th element and it should always have one",
-        )?;
+        let contents = response
+            .result
+            .contents
+            .first()
+            .assumption("`contents` field in `webtoons.com` likes api response was empty")?;
 
         let likes = contents
             .reactions
             .first()
             .map(|likes| likes.count)
+            // NOTE: A like count starts at zero. Given that an `Episode` must
+            // be gotten, we know the episode is a valid episode, and thus if
+            // the reactions count is empty, we can safely assume that the there
+            // is no likes yet, and thus should just default to `0`.
             .unwrap_or_default();
 
         Ok(likes)
@@ -514,7 +553,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -532,11 +571,11 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostError> {
+    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostsError> {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::None)
+            .episode_posts(self, None, 1, PinRepresentation::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -545,16 +584,19 @@ impl Episode {
         Ok((comments, replies))
     }
 
-    /// Retrieves the direct (top-level) comments for the episode, sorted from newest to oldest.
+    /// Retrieves the direct (top-level) comments for the episode, sorted from newest-to-oldest.
     ///
     /// There are no duplicate comments, and only direct replies (top-level) are fetched, not the nested replies.
     ///
-    /// Direct replies that have been deleted (but have replies) will still be included with a message indicating the deletion. Comments deleted without replies will not be included.
+    /// Direct replies that have been deleted (but have replies) will still be included. Comments deleted without replies will not be included.
+    ///
+    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
+    /// for the poster, which can be used for determining if, for example, a post was left by session user.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -573,8 +615,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Posts, PostError> {
-        #[allow(
+    pub async fn posts(&self) -> Result<Posts, PostsError> {
+        #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
         )]
@@ -583,7 +625,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -598,7 +640,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -608,28 +650,35 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        // Get is_top/isPinned info.
+        // Get `is_top`/`isPinned` info.
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
+            .episode_posts(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
             posts.replace(Post::try_from((self, post))?);
         }
 
-        let posts: Vec<Post> = posts.into_iter().collect();
-        let mut posts = Posts { posts };
-
-        posts.sort_by_newest();
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
+        };
 
         Ok(posts)
     }
 
-    /// Iterates over all direct (top-level) comments for the episode and applies a callback function to each post.
+    /// Iterates through all direct (top-level) comments for the episode and applies a callback function to each post.
     ///
     /// This method is useful in scenarios where memory constraints are an issue, as it avoids loading all posts into memory at once. Instead, each post is processed immediately as it is retrieved, making it more memory-efficient than [`posts()`](Episode::posts()).
+    ///
+    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
+    /// for the poster, which can be used for determining if, for example, a post was left by session user.
     ///
     /// # Limitations
     ///
@@ -645,7 +694,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -664,11 +713,11 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostError> {
+    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostsError> {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -683,7 +732,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -704,7 +753,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 1, PinRepresentation::Distinct)
+            .episode_posts(self, None, 1, PinRepresentation::Distinct)
             .await?;
 
         for post in response.result.tops {
@@ -714,6 +763,7 @@ impl Episode {
         Ok(())
     }
 
+    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
     /// Retrieves the direct (top-level) comments for the episode until the specified post `id` is encountered.
     ///
     /// This method can be used for fetching the most recent posts for an episode, with the assumption that the post
@@ -730,7 +780,8 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type, webtoon::post::id::Id};
+    /// # use std::str::FromStr;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -740,7 +791,7 @@ impl Episode {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     for post in episode.posts_till_id("GW-epicom:0-c_843910_1-g").await? {
+    ///     for post in episode.posts_till_id(Id::from_str("GW-epicom:0-c_843910_1-g")?).await? {
     ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
     ///     }
     ///     # return Ok(());
@@ -749,9 +800,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_id(&self, id: &str) -> Result<Posts, PostError> {
-        let id = Id::from_str(id).map_err(|err| PostError::Unexpected(err.into()))?;
-
+    pub async fn posts_till_id(&self, id: Id) -> Result<Posts, PostsError> {
         #[allow(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
@@ -761,7 +810,7 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
@@ -782,7 +831,7 @@ impl Episode {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -798,15 +847,19 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let mut posts = Posts {
-            posts: posts.into_iter().collect(),
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
         };
-
-        posts.sort_by_newest();
 
         Ok(posts)
     }
 
+    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
     /// Retrieves the direct (top-level) comments for the episode until posts older than the specified `date` are encountered.
     ///
     /// This method can be used as an optimization to get only the most recent posts from a given date onward.
@@ -820,7 +873,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -840,8 +893,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_date(&self, date: i64) -> Result<Posts, PostError> {
-        #[allow(
+    pub async fn posts_till_date(&self, date: i64) -> Result<Posts, PostsError> {
+        #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
         )]
@@ -850,12 +903,12 @@ impl Episode {
         let response = self
             .webtoon
             .client
-            .get_posts_for_episode(self, None, 100, PinRepresentation::None)
+            .episode_posts(self, None, 100, PinRepresentation::None)
             .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
 
-        // Add first posts
+        // Add first posts.
         for post in response.result.posts {
             if post.created_at < date {
                 return Ok(Posts {
@@ -866,12 +919,12 @@ impl Episode {
             posts.insert(Post::try_from((self, post))?);
         }
 
-        // Get rest if any
+        // Get rest if any.
         while let Some(cursor) = next {
             let response = self
                 .webtoon
                 .client
-                .get_posts_for_episode(self, Some(cursor), 100, PinRepresentation::None)
+                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
                 .await?;
 
             for post in response.result.posts {
@@ -887,11 +940,14 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let mut posts = Posts {
-            posts: posts.into_iter().collect(),
+        let posts = {
+            let mut posts = Posts {
+                posts: posts.into_iter().collect(),
+            };
+            // TODO: Make sort order a stability guarantee?
+            posts.sort_by_newest();
+            posts
         };
-
-        posts.sort_by_newest();
 
         Ok(posts)
     }
@@ -901,7 +957,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -921,19 +977,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn panels(&self) -> Result<Vec<Panel>, EpisodeError> {
-        if let Some(panels) = &*self.panels.read() {
-            Ok(panels.to_owned())
+        if let Store::Value(panels) = self.panels.get() {
+            Ok(panels)
         } else {
             self.scrape().await?;
 
-            let panels = self
-                .panels
-                .read()
-                .as_ref()
-                .context("panels should have been scraped with the page scrape")?
-                .to_owned();
-
-            Ok(panels)
+            match self.panels.get() {
+                Store::Value(panels) => Ok(panels),
+                Store::Empty => assumption!(
+                    "`webtoons.com` episode `panels` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -942,7 +996,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -960,19 +1014,17 @@ impl Episode {
     /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
-        if let Some(thumbnail) = &*self.thumbnail.read() {
+        if let Store::Value(thumbnail) = self.thumbnail.get() {
             Ok(thumbnail.to_string())
         } else {
             self.scrape().await?;
 
-            let thumbnail = self
-                .thumbnail
-                .read()
-                .as_ref()
-                .context("thumbnail should have been scraped with the page scrape")?
-                .to_string();
-
-            Ok(thumbnail)
+            match self.thumbnail.get() {
+                Store::Value(thumbnail) => Ok(thumbnail.to_string()),
+                Store::Empty => assumption!(
+                    "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                ),
+            }
         }
     }
 
@@ -990,7 +1042,7 @@ impl Episode {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, webtoon::episode::PublishedStatus, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, webtoon::episode::PublishedStatus, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1014,6 +1066,8 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn published_status(&self) -> Option<PublishedStatus> {
         self.published_status
     }
@@ -1021,7 +1075,7 @@ impl Episode {
     /// Returns the episode's current ad status.
     ///
     /// This information is only available if a session is provided, and the Webtoon in question was created by the user of the session.
-    /// In any other scenario, this method returns `None`. To retrieve this data, the `episodes` function must be used when getting episode data.
+    /// In any other scenario, this method returns `None`. To retrieve this data, [`Webtoon::episodes()`] must be used when getting episode data.
     ///
     /// The possible states are:
     /// - [`Yes`](variant@AdStatus::Yes) - The episode is currently behind an ad.
@@ -1040,7 +1094,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, webtoon::episode::AdStatus, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, webtoon::episode::AdStatus, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1064,24 +1118,23 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn ad_status(&self) -> Option<AdStatus> {
         self.ad_status
     }
 
     /// Likes the episode on behalf of the user associated with the current session.
     ///
-    /// Allows the user (via their session) to like a specific episode. If no session is present, or is invalid, will return an [`EpisodeError`].
-    ///
     /// If episode is already liked, it will do nothing.
     ///
     /// # Behavior:
     /// - **Session Required**: The method will attempt to like the episode on behalf of the user tied to the current session.
-    /// - **Webtoon Ownership**: If the episode belongs to the current user’s own Webtoon, it will still process the request without issue.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error, SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1093,8 +1146,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.like().await {
     ///         Ok(_) => println!("Liked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(EpisodeError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1103,25 +1156,22 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn like(&self) -> Result<(), EpisodeError> {
+    pub async fn like(&self) -> Result<(), SessionError> {
         self.webtoon.client.like_episode(self).await?;
         Ok(())
     }
 
     /// Unlikes the episode on behalf of the user associated with the current session.
     ///
-    /// Allows the user (via their session) to unlike a specific episode. If no session is present, or is invalid, will return an [`EpisodeError`].
-    ///
     /// If episode is already not liked, it will do nothing.
     ///
     /// # Behavior:
     /// - **Session Required**: The method will attempt to unlike the episode on behalf of the user tied to the current session.
-    /// - **Webtoon Ownership**: If the episode belongs to the current user’s own Webtoon, it will still process the request without issue.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, EpisodeError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error, EpisodeError, SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1133,8 +1183,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.unlike().await {
     ///         Ok(_) => println!("Uniked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(EpisodeError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(EpisodeError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1143,7 +1193,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn unlike(&self) -> Result<(), EpisodeError> {
+    pub async fn unlike(&self) -> Result<(), SessionError> {
         self.webtoon.client.unlike_episode(self).await?;
         Ok(())
     }
@@ -1155,7 +1205,7 @@ impl Episode {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::{Error, PostError, ClientError}, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::{Error,SessionError}, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
@@ -1167,8 +1217,8 @@ impl Episode {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     match episode.post("Loved this episode!", false).await {
     ///         Ok(_) => println!("Left comment on episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(PostError::ClientError(ClientError::NoSessionProvided)) => println!("Provide a session!"),
-    ///         Err(PostError::ClientError(ClientError::InvalidSession)) => println!("Session given was invalid!"),
+    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
+    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
     ///         Err(err) => println!("Error: {err}"),
     ///     }
     ///     # return Ok(());
@@ -1177,63 +1227,23 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), PostError> {
-        let page_id = format!(
-            "{}_{}_{}",
-            match self.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            self.webtoon.id,
-            self.number
-        );
-
-        let spoiler_filter = if is_spoiler { "ON" } else { "OFF" };
-
-        let body = json!(
-            {
-                "pageId": page_id,
-                "settings":{
-                    "reply": "ON",
-                    "reaction": "ON",
-                    "spoilerFilter": spoiler_filter
-                },
-                "body": body
-            }
-        );
-
-        let token = self.webtoon.client.get_api_token().await?;
-
-        let session = self
-            .webtoon
-            .client
-            .session
-            .as_ref()
-            .map(|session| session.as_ref())
-            .unwrap_or_default();
-
+    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), SessionError> {
         self.webtoon
             .client
-            .http
-            .post("https://www.webtoons.com/p/api/community/v2/post")
-            .json(&body)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Api-Token", token)
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
+            .post_comment(self, body, is_spoiler)
             .await?;
-
         Ok(())
     }
 
-    /// Will download the panels of episode.
+    // TODO: If this is an alternate reader, this can fail. Should return `Option`.
+    /// Will download the panels of the episode.
     ///
     /// This returns a [`Panels`], which offers ways to save to disk.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1251,21 +1261,13 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "download")]
     pub async fn download(&self) -> Result<Panels, EpisodeError> {
         use tokio::sync::Semaphore;
 
-        let mut panels = if let Some(panels) = &*self.panels.read() {
-            panels.to_owned()
-        } else {
-            self.scrape().await?;
+        let mut panels = self.panels().await?;
 
-            self.panels
-                .read()
-                .as_ref()
-                .context("panels should have been scraped with the page scrape")?
-                .to_owned()
-        };
-
+        // TODO: Can get rid of this? Think this is the only `sync` dep from tokio being used.
         // PERF: Download N panels at a time. Without this it will be a sequential.
         let semaphore = Semaphore::new(100);
 
@@ -1276,13 +1278,16 @@ impl Episode {
             let semaphore = semaphore
                 .acquire()
                 .await
-                .context("failed to acquire sepmahore when downloading panels")?;
+                .assumption("failed to acquire `Episode::download` sepmahore")?;
 
             panel.download(&self.webtoon.client).await?;
 
             drop(semaphore);
 
             height += panel.height;
+            // NOTE: Not all panels are guaranteed to be the same width. When it
+            // comes to making building up a single image later on, this is needed
+            // to get the max width of all panels and then just fit to that.
             width = width.max(panel.width);
         }
 
@@ -1294,113 +1299,111 @@ impl Episode {
     }
 }
 
-// Internal use only
 impl Episode {
     pub(crate) fn new(webtoon: &Webtoon, number: u16) -> Self {
         Self {
             webtoon: webtoon.clone(),
             number,
-            season: Arc::new(RwLock::new(None)),
-            title: Arc::new(RwLock::new(None)),
-            // NOTE: Currently there is no way to get this info from an episodes page.
-            // The only sources are the dashboard episode list data, and the episode list from the webtoons page.
-            // This could be gotten, in theory, with the webtoons page episode data, but caching the episodes
-            // would lead to a large refactor and be slow for when only getting one episodes data.
-            // For now will just return None until a solution can be landed on.
+
+            season: Cache::empty(),
+            title: Cache::empty(),
+            // NOTE:
+            // Currently there is no way to get this info from an episodes page.
+            //
+            // The only sources are the dashboard episode list data, and the
+            // episode list from the webtoons page. This could be gotten, in
+            // theory, with the webtoons page episode data, but caching the
+            // episodes would lead to a large refactor and be slow for when only
+            // getting one episodes' data. For now, will just return None until
+            // a better solution can be landed on.
             published: None,
-            length: Arc::new(RwLock::new(None)),
-            thumbnail: Arc::new(RwLock::new(None)),
-            note: Arc::new(RwLock::new(None)),
-            panels: Arc::new(RwLock::new(None)),
+            length: Cache::empty(),
+            thumbnail: Cache::empty(),
+            note: Cache::empty(),
+            panels: Cache::empty(),
             views: None,
             ad_status: None,
             published_status: None,
         }
     }
 
-    /// Scrapes episode page, getting `note`, `length`, `title`, `thumbnail` and the urls for the panels.
     async fn scrape(&self) -> Result<(), EpisodeError> {
         let html = self
             .webtoon
             .client
-            .get_episode(&self.webtoon, self.number)
+            .episode(&self.webtoon, self.number)
             .await?;
 
-        let title = title(&html).context("Episode title failed to be parsed")?;
-        *self.title.write() = Some(title);
-
-        let thumbnail = thumbnail(&html, self.number) //
-            .context("Episode thumbnail failed to be parsed")?;
-        *self.thumbnail.write() = Some(thumbnail);
-
-        let length = length(&html) //
-            .context("Episode length failed to be parsed")?;
-        *self.length.write() = Some(length);
-
-        let note = note(&html) //
-            .context("Episode note failed to be parsed")?;
-        *self.note.write() = Some(note);
-
-        let panels =
-            panels(&html, self.number).context("Episode panel urls failed to be parsed")?;
-        *self.panels.write() = Some(panels);
+        self.title.insert(title(&html)?);
+        self.thumbnail.insert(thumbnail(&html, self.number)?);
+        self.length.insert(length(&html)?);
+        self.note.insert(note(&html)?);
+        self.panels.insert(panels(&html, self.number)?);
 
         Ok(())
     }
 
-    /// Returns `true` id episode exists, `false` if not. Returns `PostError` if there was an error.
-    pub(super) async fn exists(&self) -> Result<bool, ClientError> {
+    pub(super) async fn exists(&self) -> Result<bool, RequestError> {
         self.webtoon.client.check_if_episode_exists(self).await
     }
 }
 
-pub(crate) fn season(title: &str) -> Option<u8> {
+pub(crate) fn season(title: &str) -> Result<Option<u8>, Assumption> {
     // [Season 3]
-    let square_brackets_long =
-        Regex::new(r"\[Season (?P<season>\d+)\]").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\[Season (?P<season>\d+)\]")
+            .assumption("`[Season N]` regex should be valid")?;
 
-    if let Some(capture) = square_brackets_long.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // [S3]
-    let square_brackets_short = Regex::new(r"\[S(?P<season>\d+)\]").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\[S(?P<season>\d+)\]").assumption("`[SN]` regex should be valid")?;
 
-    if let Some(capture) = square_brackets_short.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // (S3)
-    let parens_short = Regex::new(r"\(S(?P<season>\d+)\)").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\(S(?P<season>\d+)\)").assumption("(SN) regex should be valid")?;
 
-    if let Some(capture) = parens_short.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
     // (Season 3)
-    let parens_long = Regex::new(r"\(Season (?P<season>\d+)\)").expect("regex should be valid");
+    {
+        let reg = Regex::new(r"\(Season (?P<season>\d+)\)")
+            .assumption("`(Season N)` regex should be valid")?;
 
-    if let Some(capture) = parens_long.captures(title.as_ref()) {
-        let season = capture["season"]
-            .parse::<u8>()
-            .expect(r"regex match on `\d+` so should be parsable as an int");
+        if let Some(capture) = reg.captures(title.as_ref()) {
+            let season = capture["season"]
+                .parse::<u8>()
+                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
 
-        return Some(season);
+            return Ok(Some(season));
+        }
     }
 
-    None
+    Ok(None)
 }
 
 impl Hash for Episode {
@@ -1471,122 +1474,246 @@ impl From<DashboardStatus> for PublishedStatus {
     }
 }
 
-fn title(html: &Html) -> Result<String, EpisodeError> {
+fn title(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse("div.subj_info>.subj_episode") //
-        .expect("`div.subj_info>.subj_episode` should be a valid selector");
+        .assumption("`div.subj_info>.subj_episode` should be a valid selector")?;
 
     let title = html
-            .select(&selector)
-            .next()
-            .context("`.subj_episode` is missing: episode page should always contain a title for the episode")?
-            .text()
-            .next()
-            .context("`.subj_episode` was found but no text was present")?;
+        .select(&selector)
+        .next()
+        .assumption("`.subj_episode`(title) is missing on `webtoons.com` episode page")?
+        .text()
+        .next()
+        .assumption("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
+
+    assumption!(
+        !title.is_empty(),
+        "`webtoons.com` episode title on episode page should never be empty"
+    );
 
     Ok(html_escape::decode_html_entities(title).to_string())
 }
 
-fn length(html: &Html) -> Result<Option<u32>, EpisodeError> {
-    if is_audio_reader(html) {
+fn length(html: &Html) -> Result<Option<u32>, Assumption> {
+    // NOTE:
+    // Most panel pixels end in a `.0`, but this is not guaranteed. The values
+    // also have the potential to be a whole number, with no `.`. This is true
+    // for both height and width.
+
+    if is_audio_reader(html)? {
         return Ok(None);
     }
 
     let selector = Selector::parse(r"img._images") //
-        .expect("`img._images` should be a valid selector");
+        .assumption("`img._images` should be a valid selector")?;
 
     let mut length = 0;
 
     for img in html.select(&selector) {
-        length += img
-            .value()
-            .attr("height")
-            .context("`height` is missing, `img._images` should always have one")?
-            .split('.')
-            .next()
-            .context("`height` attribute should be a float")?
-            .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
-    }
-
-    if length == 0 {
-        return Err(EpisodeError::NoPanelsFound);
+        length += height(img)?;
     }
 
     Ok(Some(length))
 }
 
-fn note(html: &Html) -> Result<Option<String>, EpisodeError> {
+fn note(html: &Html) -> Result<Option<String>, Assumption> {
     let selector = Selector::parse(r".creator_note>.author_text") //
-        .expect("`.creator_note>.author_text` should be a valid selector");
+        .assumption("`.creator_note>.author_text` should be a valid selector")?;
 
     let Some(selection) = html.select(&selector).next() else {
         return Ok(None);
     };
 
-    let note = selection
-        .text()
-        .next()
-        .context("`.author_text` was found but no text was present")?
-        .to_owned();
+    let note = selection.text().next().assumption(
+        "`.author_text` on `webtoons.com` episode page was found, but no text was present",
+    )?;
 
-    Ok(Some(note))
+    assumption!(
+        !note.is_empty(),
+        "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
+    );
+
+    Ok(Some(note.to_string()))
 }
 
-fn thumbnail(html: &Html, episode: u16) -> Result<Url, EpisodeError> {
+fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
     let selector =
         Selector::parse(r"div.episode_lst>div.episode_cont>ul>li") //
-            .expect(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector");
+            .assumption(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
 
     for li in html.select(&selector) {
-        let data_episode_no = li
+        let data_episode_no = match li
             .attr("data-episode-no")
-            .context("`data-episode-no` is missing, `li` should always have one")?
+            .assumption("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
             .parse::<u16>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
+            {
+                Ok(data_episode_no) => data_episode_no,
+                Err(err) => assumption!("`data-episode-no` should always be able to parse into a `u16`: {err}"),
+            };
 
         if data_episode_no != episode {
             continue;
         }
 
-        let img_selection = Selector::parse("a>span.thmb>img._thumbnailImages")
-            .expect("`a>span.thmb>img._thumbnailImages` should be a valid selector");
+        let selector = Selector::parse("a>span.thmb>img._thumbnailImages")
+            .assumption("`a>span.thmb>img._thumbnailImages` should be a valid selector")?;
 
-        let mut img = li.select(&img_selection);
-
-        let url = img
+        let url = li
+            .select(&selector)
             .next()
-            .context(
-                "`img._thumbnailImages` is missing: episode page page should have at least one",
+            .assumption(
+                "`img._thumbnailImages`(thumbnail) is missing in `webtoons.com` episode page, should have at least one, even if only for the currently viewed episode",
             )?
             .attr("data-url")
-            .context("`data-url` is missing, `img._thumbnailimages` should always have one")?;
+            .assumption("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
 
-        let mut thumbnail = Url::parse(url).map_err(|err| EpisodeError::Unexpected(err.into()))?;
+        let mut thumbnail = match Url::parse(url) {
+            Ok(url) => url,
+            Err(err) => assumption!(
+                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"
+            ),
+        };
 
         thumbnail
             // This host doesn't need a `referer` header to see the image.
             .set_host(Some("swebtoon-phinf.pstatic.net"))
-            .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
         return Ok(thumbnail);
     }
 
-    Err(EpisodeError::NoThumbnailFound)
+    assumption!(
+        "`webtoons.com` episode page should always have at least one thumbnail url on it, even if just for the currently viewed episode"
+    );
 }
 
-fn is_audio_reader(html: &Html) -> bool {
+#[inline]
+fn is_audio_reader(html: &Html) -> Result<bool, Assumption> {
     let selector = Selector::parse("button#soundControl")
-        .expect("`button#soundControl` should be a valid selector");
+        .assumption("`button#soundControl` should be a valid selector")?;
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
-    html.select(&selector).next().is_some()
+    Ok(html.select(&selector).next().is_some())
+}
+
+fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
+    // TODO: Unsure how best to handle the fractional values, as in theory they can
+    // increase the total by at least a full pixel, which would impact the final height
+    // value. This seems like it would have the most noticeable impact when building
+    // the single image, as the layers will be slightly overlapped.
+    //
+    // It might be possible to store as a f32, but then when building the images
+    // we just accept that there is going to be some inaccuracy.
+
+    let value = img.value().attr("height").assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+
+    let height = match value {
+        float if float.contains('.') => {
+            let mut float = float.split('.');
+
+            let height = match float
+                .next()
+                .assumption("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+                .parse::<u32>()
+             {
+                Ok(height) => height,
+                Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+             };
+
+            match float.next() {
+                Some(_) => {}
+                None => assumption!(
+                    "`webtoons.com` episode `height` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => assumption!(
+                    "`webtoons.com` episode `height` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
+                ),
+            }
+
+            height
+        }
+        // Height can also be a whole number: `1280`.
+        height => match height.parse::<u32>() {
+            Ok(width) => width,
+            Err(err) => assumption!(
+                "`height` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{height}"
+            ),
+        },
+    };
+
+    // assumption!(
+    //     // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+    //     // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this, as it breaks the stated limits.
+    //     height <= 1280,
+    //     "`webtoons.com` enforces strict limits of `1280` pixels in height"
+    // );
+
+    Ok(height)
+}
+
+fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
+    // NOTE: See `height` and `length` for more info on the possible range of values.
+
+    let value = img
+        .value()
+        .attr("width")
+        .assumption("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+
+    let width = match value {
+        float if float.contains('.') => {
+            let mut float = float.split('.');
+
+            let width = match float.next()
+                .assumption("detected a `.` in `width` attribute on `webtoons.com` episode page, so should be a float, `720.0`, so should always split on `.`: `720` `0`")?
+                .parse::<u32>()
+                {
+                    Ok(width) => width,
+                    Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
+                };
+
+            match float.next() {
+                Some(_) => {}
+                None => assumption!(
+                    "`webtoons.com` episode `width` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
+                ),
+            }
+
+            match float.next() {
+                None => {}
+                Some(val) => assumption!(
+                    "`webtoons.com` episode `width` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
+                ),
+            }
+
+            width
+        }
+        // Width can also be a whole number: `800`.
+        width => match width.parse::<u32>() {
+            Ok(width) => width,
+            Err(err) => assumption!(
+                "`width` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{width}"
+            ),
+        },
+    };
+
+    assumption!(
+        // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
+        // TODO: There is a stated limit, but with height as an example, this, too, could be violated on the site.
+        width <= 800,
+        "`webtoons.com` enforces strict limits of `800` pixels in width"
+    );
+
+    Ok(width)
 }
 
 /// Represents a single panel for an episode.
 ///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`](Episode::panels()).
-// Not all fields are used with the base feature set.
-#[allow(unused)]
+/// This type is not constructed directly, but gotten via [`Episode::panels()`].
+#[allow(unused)] // Not all fields are used with the base feature set.
 #[derive(Debug, Clone)]
 pub struct Panel {
     url: Url,
@@ -1599,12 +1726,12 @@ pub struct Panel {
 }
 
 impl Panel {
-    /// Returns the url for the panel.
+    /// Returns the URL for the panel.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1623,104 +1750,96 @@ impl Panel {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
 
-    async fn download(&mut self, client: &Client) -> Result<(), EpisodeError> {
-        let bytes = client
-            .http
-            .get(self.url.as_str())
-            .send()
-            .await?
-            .bytes()
-            .await?;
-
-        self.bytes = bytes.to_vec();
-
+    #[cfg(feature = "download")]
+    async fn download(
+        &mut self,
+        client: &crate::platform::webtoons::Client,
+    ) -> Result<(), RequestError> {
+        self.bytes = client.download_panel(&self.url).await?;
         Ok(())
     }
 }
 
-fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
-    if is_audio_reader(html) {
+fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
+    if is_audio_reader(html)? {
         return Ok(Vec::new());
     }
 
     let selector = Selector::parse(r"img._images") //
-        .expect("`img._images` should be a valid selector");
+        .assumption("`img._images` should be a valid selector")?;
 
     let mut panels = Vec::new();
 
     for (number, img) in html.select(&selector).enumerate() {
-        let height = img
-            .value()
-            .attr("height")
-            .context("`height` is missing, `img._images` should always have one")?
-            .split('.')
-            .next()
-            .context("`height` attribute should be a float")?
-            .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
-
-        let width = img
-            .value()
-            .attr("width")
-            .context("`width` is missing, `img._images` should always have one")?
-            .split('.')
-            .next()
-            .context("`width` attribute should be a float")?
-            .parse::<u32>()
-            .map_err(|err| EpisodeError::Unexpected(err.into()))?;
-
-        let url = img
+        let data_url = img
             .value()
             .attr("data-url")
-            .context("`data-url` is missing, `img._images` should always have one")?;
+            .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
-        let mut url = Url::parse(url).map_err(|err| EpisodeError::Unexpected(err.into()))?;
+        let mut url = match Url::parse(data_url) {
+            Ok(url) => url,
+            Err(err) => assumption!(
+                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"
+            ),
+        };
 
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
-            .expect("`swebtoon-phinf.pstatic.net` should be a valid host");
+            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
-        let ext = url
-            .path()
-            .split('.')
-            .nth(1)
-            .with_context(|| format!("`{url}` should end in an extension but didn't"))?
-            .to_string();
+        let ext = match url.path().split('.').nth(1) {
+            Some(ext) => ext.to_string(),
+            None => assumption!(
+                "`webtoons.com` episode page panel image urls should end in an extension, got: {url}"
+            ),
+        };
+
+        // TODO: `gif` is a supported format in some instances, despite wording that states
+        // only JPEG and PNG are accepted. Need to figure out how to save the image when
+        // saving as a single image. Multiple images should be fine as can just save each
+        // separately with their own ext.
+        assumption!(
+            ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG"]
+                .into_iter()
+                .any(|format| format == ext),
+            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`) and PNG(`png`), but found: `{ext}`"
+        );
 
         panels.push(Panel {
             url,
 
             episode,
-            // Enumerate starts at 0. +1 so that it starts at one.
+            // Enumerate starts at 0, so add +1 so that it starts at 1.
             number: u16::try_from(number + 1)
-                .context("there shouldn't be more than 65,536 panels for an episode")?,
-            height,
-            width,
+                .assumption("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
+            height: height(img)?,
+            width: width(img)?,
             ext,
             bytes: Vec::new(),
         });
     }
 
-    if panels.is_empty() {
-        return Err(EpisodeError::Unexpected(anyhow!(
-            "Failed to find a single panel on episode page"
-        )));
-    }
+    assumption!(
+        !panels.is_empty(),
+        "episodes on `webtoons.com` must have at least one panel on its viewer, platform doesnt let you create an episode without at least one"
+    );
 
     Ok(panels)
 }
 
 /// Represents all the panels for an episode.
 ///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`](crate::platform::webtoons::webtoon::episode::Episode::panels()).
+/// This type is not constructed directly, but gotten via [`Episode::download()`].
 ///
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+/// # use webtoon::platform::webtoons::{error::Error, Client, Type};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -1738,22 +1857,23 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, EpisodeError> {
 /// # Ok(())
 /// # }
 /// ```
-// Not all fields are used with the base feature set.
-#[allow(unused)]
+#[cfg(feature = "download")]
 #[derive(Debug, Clone)]
+// TODO: rename to `DownloadedPanels` as this is the only function it serves.
 pub struct Panels {
     images: Vec<Panel>,
     height: u32,
     width: u32,
 }
 
+#[cfg(feature = "download")]
 impl Panels {
     /// Returns how many `Panels` are on the episode.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1771,18 +1891,23 @@ impl Panels {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub fn count(&self) -> usize {
         self.images.len()
     }
 }
 
 #[cfg(feature = "download")]
-use crate::platform::webtoons::errors::DownloadError;
+use crate::platform::webtoons::error::DownloadError;
 #[cfg(feature = "download")]
 use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
 use tokio::io::AsyncWriteExt;
 
+// TODO: Make `no_run` and add integration tests instead that covers canvas and original.
+// TODO: technically this should not have `DownloadError` as panels are already
+// downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
 impl Panels {
     /// Saves all the panels of an episode as a single long image file in PNG format.
@@ -1790,13 +1915,13 @@ impl Panels {
     /// # Behavior
     ///
     /// - Combines all panels of the episode vertically into one long image.
-    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG's limitations.
+    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG limitations.
     /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1822,16 +1947,18 @@ impl Panels {
 
         tokio::fs::create_dir_all(path).await?;
 
-        let ext = &self.images[0].ext;
-        let episode = self.images[0].episode;
+        let first = self.images.first().assumption(
+            "`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!",
+        )?;
+
+        let ext = &first.ext;
+        let episode = first.episode;
         let width = self.width;
         let height = self.height;
 
         let path = path.join(episode.to_string()).with_extension(ext);
 
-        tokio::fs::File::create(&path)
-            .await
-            .context("failed to create download file")?;
+        tokio::fs::File::create(&path).await?;
 
         let mut single = RgbaImage::new(width, height);
 
@@ -1840,8 +1967,12 @@ impl Panels {
         for panel in &self.images {
             let bytes = panel.bytes.as_slice();
 
-            let image = image::load_from_memory(bytes) //
-                .context("failed to load image from memory")?;
+            let image = match image::load_from_memory(bytes) {
+                Ok(image) => image,
+                Err(err) => assumption!(
+                    "`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features: {err}"
+                ),
+            };
 
             for (x, y, pixels) in image.pixels() {
                 single.put_pixel(x, y + offset, pixels);
@@ -1850,12 +1981,20 @@ impl Panels {
             offset += image.height();
         }
 
-        tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
+        match tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
             .await
-            .context("Failed `spawn_blocking`")?
-            .context("Failed to save image to disk")?;
-
-        Ok(())
+        {
+            Ok(ok) => match ok {
+                Ok(()) => Ok(()),
+                Err(image::ImageError::IoError(err)) => Err(DownloadError::IoError(err)),
+                Err(err) => assumption!(
+                    "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
+                ),
+            },
+            Err(err) => assumption!(
+                "failed to join tokio handle trying to save single `webtoons.com` image to disk: {err}"
+            ),
+        }
     }
 
     /// Saves each panel of the episode to disk, naming the resulting files using the format `EPISODE_NUMBER-PANEL_NUMBER`.
@@ -1869,7 +2008,7 @@ impl Panels {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{errors::Error, Client, Type};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -1899,9 +2038,7 @@ impl Panels {
             let name = format!("{}-{}", panel.episode, panel.number);
             let path = path.join(name).with_extension(&panel.ext);
 
-            let mut file = tokio::fs::File::create(&path)
-                .await
-                .context("failed to create download file")?;
+            let mut file = tokio::fs::File::create(&path).await?;
 
             let bytes = panel.bytes.as_slice();
 

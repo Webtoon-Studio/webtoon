@@ -3,12 +3,12 @@ use serde::Deserialize;
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///
 /// This can be used to get the username and profile, as well as check if user is logged in. This type is not constructed
-/// directly, but gotten through [`Client::user_info_for_session()`].
+/// directly, but gotten through [`Client::user_info_for_session()`](crate::platform::webtoons::client::Client::user_info_for_session).
 ///
 /// # Example
 ///
 /// ```no_run
-/// # use webtoon::platform::webtoons::{errors::Error, Client};
+/// # use webtoon::platform::webtoons::{error::Error, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -41,7 +41,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -53,6 +53,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn is_logged_in(&self) -> bool {
         self.is_logged_in
     }
@@ -64,7 +65,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -76,6 +77,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
     }
@@ -87,7 +89,7 @@ impl UserInfo {
     /// # Example
     ///
     /// ```no_run
-    /// # use webtoon::platform::webtoons::{errors::Error, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -99,6 +101,7 @@ impl UserInfo {
     /// # }
     /// ```
     #[inline]
+    #[must_use]
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }

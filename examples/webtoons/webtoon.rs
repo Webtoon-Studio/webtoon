@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{Client, errors::Error};
+use webtoon::platform::webtoons::{Client, error::Error};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
@@ -25,9 +25,11 @@ async fn main() -> Result<(), Error> {
     println!("summary: {}", webtoon.summary().await?);
 
     if client.has_valid_session().await.is_ok_and(|result| result) {
-        webtoon.is_subscribed().await?;
+        assert!(!webtoon.is_subscribed().await?);
         webtoon.subscribe().await?;
+        assert!(webtoon.is_subscribed().await?);
         webtoon.unsubscribe().await?;
+        assert!(!webtoon.is_subscribed().await?);
     }
 
     return Ok(());

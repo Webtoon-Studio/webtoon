@@ -1,22 +1,22 @@
 //! Represents an abstraction for `https://www.webtoons.com/*/originals`.
 
-use std::str::FromStr;
-
 // mod genres;
-use anyhow::{Context, anyhow};
+
+use super::{Client, Language, Webtoon, error::OriginalsError};
+use crate::stdx::error::{Assume, assumption};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use thiserror::Error;
-
-use super::{Client, Language, Webtoon, errors::OriginalsError};
 
 pub(super) async fn scrape(
     client: &Client,
     language: Language,
 ) -> Result<Vec<Webtoon>, OriginalsError> {
-    // NOTE: Currently all languages follow this pattern
+    // NOTE: Currently all languages follow this pattern.
+    // TODO: Add tests for all languages.
     let selector = Selector::parse("ul.webtoon_list>li>a") //
-        .expect("`ul.webtoon_list>li>a` should be a valid selector");
+        .assumption("`ul.webtoon_list>li>a` should be a valid selector")?;
 
     let days = [
         "monday",
@@ -29,8 +29,9 @@ pub(super) async fn scrape(
         "complete",
     ];
 
+    // TODO: `Html` is not `Send`. Could add channels so that `scrape` becomes thread-safe.
     let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|day| async {
-        Ok::<Html, OriginalsError>(client.get_originals_page(language, day).await?)
+        Ok::<Html, OriginalsError>(client.originals_page(language, day).await?)
     }))
     .await?;
 
@@ -40,17 +41,23 @@ pub(super) async fn scrape(
         for card in html.select(&selector) {
             let href = card
                 .attr("href")
-                .context("`href` is missing, `a` tag should always have one")?;
+                .assumption("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
 
-            webtoons.push(Webtoon::from_url_with_client(href, client)?);
+            let webtoon = match Webtoon::from_url_with_client(href, client) {
+                Ok(webtoon) => webtoon,
+                Err(err) => assumption!(
+                    "urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`: {err}"
+                ),
+            };
+
+            webtoons.push(webtoon);
         }
     }
 
-    if webtoons.is_empty() {
-        return Err(OriginalsError::Unexpected(anyhow!(
-            "Failed to scrape the originals page for webtoons"
-        )));
-    }
+    assumption!(
+        !webtoons.is_empty(),
+        "after scraping `webtoons.com` Originals page, there should be at least some Webtoons that were found"
+    );
 
     Ok(webtoons)
 }
@@ -59,7 +66,7 @@ pub(super) async fn scrape(
 ///
 /// For the days of the week, a Webtoon can have multiple.
 ///
-/// If its not a day of the week, it can only be either `Daily` or `Completed`, alone.
+/// If it's not a day of the week, it can only be either `Daily` or `Completed`, alone.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Schedule {
     /// Released on a single day of the week
@@ -76,28 +83,17 @@ impl TryFrom<Vec<&str>> for Schedule {
     type Error = ParseScheduleError;
 
     fn try_from(releases: Vec<&str>) -> Result<Self, Self::Error> {
-        if releases.len() == 1 {
-            let release = releases
-                .first()
-                .expect("already checked that there is at least one element");
-
-            if let Ok(weekday) = try_parse_weekday(release) {
-                Ok(weekday)
-            } else if let Ok(completed) = try_parse_completed(release) {
-                Ok(completed)
-            } else if let Ok(daily) = try_parse_daily(release) {
-                Ok(daily)
-            } else {
-                Err(ParseScheduleError((*release).to_string()))
-            }
-        } else {
-            // If there is more than one element it means that there are multiple days
-            let mut weekdays = Vec::with_capacity(7);
-            for release in releases {
-                let weekday = Weekday::from_str(release)?;
-                weekdays.push(weekday);
-            }
-            Ok(Self::Weekdays(weekdays))
+        match releases.as_slice() {
+            [release] => [try_parse_weekday, try_parse_completed, try_parse_daily]
+                .into_iter()
+                .find_map(|parser| parser(release).ok())
+                .ok_or_else(|| ParseScheduleError((*release).to_string())),
+            // Multiple releases must be weekdays
+            releases => releases
+                .iter()
+                .map(|release| Weekday::from_str(release))
+                .collect::<Result<Vec<Weekday>, ParseScheduleError>>()
+                .map(|weekdays| Self::Weekdays(weekdays)),
         }
     }
 }
@@ -121,13 +117,14 @@ pub enum Weekday {
     Saturday,
 }
 
-/// An error which can happen when parsing a string to a release type.
+/// An error which can happen when parsing a string to a schedule type.
 #[derive(Debug, Error)]
-#[error("failed to parse `{0}` into a `Release`")]
+#[error("failed to parse `{0}` into a `Schedule`")]
 pub struct ParseScheduleError(String);
 
 impl FromStr for Weekday {
     type Err = ParseScheduleError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "MONDAY"
@@ -223,6 +220,7 @@ impl FromStr for Weekday {
 
 impl FromStr for Schedule {
     type Err = ParseScheduleError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => Ok(Self::Daily),

@@ -1,10 +1,19 @@
-use anyhow::{Context, bail};
+use crate::{
+    platform::webtoons::{
+        error::PostsError,
+        webtoon::{
+            episode::Episode,
+            post::{Body, Flare, Giphy, Post, Poster, Reaction, Sticker, id::Id},
+        },
+    },
+    stdx::{
+        cache::Cache,
+        error::{Assume, assumption},
+    },
+};
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
-
-use crate::platform::webtoons::webtoon::post::id::Id;
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -38,7 +47,7 @@ pub struct RawResult {
 #[serde(rename_all = "camelCase")]
 pub struct Pagination {
     pub next: Option<Id>,
-    // prev might always be Some
+    // QUESTION: `prev` might always be Some
     pub prev: Option<Id>,
 }
 
@@ -60,6 +69,9 @@ pub struct RawPost {
     // pub extraList: Vec<_>,
     pub id: Id,
     pub is_owner: bool,
+    // NOTE: this could be the same as `is_owner`, but it's hard to tell for sure.
+    // For now, this is what we use to indicate if a post was left by current session user.
+    pub is_owner_account: bool,
     pub is_pinned: bool,
     pub page_id: String,
     pub page_owner_child_post_count: i32,
@@ -260,121 +272,143 @@ pub struct CountResult {
     pub emotions: Vec<Emotions>,
 }
 
-impl
-    TryFrom<(
-        &crate::platform::webtoons::webtoon::episode::Episode,
-        RawPost,
-    )> for crate::platform::webtoons::webtoon::post::Post
-{
-    type Error = anyhow::Error;
+impl TryFrom<(&Episode, RawPost)> for Post {
+    type Error = PostsError;
 
     #[allow(clippy::too_many_lines)]
-    fn try_from(
-        (episode, post): (
-            &crate::platform::webtoons::webtoon::episode::Episode,
-            RawPost,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let mut did_like: bool = false;
-        let mut did_dislike: bool = false;
+    fn try_from((episode, post): (&Episode, RawPost)) -> Result<Self, Self::Error> {
+        let mut liked: bool = false;
+        let mut disliked: bool = false;
 
-        let upvotes = post
+        let emotions = post
             .reactions
             .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
+            .assumption(
+                "`reactions` field in `webtoons.com` raw post response didn't have a 0th element",
+            )?
             .emotions
+            .as_slice();
+
+        let upvotes = emotions
             .iter()
             .find(|emotion| emotion.emotion_id == "like")
             .map(|likes| {
-                did_like = likes.reacted;
+                liked = likes.reacted;
                 likes.count
             })
             .unwrap_or_default();
 
-        let downvotes = post
-            .reactions
-            .first()
-            .context("`reactions` field didn't have a 0th element and it should always have one")?
-            .emotions
+        let downvotes = emotions
             .iter()
             .find(|emotion| emotion.emotion_id == "dislike")
             .map(|dislikes| {
-                did_dislike = dislikes.reacted;
+                disliked = dislikes.reacted;
                 dislikes.count
             })
             .unwrap_or_default();
 
-        // The way webtoons keeps track of a like or dislike guarantees(?) they are mutually exclusive.
-        let reaction = if did_like {
-            crate::platform::webtoons::webtoon::post::Reaction::Upvote
-        } else if did_dislike {
-            crate::platform::webtoons::webtoon::post::Reaction::Downvote
+        assumption!(
+            !(liked && disliked),
+            "user cannot both have liked *and* disliked a post on `webtoons.com`; either or, neither, but not both"
+        );
+
+        // The way `webtoons.com` keeps track of a like or dislike guarantees(?): they are mutually exclusive.
+        let reaction = if liked {
+            Reaction::Upvote
+        } else if disliked {
+            Reaction::Downvote
         } else {
             // Defaults to `None` if no session was available for use.
-            crate::platform::webtoons::webtoon::post::Reaction::None
+            Reaction::None
+        };
+
+        let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
+            assumption!(
+                "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`",
+                post.created_at
+            );
         };
 
         let is_deleted = post.status == "DELETE";
         let is_spoiler = post.settings.spoiler_filter == "ON";
         let mut super_like: Option<u32> = None;
 
+        // QUESTION: Super likes might be able to exist along with other flare?
         // Only Webtoon flare can have multiple.
-        // Super likes might be able to exist along with other flare?
         let flare = if post.section_group.sections.len() > 1 {
             let mut webtoons = Vec::new();
             for section in post.section_group.sections {
                 match section {
                     Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
+                        let path = data.info.extra.episode_list_path.as_str();
+
+                        let url = match url::Url::parse("https://www.webtoons.com")
+                            .assumption("`https://www.webtoons.com` should be a valid url")?
+                            .join(path)
+                        {
+                            Ok(url) => url,
+                            Err(err) => assumption!(
+                                "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
+                            ),
+                        };
+
+                        let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
+                            Ok(webtoon) => webtoon,
+                            Err(err) => assumption!(
+                                "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
+                            ),
+                        };
+
                         webtoons.push(webtoon);
                     }
                     Section::SuperLike { data, .. } => {
                         super_like = Some(data.super_like_count);
                     }
                     _ => {
-                        bail!(
-                            "Only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
+                        assumption!(
+                            "only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
                         );
                     }
                 }
             }
-            Some(crate::platform::webtoons::webtoon::post::Flare::Webtoons(
-                webtoons,
-            ))
+            Some(Flare::Webtoons(webtoons))
         } else {
             match post.section_group.sections.first() {
                 Some(section) => match section {
                     Section::Giphy { data, .. } => {
-                        Some(crate::platform::webtoons::webtoon::post::Flare::Giphy(
-                            crate::platform::webtoons::webtoon::post::Giphy::new(
-                                data.giphy_id.clone(),
-                            ),
-                        ))
+                        Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())))
                     }
-                    Section::Sticker { data, .. } => {
-                        let sticker = crate::platform::webtoons::webtoon::post::Sticker::from_str(
-                            &data.sticker_id,
-                        )
-                        .context("Failed to parse sticker id")?;
-                        Some(crate::platform::webtoons::webtoon::post::Flare::Sticker(
-                            sticker,
-                        ))
-                    }
+                    Section::Sticker { data, .. } => match Sticker::from_str(&data.sticker_id) {
+                        Ok(sticker) => Some(Flare::Sticker(sticker)),
+                        Err(err) => assumption!(
+                            "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id: {err}\n\n{}",
+                            data.sticker_id
+                        ),
+                    },
                     Section::ContentMeta { data, .. } => {
-                        let url = format!(
-                            "https://www.webtoons.com{}",
-                            data.info.extra.episode_list_path
-                        );
-                        let webtoon = episode.webtoon.client.webtoon_from_url(&url)?;
-                        Some(crate::platform::webtoons::webtoon::post::Flare::Webtoons(
-                            vec![webtoon],
-                        ))
+                        let path = data.info.extra.episode_list_path.as_str();
+
+                        let url = match url::Url::parse("https://www.webtoons.com")
+                            .assumption("`https://www.webtoons.com` should be a valid url")?
+                            .join(path)
+                        {
+                            Ok(url) => url,
+                            Err(err) => assumption!(
+                                "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
+                            ),
+                        };
+
+                        let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
+                            Ok(webtoon) => webtoon,
+                            Err(err) => assumption!(
+                                "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
+                            ),
+                        };
+
+                        Some(Flare::Webtoons(vec![webtoon]))
                     }
-                    // Ignore super likes
+                    // Assign super likes, but as far as being a flare, as it's
+                    // unknown if it exists as a flare in `webtoons.com`.
                     Section::SuperLike { data, .. } => {
                         super_like = Some(data.super_like_count);
                         None
@@ -388,7 +422,7 @@ impl
             episode: episode.clone(),
             id: post.id,
             parent_id: post.root_id,
-            body: crate::platform::webtoons::webtoon::post::Body {
+            body: Body {
                 contents: Arc::from(post.body),
                 flare,
                 is_spoiler,
@@ -398,24 +432,19 @@ impl
             replies: post.child_post_count,
             is_top: post.is_pinned,
             is_deleted,
-            posted: DateTime::from_timestamp_millis(post.created_at).with_context(|| {
-                format!(
-                    "`{}` is not a valid unix millisecond timestamp",
-                    post.created_at
-                )
-            })?,
-            poster: crate::platform::webtoons::webtoon::post::Poster {
+            posted,
+            poster: Poster {
                 webtoon: episode.webtoon.clone(),
                 episode: episode.number,
                 post_id: post.id,
                 cuid: Arc::from(post.created_by.cuid),
                 profile: Arc::from(post.created_by.profile_url),
                 username: Arc::from(post.created_by.name),
-                is_current_session_user: post.created_by.is_page_owner,
+                is_current_session_user: post.is_owner_account,
                 is_current_webtoon_creator: post.created_by.is_page_owner,
                 is_creator: post.created_by.is_creator,
                 is_blocked: post.created_by.restriction.is_write_post_restricted,
-                reaction: Arc::new(RwLock::new(reaction)),
+                reaction: Cache::new(reaction),
                 super_like,
             },
         })

@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{Client, Type, errors::Error};
+use webtoon::platform::webtoons::{Client, Type, error::Error};
 
 // NOTE: To run: `cargo run --example rss --features rss`
 #[tokio::main(flavor = "current_thread")]

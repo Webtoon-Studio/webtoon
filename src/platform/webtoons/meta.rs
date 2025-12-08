@@ -1,11 +1,8 @@
-//! Contains metadata implementations for webtoons.com.
+//! Contains metadata implementations for `webtoons.com`.
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Display},
-    str::FromStr,
-};
+use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
 /// An error that can occur when parsing a language from a URL path.
@@ -16,9 +13,7 @@ use thiserror::Error;
 pub struct ParseLanguageError(String);
 
 /// Represents the languages that `webtoons.com` has.
-#[derive(
-    Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash,
-)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     /// English
     #[default]
@@ -54,73 +49,14 @@ impl FromStr for Language {
     }
 }
 
-impl Display for Language {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Self::En => "en",
-            Self::Zh => "zh-hant",
-            Self::Th => "th",
-            Self::Id => "id",
-            Self::Es => "es",
-            Self::Fr => "fr",
-            Self::De => "de",
-        };
-
-        write!(f, "{str}")
-    }
-}
-
-impl Language {
-    /// Returns a string representation of the language.
-    /// - En -> "en"
-    /// - Zh -> "zh-hant"
-    /// - Th -> "th"
-    /// - Id -> "id"
-    /// - Es -> "es"
-    /// - Fr -> "fr"
-    /// - De -> "de"
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::En => "en",
-            Self::Zh => "zh-hant",
-            Self::Th => "th",
-            Self::Id => "id",
-            Self::Es => "es",
-            Self::Fr => "fr",
-            Self::De => "de",
-        }
-    }
-
-    /// Returns a string representation of the language.
-    /// - En -> "ENGLISH"
-    /// - Zh -> "CHINESE"
-    /// - Th -> "THAI"
-    /// - Id -> "INDONESIAN"
-    /// - Es -> "SPANISH"
-    /// - Fr -> "FRENCH"
-    /// - De -> "GERMAN"
-    #[must_use]
-    pub const fn as_str_caps(self) -> &'static str {
-        match self {
-            Self::En => "ENGLISH",
-            Self::Th => "THAI",
-            Self::Id => "INDONESIAN",
-            Self::Es => "SPANISH",
-            // Below haven't been confirmed.
-            Self::Zh => "CHINESE",
-            Self::De => "GERMAN",
-            Self::Fr => "FRENCH",
-        }
-    }
-}
-
-/// Represents the type a webtoon can be on webtoons.com.
+/// Represents the type a Webtoon can be on `webtoons.com`.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-    /// An Original webtoon.
+    /// An Original Webtoon.
+    #[serde(alias = "WEBTOON")]
     Original,
-    /// A Canvas webtoon.
+    /// A Canvas Webtoon.
+    #[serde(alias = "CHALLENGE")]
     Canvas,
 }
 
@@ -138,15 +74,13 @@ impl FromStr for Type {
     }
 }
 
+// TODO: Remove when refactoring `naver` platform.
 /// An Error that can occur when parsing a letter to a [`Type`].
 ///
 /// Only `w` and `c` are valid.
 #[derive(Debug, Error)]
-pub enum ParseLetterError {
-    /// An invalid letter was found
-    #[error("`{0}` is an invalid letter, should only be `w` or `c`")]
-    InvalidLetter(String),
-}
+#[error("`{0}` is an invalid letter, should only be `w` or `c`")]
+pub struct ParseLetterError(String);
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum Scope {
@@ -184,7 +118,7 @@ impl FromStr for Scope {
     }
 }
 
-/// Represents a genre on the webtoons.com platform.
+/// Represents a genre on `webtoons.com`.
 #[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
@@ -288,7 +222,6 @@ pub struct ParseGenreError(String);
 impl FromStr for Genre {
     type Err = ParseGenreError;
 
-    // Doing only official ones here. Custom will be done at the source.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "COMEDY" | "Comedy" | "comedy" | "ตลก" | "komedi" | "Comedia" | "Comédie" => {
