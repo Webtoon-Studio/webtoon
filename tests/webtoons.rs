@@ -765,3 +765,18 @@ async fn english_canvas_panel_JPEG_ext() {
 
     assert_eq!("Episode 1", title);
 }
+
+#[tokio::test]
+async fn english_canvas_comma_in_username_should_be_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(738855, Type::Canvas).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("every webtoon must have a creator"),
+        [_first, _second, _rest @ ..] => {
+            unreachable!("canvas stories can only have one creator: {creators:#?}")
+        }
+        [_creator] => {}
+    }
+}

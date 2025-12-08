@@ -198,6 +198,8 @@ pub(super) fn creators(html: &Html, client: &Client) -> Result<Vec<Creator>, Web
                     break;
                 }
 
+                // FIX: Creator can have a username with `,` in it.
+                // - https://www.webtoons.com/en/canvas/animals/list?title_no=738855
                 'username: for username in text.split(',') {
                     let username = username.trim().trim_end_matches("...").trim();
 
