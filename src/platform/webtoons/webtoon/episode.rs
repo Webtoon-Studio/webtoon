@@ -1799,15 +1799,13 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             ),
         };
 
-        // TODO: `gif` is a supported format in some instances, despite wording that states
-        // only JPEG and PNG are accepted. Need to figure out how to save the image when
-        // saving as a single image. Multiple images should be fine as can just save each
-        // separately with their own ext.
+        // NOTE: `gif` is a supported format in some instances, despite wording that states
+        // only JPEG and PNG are accepted.
         assumption!(
-            ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG"]
+            ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG", "gif", "GIF"]
                 .into_iter()
                 .any(|format| format == ext),
-            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`) and PNG(`png`), but found: `{ext}`"
+            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`), PNG(`png`), and GIF(`gif`, `GIF`), but found: `{ext}`"
         );
 
         panels.push(Panel {
@@ -1905,7 +1903,6 @@ use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
 use tokio::io::AsyncWriteExt;
 
-// TODO: Make `no_run` and add integration tests instead that covers canvas and original.
 // TODO: technically this should not have `DownloadError` as panels are already
 // downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
@@ -1920,7 +1917,7 @@ impl Panels {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -2007,7 +2004,7 @@ impl Panels {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {

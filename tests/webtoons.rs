@@ -643,7 +643,10 @@ async fn english_canvas_download_single() {
     assert_eq!(15, panels.count());
 
     // Save as a single, long image.
-    panels.save_single("tests/panels").await.unwrap();
+    panels
+        .save_single("target/tmp/english_canvas_single/")
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -663,7 +666,10 @@ async fn english_original_download_single() {
     assert_eq!(43, panels.count());
 
     // Save as a single, long image.
-    panels.save_single("tests/panels").await.unwrap();
+    panels
+        .save_single("target/tmp/english_original_single/")
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -683,7 +689,10 @@ async fn english_canvas_download_multi() {
     assert_eq!(1, panels.count());
 
     // Save each individual panel as a separate image.
-    panels.save_multiple("tests/panels").await.unwrap();
+    panels
+        .save_multiple("target/tmp/english_canvas_multi/")
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -703,7 +712,10 @@ async fn english_original_download_multi() {
     assert_eq!(160, panels.count());
 
     // Save each individual panel as a separate image.
-    panels.save_multiple("tests/panels").await.unwrap();
+    panels
+        .save_multiple("target/tmp/english_original_multi/")
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -860,12 +872,15 @@ async fn english_originals_korean_creator_with_spaces_should_be_ok() {
 }
 
 #[tokio::test]
-#[ignore = "need to figure out how to handle saving gifs to disk when saving as a single image"]
 async fn english_originals_with_gif() {
     let client = Client::new();
     let webtoon = client.webtoon(2757, Type::Original).await.unwrap().unwrap();
 
     let episode = webtoon.episode(25).await.unwrap().unwrap();
 
-    let _length = episode.length().await.unwrap();
+    let panels = episode.download().await.unwrap();
+    panels
+        .save_single("target/tmp/gif_in_single_png/")
+        .await
+        .unwrap();
 }
