@@ -7,7 +7,7 @@ use crate::{
         error::SessionError,
         webtoon::{
             Webtoon,
-            episode::{self, AdStatus, Episode, Published},
+            episode::{AdStatus, Episode, Published},
         },
     },
     stdx::{cache::Cache, error::assumption, math::MathExt},
@@ -58,7 +58,6 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,
-            season: Cache::new(episode::season(&episode.metadata.title)?),
             title: Cache::new(episode.metadata.title),
             published,
             views: Some(episode.metadata.views),
@@ -88,7 +87,6 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
             episodes.insert(Episode {
                 webtoon: webtoon.clone(),
                 number: episode.metadata.number,
-                season: Cache::new(episode::season(&episode.metadata.title)?),
                 title: Cache::new(episode.metadata.title),
                 published,
                 views: Some(episode.metadata.views),

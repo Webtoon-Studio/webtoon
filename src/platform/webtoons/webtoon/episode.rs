@@ -168,8 +168,6 @@ impl IntoIterator for Episodes {
 pub struct Episode {
     pub(crate) webtoon: Webtoon,
     pub(crate) number: u16,
-    // TODO: Need to store? Should be pretty cheap to compute on the fly as title is most likely cached.
-    pub(crate) season: Cache<Option<u8>>,
     pub(crate) title: Cache<String>,
     pub(crate) published: Option<Published>,
     pub(crate) length: Cache<Option<u32>>,
@@ -186,7 +184,6 @@ impl std::fmt::Debug for Episode {
         let Self {
             webtoon: _,
             number,
-            season,
             title,
             published,
             length,
@@ -200,7 +197,6 @@ impl std::fmt::Debug for Episode {
 
         f.debug_struct("Episode")
             .field("number", number)
-            .field("season", season)
             .field("title", title)
             .field("published", published)
             .field("length", length)
@@ -325,11 +321,7 @@ impl Episode {
     /// ```
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let title = self.title().await?;
-
-        let season = self::season(&title)?;
-        self.season.insert(season);
-
-        Ok(season)
+        Ok(self::season(&title)?)
     }
 
     /// Returns the creator note for episode.
@@ -1326,7 +1318,6 @@ impl Episode {
             webtoon: webtoon.clone(),
             number,
 
-            season: Cache::empty(),
             title: Cache::empty(),
             // NOTE:
             // Currently there is no way to get this info from an episodes page.
