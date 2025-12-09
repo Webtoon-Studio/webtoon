@@ -102,7 +102,6 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.
             published_status: Some(PublishedStatus::Published),
 
-            season: Cache::empty(),
             length: Cache::empty(),
             thumbnail: Cache::empty(),
             note: Cache::empty(),

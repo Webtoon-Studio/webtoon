@@ -1,7 +1,4 @@
-use super::{
-    super::episode::{self, PublishedStatus},
-    Page,
-};
+use super::{super::episode::PublishedStatus, Page};
 use crate::{
     platform::webtoons::{
         Client, Language, Type, Webtoon,
@@ -638,7 +635,6 @@ pub(super) fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Epi
 
     Ok(Episode {
         webtoon: webtoon.clone(),
-        season: Cache::new(episode::season(&title)?),
         title: Cache::new(title),
         number,
         published: Some(Published::from(date)),
