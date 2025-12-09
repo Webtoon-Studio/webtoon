@@ -27,7 +27,7 @@ use crate::{
             EpisodesError, InvalidWebtoonUrl, LikesError, PostsError, RequestError, SessionError,
             SubscribersError, ViewsError,
         },
-        webtoon::post::Post,
+        webtoon::post::Comment,
     },
     stdx::{
         cache::{Cache, Store},
@@ -906,19 +906,13 @@ impl Webtoon {
         Ok(likes)
     }
 
-    /// Retrieves all posts (top level comments) for every episode of the current `Webtoon`.
+    /// Retrieves all comments (top-level posts) for every episode of the current `Webtoon`.
+    ///
+    /// Comments that have been deleted, but have replies, will still be included. Comments deleted without any replies will not be included.
     ///
     /// If a valid session is passed to the client, the returned posts will contain some extra metadata
     /// for the poster, which can be used for determining if, for example, a post was left by session user.
     ///
-    /// # Behavior
-    ///
-    /// This method can return more posts than what is publicly available on the episode page, as it includes certain deleted posts, as well as those visible to all users.
-    ///
-    /// - This retrieves all posts across every episode, including:
-    ///   - **Publicly visible posts**: Comments that any user can see on the webtoon page.
-    ///   - **Deleted posts with replies**: Posts that have been marked as deleted but still display the message "This comment has been deleted" because they have replies.
-    ///   - **Excluded posts**: Deleted posts without any replies are not included in the results.
     ///
     /// # Example
     ///
@@ -934,16 +928,23 @@ impl Webtoon {
     ///
     /// for post in webtoon.posts().await? {
     ///    println!("{} left a post on {}!", post.poster().username(), webtoon.title().await?);
+    ///    # return Ok(());
     /// }
-    /// # Ok(())
+    /// # unreachable!("should have entered the episode block and returned");
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Vec<Post>, PostsError> {
+    pub async fn posts(&self) -> Result<Vec<Comment>, PostsError> {
         let mut posts = Vec::with_capacity(100);
 
         for number in 1.. {
             match self.episode(number).await {
-                Ok(Some(episode)) => posts.extend_from_slice(episode.posts().await?.as_slice()),
+                Ok(Some(episode)) => {
+                    let mut comments = episode.posts();
+
+                    while let Some(comment) = comments.next().await? {
+                        posts.push(comment);
+                    }
+                }
                 Ok(None) => break,
                 Err(err) => return Err(err.into()),
             }

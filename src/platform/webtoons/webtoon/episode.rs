@@ -1,20 +1,19 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
 use super::{Webtoon, post::PinRepresentation};
+use crate::platform::webtoons::webtoon::post::Comments;
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{Assume, Assumption, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
         error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
-        webtoon::post::{Post, id::Id},
     },
     stdx::time::DateOrDateTime,
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use std::collections::HashSet;
 use std::hash::Hash;
 use url::Url;
 
@@ -594,111 +593,15 @@ impl Episode {
         Ok((comments, replies))
     }
 
-    /// Retrieves the direct (top-level) comments for the episode, sorted from newest-to-oldest.
+    /// Retrieves the direct (top-level) comments for the episode, retrieved from newest-to-oldest.
     ///
-    /// There are no duplicate comments, and only direct replies (top-level) are fetched, not the nested replies.
+    /// Due to potential API inconsistencies during pagination, this method cannot guarantee it wont return a duplicate comment.
     ///
-    /// Direct replies that have been deleted (but have replies) will still be included. Comments deleted without replies will not be included.
-    ///
-    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
-    /// for the poster, which can be used for determining if, for example, a post was left by session user.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     for post in episode.posts().await? {
-    ///         println!("{} left a comment on episode {} of {}", post.poster().username(), episode.number(), webtoon.title().await?);
-    ///     }
-    ///     # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn posts(&self) -> Result<Vec<Post>, PostsError> {
-        #[expect(
-            clippy::mutable_key_type,
-            reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
-        )]
-        let mut posts = HashSet::new();
-
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 100, PinRepresentation::None)
-            .await?;
-
-        let mut next: Option<Id> = response.result.pagination.next;
-
-        // Add first posts.
-        for post in response.result.posts {
-            posts.insert(Post::try_from((self, post))?);
-        }
-
-        // Get any remaining.
-        while let Some(cursor) = next {
-            let response = self
-                .webtoon
-                .client
-                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
-                .await?;
-
-            for post in response.result.posts {
-                posts.replace(Post::try_from((self, post))?);
-            }
-
-            next = response.result.pagination.next;
-        }
-
-        // Get `is_top`/`isPinned` info.
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 1, PinRepresentation::Distinct)
-            .await?;
-
-        for post in response.result.tops {
-            posts.replace(Post::try_from((self, post))?);
-        }
-
-        let posts = {
-            let mut posts = posts.into_iter().collect::<Vec<Post>>();
-            // Sort by newest.
-            posts.sort_unstable_by(|a, b| b.posted.cmp(&a.posted));
-            posts
-        };
-
-        Ok(posts)
-    }
-
-    /// Iterates through all direct (top-level) comments for the episode and applies a callback function to each post.
-    ///
-    /// This method is useful in scenarios where memory constraints are an issue, as it avoids loading all posts into memory at once. Instead, each post is processed immediately as it is retrieved, making it more memory-efficient than [`posts()`](Episode::posts()).
+    /// Comments that have been deleted, but have replies, will still be included. Comments deleted without any replies will not be included.
     ///
     /// If a valid session is passed to the client, the returned posts will contain some extra metadata
     /// for the poster, which can be used for determining if, for example, a post was left by session user.
     ///
-    /// # Limitations
-    ///
-    /// - **Duplicate Posts**:
-    ///   - Due to potential API inconsistencies during pagination, this method cannot guarantee that duplicate posts will be filtered out.
-    ///
-    /// - **Publish Order**:
-    ///   - The order in which posts are published may not be respected, as the posts are fetched and processed in batches that may appear out of order.
-    ///
-    /// - **`is_top` Info**:
-    ///   - This information will only be added at the very end of iteration. Previous posts info might not have correct `is_top` status, due to the nature of how webtoons' API's work.
-    ///
     /// # Example
     ///
     /// ```
@@ -707,235 +610,25 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?
+    ///     .expect("webtoon is known to exist");
     ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///    episode.posts_for_each(async |post| {
-    ///        println!("{} left a comment on episode {}", post.poster().username(), episode.number());
-    ///    }).await?;
-    ///    # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn posts_for_each<C: AsyncFn(Post)>(&self, closure: C) -> Result<(), PostsError> {
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 100, PinRepresentation::None)
-            .await?;
-
-        let mut next: Option<Id> = response.result.pagination.next;
-
-        // Add first posts
-        for post in response.result.posts {
-            closure(Post::try_from((self, post))?).await;
-        }
-
-        // Get rest if any
-        while let Some(cursor) = next {
-            let response = self
-                .webtoon
-                .client
-                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
-                .await?;
-
-            for post in response.result.posts {
-                closure(Post::try_from((self, post))?).await;
-            }
-
-            next = response.result.pagination.next;
-        }
-
-        // Gets `is_top/isPinned` info.
-        //
-        // NOTE: This is after the regular posts as more often than not, if using
-        // a collection, user will use a HashSet::replace, which would update
-        // the previously gotten posts with the pinned info.
-        //
-        // If user is directly inserting into database, the data should also be
-        // updated accordingly.
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 1, PinRepresentation::Distinct)
-            .await?;
-
-        for post in response.result.tops {
-            closure(Post::try_from((self, post))?).await;
-        }
-
-        Ok(())
-    }
-
-    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
-    /// Retrieves the direct (top-level) comments for the episode until the specified post `id` is encountered.
+    /// let episode = webtoon.episode(1).await?
+    ///     .expect("an episode 1 must exist");
     ///
-    /// This method can be used for fetching the most recent posts for an episode, with the assumption that the post
-    /// with the given `id` was not deleted, since posts are fetched from newest to oldest.
+    /// let mut comments = episode.posts();
     ///
-    /// If the post with the `id` was deleted or missing, this method may perform a full scan of the episode. For cases
-    /// where the post's date is known but the `id` is uncertain to exist, use [`Episode::posts_till_date()`].
-    ///
-    /// # Limitations
-    ///
-    /// - **Deleted Posts**: Posts without replies that have been deleted are not returned in the results, which may lead to a situation where the post with the given `id` is never found, causing the method to scan the entire episode.
-    /// - **Performance Consideration**: If the post is near the end of the episode's comments, the method may need to scan all the way through to find the `id`, which can impact performance for episodes with large comment sections.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Client, Type, webtoon::post::id::Id};
-    /// # use std::str::FromStr;
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     for post in episode.posts_till_id(Id::from_str("GW-epicom:0-c_843910_1-g")?).await? {
-    ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
-    ///     }
+    /// while let Some(comment) = comments.next().await? {
+    ///     println!("{} left a comment on episode {} of {}", comment.poster().username(), episode.number(), webtoon.title().await?);
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_id(&self, id: Id) -> Result<Vec<Post>, PostsError> {
-        #[allow(
-            clippy::mutable_key_type,
-            reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
-        )]
-        let mut posts = HashSet::new();
-
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 100, PinRepresentation::None)
-            .await?;
-
-        let mut next: Option<Id> = response.result.pagination.next;
-
-        // Add first posts
-        for post in response.result.posts {
-            if post.id == id {
-                return Ok(posts.into_iter().collect());
-            }
-
-            posts.insert(Post::try_from((self, post))?);
-        }
-
-        // Get rest if any
-        while let Some(cursor) = next {
-            let response = self
-                .webtoon
-                .client
-                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
-                .await?;
-
-            for post in response.result.posts {
-                if post.id == id {
-                    return Ok(posts.into_iter().collect());
-                }
-
-                posts.insert(Post::try_from((self, post))?);
-            }
-
-            next = response.result.pagination.next;
-        }
-
-        let posts = posts.into_iter().collect();
-
-        Ok(posts)
-    }
-
-    // TODO: Remove, as this functionality can be emulated with just `posts_for_each`, adding an unneeded maintenance burden.
-    /// Retrieves the direct (top-level) comments for the episode until posts older than the specified `date` are encountered.
-    ///
-    /// This method can be used as an optimization to get only the most recent posts from a given date onward.
-    /// It ensures all posts from the given date are retrieved, even if multiple posts share the same timestamp.
-    ///
-    /// # Limitations
-    ///
-    /// - **Duplicate Timestamps**: Posts can have the same creation date, so the method ensures that all posts with a given timestamp are returned before stopping.
-    /// - **Performance**: Similar to [`Episode::posts_till_id()`], this method may impact performance for episodes with many comments, especially if the `date` is far in the past.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     // UNIX timestamp
-    ///     for post in episode.posts_till_date(1729582054).await? {
-    ///         println!("Comment by {}: {}", post.poster().username(), post.body().contents());
-    ///     }
-    ///     # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn posts_till_date(&self, date: i64) -> Result<Vec<Post>, PostsError> {
-        #[expect(
-            clippy::mutable_key_type,
-            reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
-        )]
-        let mut posts = HashSet::new();
-
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 100, PinRepresentation::None)
-            .await?;
-
-        let mut next: Option<Id> = response.result.pagination.next;
-
-        // Add first posts.
-        for post in response.result.posts {
-            if post.created_at < date {
-                return Ok(posts.into_iter().collect());
-            }
-
-            posts.insert(Post::try_from((self, post))?);
-        }
-
-        // Get rest if any.
-        while let Some(cursor) = next {
-            let response = self
-                .webtoon
-                .client
-                .episode_posts(self, Some(cursor), 100, PinRepresentation::None)
-                .await?;
-
-            for post in response.result.posts {
-                if post.created_at < date {
-                    return Ok(posts.into_iter().collect());
-                }
-
-                posts.insert(Post::try_from((self, post))?);
-            }
-
-            next = response.result.pagination.next;
-        }
-
-        let posts = posts.into_iter().collect();
-
-        Ok(posts)
+    #[inline]
+    #[must_use]
+    pub fn posts(&self) -> Comments<'_> {
+        Comments::new(self)
     }
 
     /// Returns a list of panels for the episode.

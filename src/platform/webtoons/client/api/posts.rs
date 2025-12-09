@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::{
     platform::webtoons::{
         error::PostsError,
@@ -15,7 +17,6 @@ use chrono::DateTime;
 use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct RawPostResponse {
     pub result: RawResult,
@@ -23,7 +24,6 @@ pub struct RawPostResponse {
     pub status: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawResult {
@@ -42,7 +42,6 @@ pub struct RawResult {
     pub tops: Vec<RawPost>,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination {
@@ -51,7 +50,6 @@ pub struct Pagination {
     pub prev: Option<Id>,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawPost {
@@ -87,7 +85,6 @@ pub struct RawPost {
     pub updated_at: i64,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatedBy {
@@ -107,7 +104,6 @@ pub struct CreatedBy {
     pub status: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Reactions {
@@ -116,7 +112,6 @@ pub struct Reactions {
     pub reaction_id: String,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Emotions {
@@ -125,7 +120,6 @@ pub struct Emotions {
     pub reacted: bool,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BodyFormat {
@@ -138,7 +132,6 @@ pub struct BodyFormat {
 #[serde(rename_all = "camelCase")]
 pub struct ProfileImage {}
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Restriction {
@@ -147,7 +140,6 @@ pub struct Restriction {
     pub is_write_post_restricted: bool,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SectionGroup {
@@ -155,7 +147,6 @@ pub struct SectionGroup {
     pub total_count: u64,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -190,7 +181,6 @@ pub enum Section {
     },
 }
 
-#[allow(unused)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GiphyData {
@@ -200,7 +190,6 @@ pub struct GiphyData {
     // thumbnail: unimplemented!(),
 }
 
-#[allow(unused)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StickerData {
@@ -211,7 +200,6 @@ pub struct StickerData {
     height: u16,
 }
 
-#[allow(unused)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ContentMetaData {
@@ -221,7 +209,6 @@ pub struct ContentMetaData {
     pub info: ContentInfo,
 }
 
-#[allow(unused)]
 #[derive(Deserialize, Debug)]
 pub struct ContentInfo {
     name: String,
@@ -234,7 +221,7 @@ pub struct Extra {
     pub episode_list_path: String,
 }
 
-#[allow(unused, clippy::struct_field_names)]
+#[allow(clippy::struct_field_names)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SuperLikeData {
@@ -243,7 +230,6 @@ pub struct SuperLikeData {
     pub super_like_received_at: i64,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Count {
@@ -264,7 +250,6 @@ pub struct Count {
     pub result: CountResult,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CountResult {

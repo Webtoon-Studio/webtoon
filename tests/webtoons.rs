@@ -509,22 +509,22 @@ async fn englsh_canvas_posts() {
         episode.post("MESSAGE", false).await.unwrap();
     }
 
-    let posts = episode.posts().await.unwrap();
+    let mut comments = episode.posts();
 
-    for post in posts {
+    while let Some(comment) = comments.next().await.unwrap() {
         if client
             .has_valid_session()
             .await
             .is_ok_and(|is_valid| is_valid)
-            && post.poster().is_current_session_user()
-            && post.body().contents() == "MESSAGE"
+            && comment.poster().is_current_session_user()
+            && comment.body().contents() == "MESSAGE"
         {
-            post.reply("REPLY", true).await.unwrap();
+            comment.reply("REPLY", true).await.unwrap();
 
             // Delete just added post
-            post.delete().await.unwrap();
+            comment.delete().await.unwrap();
         } else {
-            for reply in post.replies().await.unwrap() {
+            for reply in comment.replies().await.unwrap() {
                 _ = std::hint::black_box(reply);
             }
         }
@@ -533,21 +533,21 @@ async fn englsh_canvas_posts() {
             .has_valid_session()
             .await
             .is_ok_and(|is_valid| is_valid)
-            && post.poster().username() == "Nen19"
+            && comment.poster().username() == "Nen19"
         {
-            let (upvotes, downvotes) = post.unvote().await.unwrap();
+            let (upvotes, downvotes) = comment.unvote().await.unwrap();
             assert_eq!(0, upvotes);
             assert_eq!(1, downvotes);
 
-            let (upvotes, downvotes) = post.upvote().await.unwrap();
+            let (upvotes, downvotes) = comment.upvote().await.unwrap();
             assert_eq!(1, upvotes, "{upvotes}, {downvotes}");
             assert_eq!(1, downvotes);
 
-            let (upvotes, downvotes) = post.downvote().await.unwrap();
+            let (upvotes, downvotes) = comment.downvote().await.unwrap();
             assert_eq!(0, upvotes);
             assert_eq!(2, downvotes);
 
-            let (upvotes, downvotes) = post.unvote().await.unwrap();
+            let (upvotes, downvotes) = comment.unvote().await.unwrap();
             assert_eq!(0, upvotes);
             assert_eq!(1, downvotes);
         }
@@ -565,8 +565,10 @@ async fn englsh_canvas_posts() {
         //
         // This refreshes to get new data for posts
         // and therefore can find all replies with `REPLY`.
-        for post in episode.posts().await.unwrap() {
-            for reply in post.replies().await.unwrap() {
+        let mut comments = episode.posts();
+
+        while let Some(comment) = comments.next().await.unwrap() {
+            for reply in comment.replies().await.unwrap() {
                 if reply.body().contents() == "REPLY" {
                     reply.delete().await.unwrap();
                 }
@@ -599,27 +601,27 @@ async fn englsh_original_posts() {
         episode.post("MESSAGE", false).await.unwrap();
     }
 
-    let posts = episode.posts().await.unwrap();
+    let mut comments = episode.posts();
 
-    for post in posts {
-        for _reply in post.replies().await.unwrap() {}
+    while let Some(comment) = comments.next().await.unwrap() {
+        for _reply in comment.replies().await.unwrap() {}
 
         if client
             .has_valid_session()
             .await
             .is_ok_and(|is_valid| is_valid)
         {
-            post.upvote().await.unwrap();
-            post.downvote().await.unwrap();
-            post.unvote().await.unwrap();
+            comment.upvote().await.unwrap();
+            comment.downvote().await.unwrap();
+            comment.unvote().await.unwrap();
 
             // There are some complications around replying and then deleting
             // replies, and as this is currently not a priority, just do simple
             // tests.
 
             // Delete just added post
-            if post.body().contents() == "MESSAGE" && !post.is_deleted() {
-                post.delete().await.unwrap();
+            if comment.body().contents() == "MESSAGE" && !comment.is_deleted() {
+                comment.delete().await.unwrap();
             }
         }
     }

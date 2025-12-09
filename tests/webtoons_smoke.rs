@@ -81,12 +81,11 @@ async fn canvas() {
         let _length = episode.length().await.unwrap();
         let _likes = episode.likes().await.unwrap();
 
-        episode
-            .posts_for_each(async |post| {
-                let _replies = post.replies().await.unwrap();
-            })
-            .await
-            .unwrap();
+        let mut comments = episode.posts();
+
+        while let Some(comment) = comments.next().await.unwrap() {
+            let _replies = comment.replies().await.unwrap();
+        }
     }
 }
 
@@ -171,11 +170,9 @@ async fn originals() {
         let _length = episode.length().await.unwrap();
         let _likes = episode.likes().await.unwrap();
 
-        episode
-            .posts_for_each(async |post| {
-                let _replies = post.replies().await.unwrap();
-            })
-            .await
-            .unwrap();
+        let mut comments = episode.posts();
+        while let Some(comment) = comments.next().await.unwrap() {
+            let _replies = comment.replies().await.unwrap();
+        }
     }
 }
