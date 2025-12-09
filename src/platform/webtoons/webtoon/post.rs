@@ -7,105 +7,12 @@ use crate::{
         error::{BlockUserError, DeletePostError, PostError, PostsError, ReplyError},
         webtoon::post::id::Id,
     },
-    private::Sealed,
     stdx::{cache::Cache, error::assumption},
 };
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
-use std::{cmp::Ordering, collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
+use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use thiserror::Error;
-
-// TODO: Remove and just use `Vec<Post>`.
-/// Represents a collection of posts.
-///
-/// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`].
-#[derive(Debug, Clone)]
-pub struct Posts {
-    pub(super) posts: Vec<Post>,
-}
-
-impl Posts {
-    /// Returns the first post, or `None` if it is empty.
-    #[inline]
-    #[must_use]
-    pub fn first(&self) -> Option<&Post> {
-        self.posts.first()
-    }
-
-    /// Returns the last post, or `None` if it is empty.
-    #[inline]
-    #[must_use]
-    pub fn last(&self) -> Option<&Post> {
-        self.posts.last()
-    }
-
-    /// Creates an iterator which uses a closure to determine if an element
-    /// should be yielded.
-    ///
-    /// Given an element the closure must return `true` or `false`. The returned
-    /// iterator will yield only the elements for which the closure returns
-    /// true.
-    #[inline]
-    pub fn filter<P>(self, predicate: P) -> impl Iterator<Item = Post>
-    where
-        P: FnMut(&Post) -> bool,
-    {
-        self.into_iter().filter(predicate)
-    }
-
-    /// Sorts the posts with a comparison function, **without** preserving the initial order of
-    /// equal elements.
-    ///
-    /// This sort is unstable (i.e., may reorder equal elements), in-place (i.e., does not
-    /// allocate), and *O*(*n* \* log(*n*)) worst-case.
-    #[inline]
-    pub fn sort_unstable_by<F>(&mut self, compare: F)
-    where
-        F: FnMut(&Post, &Post) -> Ordering,
-    {
-        self.posts.sort_unstable_by(compare);
-    }
-
-    /// Performs an in-place, unstable sort of the post episode number in a descending order.
-    #[inline]
-    pub fn sort_by_episode_desc(&mut self) {
-        self.posts
-            .sort_unstable_by(|a, b| b.episode.number.cmp(&a.episode.number));
-    }
-
-    /// Performs an in-place, unstable sort of the post episode number in an ascending order.
-    #[inline]
-    pub fn sort_by_episode_asc(&mut self) {
-        self.posts
-            .sort_unstable_by(|a, b| a.episode.number.cmp(&b.episode.number));
-    }
-
-    /// Performs an in-place, unstable sort of the post date, from newest to oldest.
-    #[inline]
-    pub fn sort_by_newest(&mut self) {
-        self.posts.sort_unstable_by(|a, b| b.posted.cmp(&a.posted));
-    }
-
-    /// Performs an in-place, unstable sort of the post date, from oldest to newest.
-    #[inline]
-    pub fn sort_by_oldest(&mut self) {
-        self.posts.sort_unstable_by(|a, b| a.posted.cmp(&b.posted));
-    }
-
-    /// Performs an in-place, unstable sort of the upvotes , from largest to smallest.
-    #[inline]
-    pub fn sort_by_upvotes(&mut self) {
-        self.posts
-            .sort_unstable_by(|a, b| b.upvotes.cmp(&a.upvotes));
-    }
-
-    /// Return the underlying `Vec<Post>` as a slice.
-    #[inline]
-    #[must_use]
-    pub fn as_slice(&self) -> &[Post] {
-        &self.posts
-    }
-}
 
 /// Represents a post on `webtoons.com`, either a reply or a top-level comment.
 ///
@@ -768,23 +675,14 @@ impl Post {
         Ok((upvotes, downvotes))
     }
 
+    // QUESTION: Should there only be `replies` and then rely on the `len()` to
+    // get the count?
     /// Returns the replies on the current post.
-    ///
-    /// The return type depends on the specified output type and can either return the total number of replies or a collection of the actual replies.
-    ///
-    /// # Return Types
-    ///
-    /// - For `u32`: Returns the count of replies.
-    /// - For `Posts`: Returns the replies as a [`Posts`] object, with replies sorted from oldest to newest.
-    ///
-    /// # Usage
-    ///
-    /// Depending on the type you specify, you can either retrieve the number of replies or the actual replies themselves:
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Client, Type, webtoon::post::{Replies, Posts}};
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -795,12 +693,7 @@ impl Post {
     ///
     /// if let Some(episode) = webtoon.episode(87).await? {
     ///     if let Some(post) = episode.posts().await?.first() {
-    ///         let replies: u32 = post.replies().await?;
-    ///         println!("post has {replies} relies!");
-    ///
-    ///         let replies: Posts = post.replies().await?;
-    ///
-    ///         for reply in replies {
+    ///         for reply in post.replies().await? {
     ///             println!("{} left a reply to {}", reply.poster().username(), post.poster().username());
     ///         }
     ///         # return Ok(());
@@ -810,8 +703,85 @@ impl Post {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn replies<R: Replies>(&self) -> Result<R, PostsError> {
-        R::replies(self).await
+    pub async fn replies(&self) -> Result<Vec<Post>, PostsError> {
+        // No need to make a network request when there are
+        // no replies to fetch.
+        //
+        // FIX: Might make this always fetch replies?
+        // I know this was put in to optimize a use case, but the reply count getting
+        // out-of-date is an issue.
+        if self.replies == 0 {
+            return Ok(Vec::new());
+        }
+
+        #[allow(
+            clippy::mutable_key_type,
+            reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
+        )]
+        let mut replies = HashSet::new();
+
+        let response = self.episode.webtoon.client.replies(self, None, 100).await?;
+
+        let mut next: Option<Id> = response.result.pagination.next;
+
+        // Add first replies
+        for reply in response.result.posts {
+            replies.insert(Post::try_from((&self.episode, reply))?);
+        }
+
+        // Get rest if any
+        while let Some(cursor) = next {
+            let response = self
+                .episode
+                .webtoon
+                .client
+                .replies(self, Some(cursor), 100)
+                .await?;
+
+            for reply in response.result.posts {
+                replies.replace(Post::try_from((&self.episode, reply))?);
+            }
+
+            next = response.result.pagination.next;
+        }
+
+        let replies = {
+            let mut replies = replies.into_iter().collect::<Vec<Post>>();
+            replies.sort_unstable_by(|a, b| a.id.cmp(&b.id));
+            replies
+        };
+
+        Ok(replies)
+    }
+
+    /// Returns the reply count for the current post.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(4425, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// if let Some(episode) = webtoon.episode(87).await? {
+    ///     if let Some(post) = episode.posts().await?.first() {
+    ///         println!("there are {} replies for this post!", post.reply_count());
+    ///         # return Ok(());
+    ///     }
+    /// # unreachable!("should have entered the post block and returned");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn reply_count(&self) -> u32 {
+        self.replies
     }
 
     /// Posts a reply on top-level comment.
@@ -1352,113 +1322,6 @@ pub enum Reaction {
 pub(crate) enum PinRepresentation {
     None,
     Distinct,
-}
-
-impl IntoIterator for Posts {
-    type Item = Post;
-
-    type IntoIter = <Vec<Post> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.posts.into_iter()
-    }
-}
-
-impl From<Vec<Post>> for Posts {
-    fn from(value: Vec<Post>) -> Self {
-        Self { posts: value }
-    }
-}
-
-/// Trait providing a way to be generic over what type is returned for the word `replies`.
-///
-/// This was made so that `posts()` can have a single `replies` method, but provide the ability
-/// to get the posts themselves as well as the count without having to come up with another name
-/// for the function.
-#[doc(hidden)]
-pub trait Replies: Sized + Sealed {
-    /// Returns the replies for a post.
-    #[allow(async_fn_in_trait, reason = "internal use only")]
-    async fn replies(post: &Post) -> Result<Self, PostsError>;
-}
-
-impl Replies for u32 {
-    async fn replies(post: &Post) -> Result<Self, PostsError> {
-        // FIX: While this is fast and gotten from the initial request, this can
-        // also become out-of-date if a `post.reply()` is used followed by a
-        // `post.replies()`.
-        //
-        // No matter which `replies` is used, both `post.replies` either to
-        // return directly, or to check if `0`, which as this does not update,
-        // if checked after a `reply()`, then it would be `0` without a full
-        // re-scrape of the posts again.
-        //
-        // The tricky part here is when there is no need to update the reply count
-        // yet wanting to optimize for a:
-        //
-        // ```rust
-        // for post in webtoon.posts().await {
-        //     let replies = post.replies::<u32>();
-        // }
-        // ```
-        //
-        // Use case, with no extra network round-trip.
-        Ok(post.replies)
-    }
-}
-
-impl Sealed for Posts {}
-impl Replies for Posts {
-    async fn replies(post: &Post) -> Result<Self, PostsError> {
-        // No need to make a network request when there are
-        // no replies to fetch.
-        //
-        // FIX: Might make this always fetch replies?
-        // I know this was put in to optimize a use case, but the reply count getting
-        // out-of-date is an issue.
-        if post.replies == 0 {
-            return Ok(Self { posts: Vec::new() });
-        }
-
-        #[allow(
-            clippy::mutable_key_type,
-            reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
-        )]
-        let mut replies = HashSet::new();
-
-        let response = post.episode.webtoon.client.replies(post, None, 100).await?;
-
-        let mut next: Option<Id> = response.result.pagination.next;
-
-        // Add first replies
-        for reply in response.result.posts {
-            replies.insert(Post::try_from((&post.episode, reply))?);
-        }
-
-        // Get rest if any
-        while let Some(cursor) = next {
-            let response = post
-                .episode
-                .webtoon
-                .client
-                .replies(post, Some(cursor), 100)
-                .await?;
-
-            for reply in response.result.posts {
-                replies.replace(Post::try_from((&post.episode, reply))?);
-            }
-
-            next = response.result.pagination.next;
-        }
-
-        let mut replies = Self {
-            posts: replies.into_iter().collect(),
-        };
-
-        replies.sort_by_oldest();
-
-        Ok(replies)
-    }
 }
 
 pub mod id {

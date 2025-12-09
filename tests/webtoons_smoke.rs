@@ -1,6 +1,4 @@
-use webtoon::platform::webtoons::{
-    Client, Language, canvas::Sort, error::CreatorError, webtoon::post::Posts,
-};
+use webtoon::platform::webtoons::{Client, Language, canvas::Sort, error::CreatorError};
 
 #[tokio::test]
 #[ignore]
@@ -72,8 +70,7 @@ async fn canvas() {
 
         episode
             .posts_for_each(async |post| {
-                let _replies = post.replies::<u32>().await.unwrap();
-                let _replies = post.replies::<Posts>().await.unwrap();
+                let _replies = post.replies().await.unwrap();
             })
             .await
             .unwrap();
@@ -157,8 +154,7 @@ async fn originals() {
 
         episode
             .posts_for_each(async |post| {
-                let _replies = post.replies::<u32>().await.unwrap();
-                let _replies = post.replies::<Posts>().await.unwrap();
+                let _replies = post.replies().await.unwrap();
             })
             .await
             .unwrap();

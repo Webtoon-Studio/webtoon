@@ -1,9 +1,6 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
-use super::{
-    Webtoon,
-    post::{PinRepresentation, Posts},
-};
+use super::{Webtoon, post::PinRepresentation};
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{Assume, Assumption, assumption};
 use crate::{
@@ -628,7 +625,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Posts, PostsError> {
+    pub async fn posts(&self) -> Result<Vec<Post>, PostsError> {
         #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
@@ -675,11 +672,9 @@ impl Episode {
         }
 
         let posts = {
-            let mut posts = Posts {
-                posts: posts.into_iter().collect(),
-            };
-            // TODO: Make sort order a stability guarantee?
-            posts.sort_by_newest();
+            let mut posts = posts.into_iter().collect::<Vec<Post>>();
+            // Sort by newest.
+            posts.sort_unstable_by(|a, b| b.posted.cmp(&a.posted));
             posts
         };
 
@@ -813,7 +808,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_id(&self, id: Id) -> Result<Posts, PostsError> {
+    pub async fn posts_till_id(&self, id: Id) -> Result<Vec<Post>, PostsError> {
         #[allow(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
@@ -831,9 +826,7 @@ impl Episode {
         // Add first posts
         for post in response.result.posts {
             if post.id == id {
-                return Ok(Posts {
-                    posts: posts.into_iter().collect(),
-                });
+                return Ok(posts.into_iter().collect());
             }
 
             posts.insert(Post::try_from((self, post))?);
@@ -849,9 +842,7 @@ impl Episode {
 
             for post in response.result.posts {
                 if post.id == id {
-                    return Ok(Posts {
-                        posts: posts.into_iter().collect(),
-                    });
+                    return Ok(posts.into_iter().collect());
                 }
 
                 posts.insert(Post::try_from((self, post))?);
@@ -860,14 +851,7 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let posts = {
-            let mut posts = Posts {
-                posts: posts.into_iter().collect(),
-            };
-            // TODO: Make sort order a stability guarantee?
-            posts.sort_by_newest();
-            posts
-        };
+        let posts = posts.into_iter().collect();
 
         Ok(posts)
     }
@@ -906,7 +890,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts_till_date(&self, date: i64) -> Result<Posts, PostsError> {
+    pub async fn posts_till_date(&self, date: i64) -> Result<Vec<Post>, PostsError> {
         #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
@@ -924,9 +908,7 @@ impl Episode {
         // Add first posts.
         for post in response.result.posts {
             if post.created_at < date {
-                return Ok(Posts {
-                    posts: posts.into_iter().collect(),
-                });
+                return Ok(posts.into_iter().collect());
             }
 
             posts.insert(Post::try_from((self, post))?);
@@ -942,9 +924,7 @@ impl Episode {
 
             for post in response.result.posts {
                 if post.created_at < date {
-                    return Ok(Posts {
-                        posts: posts.into_iter().collect(),
-                    });
+                    return Ok(posts.into_iter().collect());
                 }
 
                 posts.insert(Post::try_from((self, post))?);
@@ -953,14 +933,7 @@ impl Episode {
             next = response.result.pagination.next;
         }
 
-        let posts = {
-            let mut posts = Posts {
-                posts: posts.into_iter().collect(),
-            };
-            // TODO: Make sort order a stability guarantee?
-            posts.sort_by_newest();
-            posts
-        };
+        let posts = posts.into_iter().collect();
 
         Ok(posts)
     }
