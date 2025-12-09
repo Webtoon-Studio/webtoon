@@ -5,7 +5,9 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::{
-    platform::webtoons::{Language, creator::Creator, error::RssError},
+    platform::webtoons::{
+        Language, creator::Creator, error::RssError, webtoon::episode::Published,
+    },
     stdx::{
         cache::Cache,
         error::{Assume, Assumption, assumption},
@@ -74,7 +76,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
     let mut episodes = Vec::new();
 
     for item in &channel.items {
-        let published = published(
+        let datetime = published(
             item.pub_date()
                 .assumption("publish date should always be present in `webtoons.com` rss feed, as this feed only shows published episodes")?,
             webtoon.language(),
@@ -96,7 +98,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
             webtoon: webtoon.clone(),
             number,
             title: Cache::new(title),
-            published: Some(published),
+            published: Some(Published::from(datetime)),
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.
             published_status: Some(PublishedStatus::Published),
 

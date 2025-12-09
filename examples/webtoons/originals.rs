@@ -15,7 +15,11 @@ async fn main() -> anyhow::Result<()> {
         let first_episode = webtoon.first_episode().await?;
 
         // Check for all Webtoons who's first episode was published within the last 30 days.
-        if first_episode.published() >= Some(thirty_days_ago.timestamp_millis()) {
+        if first_episode
+            .published()
+            .and_then(|published| published.timestamp())
+            >= Some(thirty_days_ago.timestamp_millis())
+        {
             println!("New Webtoon! `{}`", webtoon.title().await?);
         }
     }
