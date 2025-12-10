@@ -15,7 +15,6 @@ use rss::Rss;
 use self::{
     episode::{Episode, Episodes},
     homepage::Page,
-    post::Posts,
 };
 use super::Type;
 use super::error::WebtoonError;
@@ -23,9 +22,12 @@ use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, Language, creator::Creator};
 use crate::{
-    platform::webtoons::error::{
-        EpisodesError, InvalidWebtoonUrl, LikesError, PostsError, RequestError, SessionError,
-        SubscribersError, ViewsError,
+    platform::webtoons::{
+        error::{
+            EpisodesError, InvalidWebtoonUrl, LikesError, PostsError, RequestError, SessionError,
+            SubscribersError, ViewsError,
+        },
+        webtoon::post::Post,
     },
     stdx::{
         cache::{Cache, Store},
@@ -936,7 +938,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Posts, PostsError> {
+    pub async fn posts(&self) -> Result<Vec<Post>, PostsError> {
         let mut posts = Vec::with_capacity(100);
 
         for number in 1.. {
@@ -947,7 +949,7 @@ impl Webtoon {
             }
         }
 
-        Ok(Posts::from(posts))
+        Ok(posts)
     }
 
     /// Retrieves the RSS feed information for the current `Webtoon`.

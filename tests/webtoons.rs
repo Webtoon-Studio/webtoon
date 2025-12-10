@@ -3,7 +3,6 @@ use webtoon::platform::webtoons::{
     canvas::Sort,
     meta::Genre,
     originals::{Schedule, Weekday},
-    webtoon::post::Posts,
 };
 
 #[tokio::test]
@@ -524,7 +523,7 @@ async fn englsh_canvas_posts() {
             // Delete just added post
             post.delete().await.unwrap();
         } else {
-            for reply in post.replies::<Posts>().await.unwrap() {
+            for reply in post.replies().await.unwrap() {
                 _ = std::hint::black_box(reply);
             }
         }
@@ -566,7 +565,7 @@ async fn englsh_canvas_posts() {
         // This refreshes to get new data for posts
         // and therefore can find all replies with `REPLY`.
         for post in episode.posts().await.unwrap() {
-            for reply in post.replies::<Posts>().await.unwrap() {
+            for reply in post.replies().await.unwrap() {
                 if reply.body().contents() == "REPLY" {
                     reply.delete().await.unwrap();
                 }
@@ -602,7 +601,7 @@ async fn englsh_original_posts() {
     let posts = episode.posts().await.unwrap();
 
     for post in posts {
-        for _reply in post.replies::<Posts>().await.unwrap() {}
+        for _reply in post.replies().await.unwrap() {}
 
         if client
             .has_valid_session()

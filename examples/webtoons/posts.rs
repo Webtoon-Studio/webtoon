@@ -2,7 +2,6 @@ use tokio::io::AsyncWriteExt;
 use webtoon::platform::webtoons::{
     Client, Type,
     error::{BlockUserError, Error},
-    webtoon::post::Posts,
 };
 
 #[tokio::main(flavor = "current_thread")]
@@ -39,11 +38,11 @@ async fn main() -> Result<(), Error> {
         println!("flare: {:?}", post.body().flare());
         println!("upvotes: {}", post.upvotes());
         println!("downvotes: {}", post.downvotes());
-        let replies: u32 = post.replies().await?;
+        let replies = post.reply_count();
         println!("replies: {replies}");
         println!("super like: {:?}", post.poster().super_like());
 
-        for reply in post.replies::<Posts>().await? {
+        for reply in post.replies().await? {
             println!("\tusername: {}", reply.poster().username());
             println!("\tcontents: {}", reply.body().contents());
             println!("\tis spoiler: {}", reply.body().is_spoiler());
