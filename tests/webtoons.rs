@@ -883,3 +883,12 @@ async fn english_originals_with_gif() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn english_canvas_creator_with_multiple_trailing_dots_is_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(557095, Type::Canvas).await.unwrap().unwrap();
+    // `That 1 kid.....`
+    let creators = webtoon.creators().await.unwrap();
+    assert!(creators.len() == 1);
+}

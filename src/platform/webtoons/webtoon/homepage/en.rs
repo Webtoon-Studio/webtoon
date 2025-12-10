@@ -222,11 +222,14 @@ pub(super) fn creators(
                 // with multiple creators, there are (for some reason) tabs in the text:
                 //     - `" SUMPUL , HereLee , Alphatart ... "`: https://www.webtoons.com/en/fantasy/the-remarried-empress/list?title_no=2135
                 // This should allow commas in usernames, while still filtering away the standalone `,` separator.
-                'username: for username in text.trim().split('\t').filter(|&str| str.trim() != ",")
+                'username: for username in text
+                    .trim()
+                    .split('\t')
+                    .map(|str| str.trim())
+                    .filter(|&str| str != ",")
+                    // Last username in a multi-username scenario ends with ` ... `
+                    .filter(|&str| str != "...")
                 {
-                    // Last username in a multi-username scenario with end with ` ... `
-                    let username = username.trim().trim_end_matches("...");
-
                     if username.is_empty() {
                         continue;
                     }
@@ -243,7 +246,7 @@ pub(super) fn creators(
                         client: client.clone(),
                         language: Language::En,
                         profile: None,
-                        username: username.trim().into(),
+                        username: username.to_string(),
                         homepage: Cache::empty(),
                     });
                 }
