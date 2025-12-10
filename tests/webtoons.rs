@@ -891,3 +891,13 @@ async fn english_canvas_creator_with_multiple_trailing_dots_is_ok() {
     let creators = webtoon.creators().await.unwrap();
     assert!(creators.len() == 1);
 }
+
+#[tokio::test]
+async fn english_canvas_panel_image_with_multiple_dots_in_ext_is_ok() {
+    let client = Client::new();
+    let webtoon = client.webtoon(460550, Type::Canvas).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    // For when images ended with: `1.7.jpeg`. Make sure to only get the `jpeg` part.
+    let length = episode.length().await.unwrap().unwrap();
+    assert_eq!(7715, length);
+}

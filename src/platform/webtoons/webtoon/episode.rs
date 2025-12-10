@@ -1886,7 +1886,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
-        let ext = match url.path().split('.').nth(1) {
+        let ext = match url.path().split('.').next_back() {
             Some(ext) => ext.to_string(),
             None => assumption!(
                 "`webtoons.com` episode page panel image urls should end in an extension, got: {url}"
