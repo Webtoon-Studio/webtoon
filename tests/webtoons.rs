@@ -1,6 +1,7 @@
 use webtoon::platform::webtoons::{
     Client, Language, Type,
     canvas::Sort,
+    error::CreatorError,
     meta::Genre,
     originals::{Schedule, Weekday},
 };
@@ -900,4 +901,15 @@ async fn english_canvas_panel_image_with_multiple_dots_in_ext_is_ok() {
     // For when images ended with: `1.7.jpeg`. Make sure to only get the `jpeg` part.
     let length = episode.length().await.unwrap().unwrap();
     assert_eq!(7715, length);
+}
+
+#[tokio::test]
+async fn english_canvas_creator_invalid_creator_profile() {
+    let client = Client::new();
+    let creator = client.creator("y87lz", Language::En).await;
+
+    match creator {
+        Err(CreatorError::InvalidCreatorProfile) => {}
+        Ok(_) | Err(_) => unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}"),
+    }
 }

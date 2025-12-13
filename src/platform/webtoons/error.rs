@@ -78,6 +78,8 @@ mod _inner {
             UnsupportedLanguage,
             #[display("profile page disabled by creator")]
             PageDisabledByCreator,
+            #[display("invalid creator profile")]
+            InvalidCreatorProfile,
         } || Base || ClientError
 
         WebtoonError := Base || ClientError

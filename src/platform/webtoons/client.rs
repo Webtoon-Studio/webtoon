@@ -299,6 +299,7 @@ impl Client {
     ///   supported language. In this case, even though the language is supported, the creator
     ///   does not have a profile page.
     /// - [`CreatorError::PageDisabledByCreator`]: Profile for creator exists, but is disabled.
+    /// - [`CreatorError::InvalidCreatorProfile`]: Profile for creator exists, but for an unknown reason, does not respond with the expected normal homepage: [`example`]
     ///
     /// # Example
     ///
@@ -320,6 +321,7 @@ impl Client {
     /// ```
     ///
     /// [`https://www.webtoons.com/p/community/en/u/w7m5o`]: https://www.webtoons.com/p/community/en/u/w7m5o
+    /// [`example`]: https://www.webtoons.com/p/community/en/u/y87lz
     pub async fn creator(
         &self,
         profile: &str,

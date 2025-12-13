@@ -346,6 +346,10 @@ pub(super) async fn homepage(
         return Ok(None);
     };
 
+    if is_invalid(&html)? {
+        return Err(CreatorError::InvalidCreatorProfile);
+    }
+
     Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
@@ -459,4 +463,35 @@ fn has_patreon(html: &Html) -> Result<bool, Assumption> {
         .any(|alt| alt == "PATREON");
 
     Ok(has_patreon)
+}
+
+// When a URL is invalid, the `webtoons.com` returns a 404. This can happen
+// when the profile doesn't exist. It can also return a 200, but the page has
+// an error message: `Invalid creator profile.`
+//
+// It's not exactly clear what the distinction is between these states is, but
+// presumably the 404 means the profile doesn't exist, and the 200 + error message
+// means that it does exist, but for some reason is reporting an error.
+//
+// https://www.webtoons.com/p/community/en/u/y87lz
+fn is_invalid(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("p") //
+        .assumption("`p` should be a valid selector")?;
+
+    // Element(<p class="ErrorPage_text__FQYij">) => { Text("Invalid creator profile.") }
+    let is_invalid = html
+        .select(&selector)
+        .find(|element| {
+            element
+                .attr("class")
+                .is_some_and(|class| class.starts_with("ErrorPage_text"))
+        })
+        .is_some_and(|element| {
+            element
+                .text()
+                .next()
+                .is_some_and(|text| text == "Invalid creator profile.")
+        });
+
+    Ok(is_invalid)
 }
