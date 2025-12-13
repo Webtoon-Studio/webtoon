@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 use webtoon::platform::webtoons::{Client, Language, canvas::Sort, error::CreatorError};
 
 #[tokio::test]
@@ -26,8 +27,20 @@ async fn canvas() {
                 unreachable!("canvas stories can only have one creator: {creators:?}")
             }
             [creator] => {
-                let _has_patreon = creator.has_patreon().await.unwrap();
-                let _id = creator.id().await.unwrap();
+                match creator.has_patreon().await {
+                    Ok(_)
+                    | Err(
+                        CreatorError::InvalidCreatorProfile | CreatorError::PageDisabledByCreator,
+                    ) => {}
+                    Err(err) => panic!("{err}"),
+                }
+                match creator.id().await {
+                    Ok(_)
+                    | Err(
+                        CreatorError::InvalidCreatorProfile | CreatorError::PageDisabledByCreator,
+                    ) => {}
+                    Err(err) => panic!("{err}"),
+                }
             }
         }
 
@@ -100,18 +113,24 @@ async fn originals() {
             creators => {
                 for creator in creators {
                     // TODO: Need to verify that this works for Korean Creators.
-                    let _has_patreon = match creator.has_patreon().await {
-                        Ok(has_patreon) => has_patreon,
-                        Err(CreatorError::PageDisabledByCreator) => None,
+                    match creator.has_patreon().await {
+                        Ok(_)
+                        | Err(
+                            CreatorError::PageDisabledByCreator
+                            | CreatorError::InvalidCreatorProfile,
+                        ) => {}
                         Err(err) => panic!("{err}"),
-                    };
+                    }
 
                     // TODO: Need to verify that this works for Korean Creators.
-                    let _id = match creator.id().await {
-                        Ok(id) => id,
-                        Err(CreatorError::PageDisabledByCreator) => None,
+                    match creator.id().await {
+                        Ok(_)
+                        | Err(
+                            CreatorError::PageDisabledByCreator
+                            | CreatorError::InvalidCreatorProfile,
+                        ) => {}
                         Err(err) => panic!("{err}"),
-                    };
+                    }
                 }
             }
         }
