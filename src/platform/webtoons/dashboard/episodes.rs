@@ -68,6 +68,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
             thumbnail: Cache::empty(),
             note: Cache::empty(),
             panels: Cache::empty(),
+            top_comments: Cache::empty(),
         });
     }
 
@@ -97,6 +98,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
                 thumbnail: Cache::empty(),
                 note: Cache::empty(),
                 panels: Cache::empty(),
+                top_comments: Cache::empty(),
             });
         }
 

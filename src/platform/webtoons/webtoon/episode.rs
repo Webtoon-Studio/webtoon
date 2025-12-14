@@ -1,7 +1,7 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
 use super::{Webtoon, post::PinRepresentation};
-use crate::platform::webtoons::webtoon::post::Comments;
+use crate::platform::webtoons::webtoon::post::{Comment, Comments};
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{Assume, Assumption, assumption};
 use crate::{
@@ -173,6 +173,7 @@ pub struct Episode {
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
     pub(crate) panels: Cache<Vec<Panel>>,
+    pub(crate) top_comments: Cache<[Option<Comment>; 3]>,
 }
 
 impl std::fmt::Debug for Episode {
@@ -189,6 +190,7 @@ impl std::fmt::Debug for Episode {
             ad_status,
             published_status,
             panels,
+            top_comments,
         } = self;
 
         f.debug_struct("Episode")
@@ -202,6 +204,7 @@ impl std::fmt::Debug for Episode {
             .field("ad_status", ad_status)
             .field("published_status", published_status)
             .field("panels", panels)
+            .field("top_comments", top_comments)
             .finish()
     }
 }
@@ -1002,6 +1005,7 @@ impl Episode {
             views: None,
             ad_status: None,
             published_status: None,
+            top_comments: Cache::empty(),
         }
     }
 
