@@ -753,14 +753,27 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<UserInfo>(&response) {
-            Ok(user_info) => Ok(user_info),
+        let user_info = match serde_json::from_str::<UserInfo>(&response) {
+            Ok(user_info) => user_info,
             Err(err) => {
                 assumption!(
                     "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
                 )
             }
+        };
+
+        match (user_info.is_logged_in(), user_info.profile()) {
+            (true, None) => assumption!(
+                "if `UserInfo::is_logged_in` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid"
+            ),
+            (false, Some(profile)) => assumption!(
+                "if `UserInfo::is_logged_in` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination"
+            ),
+            // Expected combination of a response.
+            (false, None) | (true, Some(_)) => {}
         }
+
+        Ok(user_info)
     }
 
     /// Returns if the `Client` was provided a session.
