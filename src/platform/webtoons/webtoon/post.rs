@@ -14,6 +14,67 @@ use core::fmt::{self, Debug};
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use thiserror::Error;
 
+// TODO: Create `Comment` and `Reply` structs, which wrap the current `Post`.
+// They will just be newtypes. Post is a generalization, where Comment and Reply
+// are specializations.
+//
+// For example, Comment wont expose a `parent_id` as there is no `parent_id`.
+// There is also no `replies` on a `Reply`, this can only be on Comment, which
+// the current api doesnt clearly define.
+
+#[derive(Debug, Clone)]
+pub struct Comment(Post);
+
+impl Comment {
+    fn episode(&self) -> u16 {
+        self.0.episode()
+    }
+
+    fn id(&self) -> Id {
+        self.0.id()
+    }
+
+    fn body(&self) -> &Body {
+        self.0.body()
+    }
+
+    fn upvotes(&self) -> u32 {
+        self.0.upvotes()
+    }
+
+    fn downvotes(&self) -> u32 {
+        self.0.downvotes()
+    }
+
+    // TODO: Return Vec<Reply>
+    async fn replies(&self) -> Result<Vec<Post>, PostsError> {
+        self.0.replies().await
+    }
+
+    fn reply_count(&self) -> u32 {
+        self.0.reply_count()
+    }
+
+    fn is_top(&self) -> bool {
+        self.0.is_top()
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.0.is_deleted()
+    }
+
+    fn posted(&self) -> i64 {
+        self.0.posted()
+    }
+
+    fn poster(&self) -> &Poster {
+        self.0.poster()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Reply(Post);
+
 /// Represents a post on `webtoons.com`, either a reply or a top-level comment.
 ///
 /// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`] and iterated through,
