@@ -505,11 +505,11 @@ pub mod id {
         }
     }
 
+    #[allow(
+        clippy::non_canonical_partial_ord_impl,
+        reason = "`Id` ordering is only meaningful for the same webtoon on the same episode"
+    )]
     impl PartialOrd for Id {
-        #[allow(
-            clippy::non_canonical_partial_ord_impl,
-            reason = "`Id` ordering is only meaningful for the same webtoon on the same episode"
-        )]
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             // If not a post on the same webtoons' episode then return `None`.
             // Cannot add `self.tag != other.tag` as its still unknown how this number increments, but given that the other
