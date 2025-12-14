@@ -656,6 +656,7 @@ pub(super) fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Epi
         //
         // Same goes for Canvas, impossible to say from just the info on this page.
         ad_status: None,
+        top_comments: Cache::empty(),
     })
 }
 

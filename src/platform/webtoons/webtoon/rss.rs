@@ -108,6 +108,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
             panels: Cache::empty(),
             views: None,
             ad_status: None,
+            top_comments: Cache::empty(),
         });
     }
 

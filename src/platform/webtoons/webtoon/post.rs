@@ -7,7 +7,10 @@ use crate::{
         error::{BlockUserError, DeletePostError, PostError, PostsError, ReplyError},
         webtoon::post::id::Id,
     },
-    stdx::{cache::Cache, error::assumption},
+    stdx::{
+        cache::{Cache, Store},
+        error::assumption,
+    },
 };
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
@@ -1333,15 +1336,40 @@ impl Post {
     }
 
     pub async fn is_top(&self) -> Result<bool, PostError> {
-        let response = self
-            .episode
-            .webtoon
-            .client
-            // Gets `is_top/isPinned` info.
-            .episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
-            .await?;
+        if let Store::Value(top_comments) = self.episode.top_comments.get() {
+            Ok(top_comments
+                .into_iter()
+                .any(|comment| comment.is_some_and(|top| top.id() == self.id())))
+        } else {
+            let response = self
+                .episode
+                .webtoon
+                .client
+                // Gets `is_top/isPinned` info.
+                .episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
+                .await?;
 
-        Ok(response.result.tops.iter().any(|top| top.id == self.id()))
+            assumption!(
+                response.result.tops.len() < 4,
+                "there should only be at most 3 top comments on `webtoons.com` episode"
+            );
+
+            let mut top_comments = [None, None, None];
+
+            for (idx, comment) in response.result.tops.into_iter().enumerate() {
+                if let Some(top) = top_comments.get_mut(idx) {
+                    *top = Some(Comment(Post::try_from((&self.episode, comment))?));
+                }
+            }
+
+            let is_top = top_comments
+                .iter()
+                .any(|comment| comment.as_ref().is_some_and(|top| top.id() == self.id()));
+
+            self.episode.top_comments.insert(top_comments);
+
+            Ok(is_top)
+        }
     }
 
     #[inline]
