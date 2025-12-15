@@ -345,14 +345,6 @@ async fn english_webtoon_canvas() {
 
     let summary = webtoon.summary().await.unwrap();
     assert_eq!("test", summary);
-
-    if client.has_valid_session().await.is_ok_and(|result| result) {
-        assert!(!webtoon.is_subscribed().await.unwrap());
-        webtoon.subscribe().await.unwrap();
-        assert!(webtoon.is_subscribed().await.unwrap());
-        webtoon.unsubscribe().await.unwrap();
-        assert!(!webtoon.is_subscribed().await.unwrap());
-    }
 }
 
 #[tokio::test]
@@ -424,14 +416,6 @@ async fn english_webtoon_original() {
         "Working hard is supposed to take you far - but into the world of your best friend's novel? For Lucy, being whisked into a life of ballrooms and picnics isn't exactly what it's cracked up to be; at least, not when everyone has mistaken her for the villain flagged for death. To escape this fate, Lucy must transform from modern workaholic to high society schemer if she even has a chance at returning home. Will she make it? Or will this world of beautiful outfits, strawberry desserts, and dashingly handsome gentlemen seal her fate?",
         summary
     );
-
-    if client.has_valid_session().await.is_ok_and(|result| result) {
-        assert!(!webtoon.is_subscribed().await.unwrap());
-        webtoon.subscribe().await.unwrap();
-        assert!(webtoon.is_subscribed().await.unwrap());
-        webtoon.unsubscribe().await.unwrap();
-        assert!(!webtoon.is_subscribed().await.unwrap());
-    }
 }
 
 #[tokio::test]
@@ -504,75 +488,11 @@ async fn englsh_canvas_posts() {
         .unwrap()
         .expect("No episode for given number");
 
-    if client.has_valid_session().await.is_ok_and(|result| result) {
-        // Post content and if its marked as a spoiler.
-        episode.post("MESSAGE", false).await.unwrap();
-    }
-
     let mut comments = episode.posts();
 
     while let Some(comment) = comments.next().await.unwrap() {
-        if client
-            .has_valid_session()
-            .await
-            .is_ok_and(|is_valid| is_valid)
-            && comment.poster().is_current_session_user()
-            && comment.body().contents() == "MESSAGE"
-        {
-            comment.reply("REPLY", true).await.unwrap();
-
-            // Delete just added post
-            comment.delete().await.unwrap();
-        } else {
-            for reply in comment.replies().await.unwrap() {
-                _ = std::hint::black_box(reply);
-            }
-        }
-
-        if client
-            .has_valid_session()
-            .await
-            .is_ok_and(|is_valid| is_valid)
-            && comment.poster().username() == "Nen19"
-        {
-            let (upvotes, downvotes) = comment.unvote().await.unwrap();
-            assert_eq!(0, upvotes);
-            assert_eq!(1, downvotes);
-
-            let (upvotes, downvotes) = comment.upvote().await.unwrap();
-            assert_eq!(1, upvotes, "{upvotes}, {downvotes}");
-            assert_eq!(1, downvotes);
-
-            let (upvotes, downvotes) = comment.downvote().await.unwrap();
-            assert_eq!(0, upvotes);
-            assert_eq!(2, downvotes);
-
-            let (upvotes, downvotes) = comment.unvote().await.unwrap();
-            assert_eq!(0, upvotes);
-            assert_eq!(1, downvotes);
-        }
-    }
-
-    if client
-        .has_valid_session()
-        .await
-        .is_ok_and(|is_valid| is_valid)
-    {
-        // Clean up previous reply to post.
-        //
-        // This is needed as currently cannot get
-        // updated replies after getting a `Post`.
-        //
-        // This refreshes to get new data for posts
-        // and therefore can find all replies with `REPLY`.
-        let mut comments = episode.posts();
-
-        while let Some(comment) = comments.next().await.unwrap() {
-            for reply in comment.replies().await.unwrap() {
-                if reply.body().contents() == "REPLY" {
-                    reply.delete().await.unwrap();
-                }
-            }
+        for reply in comment.replies().await.unwrap() {
+            _ = std::hint::black_box(reply);
         }
     }
 }
@@ -592,38 +512,10 @@ async fn englsh_original_posts() {
         .unwrap()
         .expect("No episode for given number");
 
-    if client
-        .has_valid_session()
-        .await
-        .is_ok_and(|is_valid| is_valid)
-    {
-        // Post content and if its marked as a spoiler.
-        episode.post("MESSAGE", false).await.unwrap();
-    }
-
     let mut comments = episode.posts();
 
     while let Some(comment) = comments.next().await.unwrap() {
         for _reply in comment.replies().await.unwrap() {}
-
-        if client
-            .has_valid_session()
-            .await
-            .is_ok_and(|is_valid| is_valid)
-        {
-            comment.upvote().await.unwrap();
-            comment.downvote().await.unwrap();
-            comment.unvote().await.unwrap();
-
-            // There are some complications around replying and then deleting
-            // replies, and as this is currently not a priority, just do simple
-            // tests.
-
-            // Delete just added post
-            if comment.body().contents() == "MESSAGE" && !comment.is_deleted() {
-                comment.delete().await.unwrap();
-            }
-        }
     }
 }
 

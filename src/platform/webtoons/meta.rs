@@ -95,14 +95,6 @@ impl Scope {
             Self::Original(genre) => genre.as_slug(),
         }
     }
-
-    /// "c" or "w"
-    pub(crate) fn as_single_letter(self) -> &'static str {
-        match self {
-            Self::Canvas => "c",
-            Self::Original(_) => "w",
-        }
-    }
 }
 
 impl FromStr for Scope {

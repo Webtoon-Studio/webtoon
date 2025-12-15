@@ -12,20 +12,15 @@ use super::{
     error::{CanvasError, CreatorError, OriginalsError, SearchError, WebtoonError},
     meta::Scope,
     originals::{self},
-    webtoon::{
-        episode::Episode,
-        post::{Post, Reaction},
-    },
+    webtoon::{episode::Episode, post::Post},
 };
 use crate::{
     platform::webtoons::{
         client::api::{
-            api_token::ApiToken,
             creator_webtoons::CreatorWebtoons,
             dashboard::episodes::DashboardEpisode,
             likes::RawLikesResponse,
             posts::{Count, RawPostResponse},
-            react_token::ReactToken,
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
@@ -33,17 +28,16 @@ use crate::{
             RequestError, SessionError, UserInfoError,
         },
         search::Item,
-        webtoon::post::{PinRepresentation, Poster, id::Id},
+        webtoon::post::{PinRepresentation, id::Id},
     },
     stdx::{
         cache::Cache,
-        error::{Assume, assumption},
+        error::assumption,
         http::{DEFAULT_USER_AGENT, IRetry},
     },
 };
 use scraper::Html;
-use serde_json::json;
-use std::{collections::HashMap, fmt::Display, ops::RangeBounds, sync::Arc};
+use std::{fmt::Display, ops::RangeBounds, sync::Arc};
 
 /// A builder for configuring and creating instances of [`Client`] with custom settings.
 ///
@@ -1020,92 +1014,6 @@ impl Client {
         Ok(html)
     }
 
-    // TODO: For both this and unsubscribe, check Webtoon user info to see if already subscribed or not.
-    pub(super) async fn subscribe_to_webtoon(&self, webtoon: &Webtoon) -> Result<(), SessionError> {
-        let session = self.session.validate(self).await?;
-
-        let form = HashMap::from([
-            ("titleNo", webtoon.id().to_string()),
-            ("currentStatus", false.to_string()),
-        ]);
-
-        let url = match webtoon.r#type() {
-            Type::Original => "https://www.webtoons.com/setFavorite",
-            Type::Canvas => "https://www.webtoons.com/canvas/setFavorite",
-        };
-
-        let response = self
-            .http
-            .post(url)
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .form(&form)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
-
-        match serde_json::from_str::<api::subscription::Response>(&response) {
-            Ok(result) if result.success && result.favorite => {}
-            Ok(result) => assumption!(
-                "`subscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
-            ),
-            Err(err) => assumption!(
-                "response from subscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
-            ),
-        }
-
-        Ok(())
-    }
-
-    pub(super) async fn unsubscribe_to_webtoon(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<(), SessionError> {
-        let session = self.session.validate(self).await?;
-
-        let form = HashMap::from([
-            ("titleNo", webtoon.id().to_string()),
-            ("currentStatus", true.to_string()),
-        ]);
-
-        let url = match webtoon.r#type() {
-            Type::Original => "https://www.webtoons.com/setFavorite",
-            Type::Canvas => "https://www.webtoons.com/canvas/setFavorite",
-        };
-
-        let response = self
-            .http
-            .post(url)
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Service-Ticket-Id", "epicom")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .form(&form)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
-
-        match serde_json::from_str::<api::subscription::Response>(&response) {
-            Ok(result) if result.success && !result.favorite => {}
-            Ok(result) => assumption!(
-                "`unsubscribe` request was successful, yet the operation to subscribe was a failure according to `webtoons.com`: {result:?}"
-            ),
-            Err(err) => assumption!(
-                "response from unsubscribing to Webtoon on `webtoons.com` should follow known layout of `a{{\"success\": bool,\"favorite\":bool}}`: {err}"
-            ),
-        }
-
-        Ok(())
-    }
-
     // TODO: If a session is valid, but does not belong to the Webtoon, then
     // should return `InvalidPermissions`.
     pub(super) async fn episodes_dashboard(
@@ -1294,98 +1202,6 @@ impl Client {
         }
     }
 
-    pub(super) async fn like_episode(&self, episode: &Episode) -> Result<(), SessionError> {
-        let session = self.session.validate(self).await?;
-
-        let response = self.react_token().await?;
-
-        if response.success {
-            let webtoon = episode.webtoon.id;
-            let r#type = episode.webtoon.scope.as_single_letter();
-            let number = episode.number;
-
-            let token = response
-                .result
-                .guest_token
-                .assumption("if `webtoons.com` react token api response is successful, the `guestToken` should be Some")?;
-
-            let timestamp = response
-                .result
-                .timestamp
-                .assumption("if `webtoons.com` react token api response is successful, the `timestamp` should be Some")?;
-
-            let language = match episode.webtoon.language {
-                Language::En => "en",
-                Language::Zh => "zh-hant",
-                Language::Th => "th",
-                Language::Id => "id",
-                Language::Es => "es",
-                Language::Fr => "fr",
-                Language::De => "de",
-            };
-
-            let url = format!(
-                "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
-            );
-
-            self.http
-                .post(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .retry()
-                .send()
-                .await
-                .map_err(RequestError)?;
-        }
-
-        Ok(())
-    }
-
-    pub(super) async fn unlike_episode(&self, episode: &Episode) -> Result<(), SessionError> {
-        let session = self.session.validate(self).await?;
-
-        let response = self.react_token().await?;
-
-        if response.success {
-            let webtoon = episode.webtoon.id;
-            let r#type = episode.webtoon.scope.as_single_letter();
-            let number = episode.number;
-
-            let token = response
-                .result
-                .guest_token
-                .assumption("if `webtoons.com` react token api response is successful, the `guestToken` should be `Some`")?;
-
-            let timestamp = response
-                .result
-                .timestamp
-                .assumption("if `webtoons.com` react token api response is successful, the `timestamp` should be `Some`")?;
-
-            let language = match episode.webtoon.language {
-                Language::En => "en",
-                Language::Zh => "zh-hant",
-                Language::Th => "th",
-                Language::Id => "id",
-                Language::Es => "es",
-                Language::Fr => "fr",
-                Language::De => "de",
-            };
-
-            let url = format!(
-                "https://www.webtoons.com/api/v1/like/services/LINEWEBTOON/contents/{type}_{webtoon}_{number}?menuLanguageCode={language}&timestamp={timestamp}&guestToken={token}"
-            );
-
-            self.http
-                .delete(&url)
-                .header("Cookie", format!("NEO_SES={session}"))
-                .retry()
-                .send()
-                .await
-                .map_err(RequestError)?;
-        }
-
-        Ok(())
-    }
-
     pub(super) async fn episode_posts(
         &self,
         episode: &Episode,
@@ -1557,246 +1373,6 @@ impl Client {
         }
     }
 
-    pub(super) async fn post_comment(
-        &self,
-        episode: &Episode,
-        body: &str,
-        is_spoiler: bool,
-    ) -> Result<(), SessionError> {
-        let page_id = format!(
-            "{}_{}_{}",
-            match episode.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            episode.webtoon.id,
-            episode.number
-        );
-
-        let spoiler_filter = if is_spoiler { "ON" } else { "OFF" };
-
-        let body = json!(
-            {
-                "pageId": page_id,
-                "settings":{
-                    "reply": "ON",
-                    "reaction": "ON",
-                    "spoilerFilter": spoiler_filter
-                },
-                "body": body
-            }
-        );
-
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .post("https://www.webtoons.com/p/api/community/v2/post")
-            .json(&body)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Api-Token", token)
-            .header("Cookie", format!("NEO_SES={session}"))
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        Ok(())
-    }
-
-    pub(super) async fn post_reply(
-        &self,
-        post: &Post,
-        body: &str,
-        is_spoiler: bool,
-    ) -> Result<(), SessionError> {
-        let page_id = format!(
-            "{}_{}_{}",
-            match post.episode.webtoon.scope {
-                Scope::Original(_) => "w",
-                Scope::Canvas => "c",
-            },
-            post.episode.webtoon.id,
-            post.episode.number
-        );
-
-        let spoiler_filter = if is_spoiler { "ON" } else { "OFF" };
-        let body = json![
-            {
-                "pageId": page_id,
-                "parentId": post.id.to_string(),
-                "settings": { "reply": "OFF", "reaction": "ON", "spoilerFilter": spoiler_filter },
-                "title":"",
-                "body": body
-            }
-        ];
-
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .post("https://www.webtoons.com/p/api/community/v2/post")
-            .json(&body)
-            .header("Api-Token", token.clone())
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Service-Ticket-Id", "epicom")
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        // TODO: validate response was successful
-
-        Ok(())
-    }
-
-    pub(super) async fn delete_post(&self, post: &Post) -> Result<(), SessionError> {
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .delete(format!(
-                "https://www.webtoons.com/p/api/community/v2/post/{}",
-                post.id
-            ))
-            .header("Api-Token", token.clone())
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Service-Ticket-Id", "epicom")
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        Ok(())
-    }
-
-    pub(super) async fn react_to_post(
-        &self,
-        post: &Post,
-        reaction: Reaction,
-    ) -> Result<(), SessionError> {
-        let reaction = match reaction {
-            Reaction::Upvote => "like",
-            Reaction::Downvote => "dislike",
-            Reaction::None => assumption!(
-                "should never be used with `Reaction::None`, as should only be called from `post.upvote()`` or `post.downvote()`, and `None` doesnt make any sense to pass"
-            ),
-        };
-
-        let scope = match post.episode.webtoon.scope {
-            Scope::Original(_) => "w",
-            Scope::Canvas => "c",
-        };
-        let webtoon = post.episode.webtoon.id;
-        let episode = post.episode.number;
-
-        let id = post.id;
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/{reaction}",
-        );
-
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .put(&url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        // TODO: validate response
-
-        Ok(())
-    }
-
-    pub(super) async fn remove_post_reaction(
-        &self,
-        post: &Post,
-        reaction: Reaction,
-    ) -> Result<(), SessionError> {
-        let reaction = match reaction {
-            Reaction::Upvote => "like",
-            Reaction::Downvote => "dislike",
-            Reaction::None => assumption!(
-                "should never be used with `Reaction::None`, as should only be called from `post.unvote()`, and `None` doesnt make any sense to pass"
-            ),
-        };
-
-        let scope = match post.episode.webtoon.scope {
-            Scope::Original(_) => "w",
-            Scope::Canvas => "c",
-        };
-        let webtoon = post.episode.webtoon.id;
-        let episode = post.episode.number;
-
-        let id = post.id;
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/{reaction}",
-        );
-
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .delete(&url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        // TODO: confirm it was done properly
-        // {"status":"success"}
-
-        Ok(())
-    }
-
-    pub(super) async fn block_user(&self, poster: &Poster) -> Result<(), SessionError> {
-        let scope = match poster.webtoon.scope {
-            Scope::Original(_) => "w",
-            Scope::Canvas => "c",
-        };
-        let webtoon = poster.webtoon.id;
-        let episode = poster.episode;
-
-        let cuid = poster.cuid();
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v1/restriction/type/write-post/page/{scope}_{webtoon}_{episode}/target/{cuid}",
-        );
-
-        let payload = json![
-            {
-                "sourcePostId": poster.post_id
-            }
-        ];
-
-        let session = self.session.validate(self).await?;
-        let token = self.api_token(&session).await?;
-
-        self.http
-            .post(url)
-            .header("Service-Ticket-Id", "epicom")
-            .header("Referer", "https://www.webtoons.com/")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Api-Token", token)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(RequestError)?;
-
-        Ok(())
-    }
-
     pub(super) async fn user_info(
         &self,
         webtoon: &Webtoon,
@@ -1830,51 +1406,6 @@ impl Client {
             Ok(response) => Ok(response),
             Err(err) => assumption!(
                 "failed to deserialize webtoon user info api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
-    }
-
-    async fn react_token(&self) -> Result<ReactToken, SessionError> {
-        let session = self.session.validate(self).await?;
-
-        let response = self
-            .http
-            .get("https://www.webtoons.com/api/v1/like/react-token")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .header("Referer", "https://www.webtoons.com")
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
-
-        match serde_json::from_str::<ReactToken>(&response) {
-            Ok(token) => Ok(token),
-            Err(err) => assumption!(
-                "failed to deserialize react token api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
-    }
-
-    pub(super) async fn api_token(&self, session: &ValidSession) -> Result<String, SessionError> {
-        let response = self
-            .http
-            .get("https://www.webtoons.com/p/api/community/v1/api-token")
-            .header("Cookie", format!("NEO_SES={session}"))
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
-
-        match serde_json::from_str::<ApiToken>(&response) {
-            Ok(response) => Ok(response.result.token),
-            Err(err) => assumption!(
-                "failed to deserialize api token api response from `webtoons.com` response: {err}\n\n{response}"
             ),
         }
     }

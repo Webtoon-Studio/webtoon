@@ -419,7 +419,6 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             is_deleted,
             posted,
             poster: Poster {
-                webtoon: episode.webtoon.clone(),
                 episode: episode.number,
                 post_id: post.id,
                 cuid: Arc::from(post.created_by.cuid),
