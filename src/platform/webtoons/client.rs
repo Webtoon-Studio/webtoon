@@ -1172,20 +1172,9 @@ impl Client {
             "https://www.webtoons.com/api/v1/like/search/counts?serviceId=LINEWEBTOON&contentIds={scope}_{webtoon}_{episode}"
         );
 
-        let request = match self.session.validate(self).await {
-            Ok(session) => self
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}")),
-            Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            // TODO: I think we can just ignore any session issues here?
-            // We don't really get anything with the session, as far as I can tell.
-            Err(SessionError::InvalidSession) => return Err(LikesError::InvalidSession),
-            Err(SessionError::Internal(err)) => return Err(err.into()),
-            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-        };
-
-        let response = request
+        let response = self
+            .http
+            .get(&url)
             .retry()
             .send()
             .await
