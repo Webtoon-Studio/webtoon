@@ -2,7 +2,8 @@ use super::{super::episode::PublishedStatus, Page};
 use crate::{
     platform::webtoons::{
         Client, Language, Type, Webtoon,
-        creator::Creator,
+        creator::{self, Creator, Homepage},
+        error::CreatorError,
         meta::{Genre, Scope},
         originals::Schedule,
         webtoon::{
@@ -21,11 +22,11 @@ use scraper::{ElementRef, Html, Selector};
 use std::str::FromStr;
 use url::Url;
 
-pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {
+pub(super) async fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {
     let page = match webtoon.scope {
         Scope::Original(_) => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type())?,
+            creators: creators(html, &webtoon.client, webtoon.r#type()).await?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -37,7 +38,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
         },
         Scope::Canvas => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type())?,
+            creators: creators(html, &webtoon.client, webtoon.r#type()).await?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -93,7 +94,7 @@ pub(super) fn title(html: &Html) -> Result<String, WebtoonError> {
     Ok(title)
 }
 
-pub(super) fn creators(
+pub(super) async fn creators(
     html: &Html,
     client: &Client,
     r#type: Type,
@@ -165,13 +166,49 @@ pub(super) fn creators(
                 .map(|str| str.trim())
                 .assumption("`webtoons.com` creator text element should always be populated")?;
 
-            creators.push(Creator {
-                client: client.clone(),
-                language: Language::En,
-                profile: Some(profile.into()),
-                username: username.to_string(),
-                homepage: Cache::empty(),
-            });
+            let creator = match creator::homepage(Language::En, profile, client).await {
+                Ok(Some(Homepage {
+                    id,
+                    username,
+                    followers,
+                    has_patreon,
+                })) => Creator {
+                    client: client.clone(),
+                    id: Some(id),
+                    profile: Some(profile.into()),
+                    username,
+                    language: Language::En,
+                    followers: Some(followers),
+                    has_patreon: Some(has_patreon),
+                },
+                Ok(None) => Creator {
+                    client: client.clone(),
+                    id: None,
+                    profile: Some(profile.into()),
+                    username: username.to_string(),
+                    language: Language::En,
+                    followers: None,
+                    has_patreon: None,
+                },
+
+                Err(CreatorError::Internal(err)) => return Err(WebtoonError::Internal(err)),
+                Err(CreatorError::RequestFailed(err)) => {
+                    return Err(WebtoonError::RequestFailed(err));
+                }
+                Err(CreatorError::UnsupportedLanguage) => {
+                    assumption!("`Language::En` should be a supported language")
+                }
+                Err(CreatorError::InvalidCreatorProfile) => assumption!(
+                    "creator profiles found on `webtoons.com` Webtoon homepage should be a valid profile"
+                ),
+            };
+
+            assumption!(
+                username == creator.username,
+                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage"
+            );
+
+            creators.push(creator);
 
             // This check is needed as the creator limit is only for actual canvas
             // stories, and originals can have multiple creators, including creators
@@ -244,10 +281,12 @@ pub(super) fn creators(
 
                     creators.push(Creator {
                         client: client.clone(),
-                        language: Language::En,
+                        id: None,
                         profile: None,
                         username: username.to_string(),
-                        homepage: Cache::empty(),
+                        language: Language::En,
+                        followers: None,
+                        has_patreon: None,
                     });
                 }
             }

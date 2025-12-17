@@ -42,13 +42,13 @@ async fn english_creator() {
     let profile = creator.profile();
     assert_eq!(Some("JennyToons"), profile);
 
-    let id = creator.id().await.unwrap();
-    assert_eq!(Some("n5z4d"), id.as_deref());
+    let id = creator.id();
+    assert_eq!(Some("n5z4d"), id);
 
-    let followers = creator.followers().await.unwrap();
+    let followers = creator.followers();
     assert!(followers.is_some());
 
-    let has_patreon = creator.has_patreon().await.unwrap();
+    let has_patreon = creator.has_patreon();
     assert_eq!(Some(true), has_patreon);
 
     let webtoons = creator.webtoons().await.unwrap().unwrap();
@@ -303,7 +303,7 @@ async fn english_webtoon_canvas() {
         [creator] => {
             assert_eq!("RoloEdits", creator.username());
             assert_eq!(Some("_nb3nw"), creator.profile());
-            assert!(!creator.has_patreon().await.unwrap().unwrap());
+            assert!(!creator.has_patreon().unwrap());
         }
     }
 
@@ -384,7 +384,7 @@ async fn english_webtoon_original() {
         [creator] => {
             assert_eq!("Sejji", creator.username());
             assert_eq!(Some("08x59"), creator.profile());
-            assert_eq!(Some(true), creator.has_patreon().await.unwrap());
+            assert_eq!(Some(true), creator.has_patreon());
         }
     }
 
@@ -805,5 +805,26 @@ async fn english_canvas_creator_invalid_creator_profile() {
     match creator {
         Err(CreatorError::InvalidCreatorProfile) => {}
         Ok(_) | Err(_) => unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}"),
+    }
+}
+
+#[tokio::test]
+async fn english_original_creator_of_korean_story_should_scrape_fine() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+
+    let title = webtoon.title().await.unwrap();
+    assert_eq!("Tower of God", title);
+
+    let creators = webtoon.creators().await.unwrap();
+
+    if let [creator] = creators.as_slice() {
+        assert_eq!("SIU", creator.username());
+        assert!(creator.profile().is_none());
+        assert!(creator.id().is_none());
+        assert!(creator.followers().is_none());
+        assert!(creator.has_patreon().is_none());
+    } else {
+        unreachable!("should find SIU on Tower of God: {creators:?}");
     }
 }

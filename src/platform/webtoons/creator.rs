@@ -1,9 +1,9 @@
 //! Module containing things related to a creator on `webtoons.com`.
 
 use super::{Client, Language, Webtoon, error::CreatorError};
-use crate::stdx::{
-    cache::{Cache, Store},
-    error::{Assume, AssumeFor, Assumption, assumption},
+use crate::{
+    platform::webtoons::error::WebtoonError,
+    stdx::error::{Assume, AssumeFor, Assumption, assumption},
 };
 use core::fmt::{self, Debug};
 use futures::future;
@@ -45,9 +45,16 @@ pub struct Creator {
     pub(super) client: Client,
     pub(super) language: Language,
     pub(super) username: String,
-    // Originals authors might not have a profile: Korean, Chinese, German, and French
+
+    // Originals authors might not have a profile:
+    // - Korean
+    // - Chinese
+    // - German
+    // - French
     pub(super) profile: Option<String>,
-    pub(super) homepage: Cache<Option<Homepage>>,
+    pub(super) followers: Option<u32>,
+    pub(super) id: Option<String>,
+    pub(super) has_patreon: Option<bool>,
 }
 
 impl Debug for Creator {
@@ -57,14 +64,18 @@ impl Debug for Creator {
             language,
             username,
             profile,
-            homepage,
+            followers,
+            id,
+            has_patreon,
         } = self;
 
         f.debug_struct("Creator")
-            .field("language", language)
-            .field("username", username)
+            .field("id", id)
             .field("profile", profile)
-            .field("homepage", homepage)
+            .field("username", username)
+            .field("language", language)
+            .field("followers", followers)
+            .field("has_patreon", has_patreon)
             .finish()
     }
 }
@@ -77,8 +88,6 @@ pub(super) struct Homepage {
     pub has_patreon: bool,
 }
 
-// TODO: Might not need to return `Option` as `None` would only be used for if page
-// is not viewable, which us already returned as a Err.
 impl Creator {
     /// Returns a `Creators` username.
     ///
@@ -136,7 +145,7 @@ impl Creator {
     ///
     /// Sometimes this is just the [`profile()`](Creator::profile()) with the `_` prefix stripped.
     ///
-    /// If creator has no `webtoons.com` profile, then this will always return `None`.
+    /// If creator has no `webtoons.com` profile, or page is disable by the creator, then this will return `None`.
     ///
     /// # Example
     ///
@@ -150,25 +159,14 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!(Some("w7ml9"), creator.id().await?.as_deref());
+    /// assert_eq!(Some("w7ml9"), creator.id());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.id))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
-
-            let homepage = homepage(self.language, profile, &self.client).await?;
-            let id = homepage.as_ref().map(|homepage| homepage.id.clone());
-
-            self.homepage.insert(homepage);
-
-            Ok(id)
-        }
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
     }
 
     /// Returns the number of followers for the `Creator`.
@@ -178,6 +176,8 @@ impl Creator {
     /// - German
     /// - Korean
     /// - Chinese.
+    ///
+    /// If the profile page is disabled by the creator, this will also return `None`.
     ///
     /// # Example
     ///
@@ -191,25 +191,14 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// println!("{} has {:?} followers!", creator.username(), creator.followers().await?);
+    /// println!("{} has {:?} followers!", creator.username(), creator.followers());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.followers))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
-
-            let homepage = homepage(self.language, profile, &self.client).await?;
-            let followers = homepage.as_ref().map(|page| page.followers);
-
-            self.homepage.insert(homepage);
-
-            Ok(followers)
-        }
+    #[inline]
+    #[must_use]
+    pub fn followers(&self) -> Option<u32> {
+        self.followers
     }
 
     /// Returns a list of [`Webtoon`] that the creator is/was involved with.
@@ -219,7 +208,8 @@ impl Creator {
     /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`.
     ///
     /// This is for creators where there are no profile, either due to being a Korean based creator,
-    /// or that the language version of `webtoons.com` does not support profile pages.
+    /// or that the language version of `webtoons.com` does not support profile pages. It also will return `None` if the
+    /// Creator has disabled their creator page.
     ///
     /// The webtoons returned are only those that are publicly viewable. If there are no viewable webtoons, it will return an empty `Vec`.
     ///
@@ -249,47 +239,22 @@ impl Creator {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
-        let Some(profile) = self
-            .profile
-            .as_deref()
-            // Profiles can be prefixed with `_` but the URL needs it trimmed to work.
-            .map(|profile| profile.trim_start_matches('_'))
-        else {
+    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, WebtoonError> {
+        let Some(id) = self.id() else {
             return Ok(None);
         };
 
-        let response = match self.client.creator_webtoons(profile, self.language).await {
-            Ok(response) => response,
-            // TODO: match on specific error variant that only represents that the profile used is wrong.
-            // Err(CreatorWebtoonsError::WrongProfile) =>
-            Err(_) => {
-                let homepage = homepage(self.language, profile, &self.client).await?;
-
-                let profile = homepage
-                    .as_ref()
-                    .map(|homepage| homepage.id.clone())
-                    .assumption(
-                        "failed to find creator profile property on creator homepage html",
-                    )?;
-
-                self.homepage.insert(homepage);
-
-                self.client
-                    .creator_webtoons(&profile, self.language)
-                    .await?
-            } // TODO: Err(err) => return Err(err.into()),
-        };
+        let response = self.client.creator_webtoons(id, self.language).await?;
 
         let webtoons =
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
                 let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &self.client).await {
                     Ok(Some(webtoon)) => webtoon,
                     Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
-                    Err(err) => return Err(err.into()),
+                    Err(err) => return Err(err),
                 };
 
-                Ok::<Webtoon, CreatorError>(webtoon)
+                Ok::<Webtoon, WebtoonError>(webtoon)
             })).await?;
 
         Ok(Some(webtoons))
@@ -297,7 +262,8 @@ impl Creator {
 
     /// Returns if creator has a `Patreon` linked to their account.
     ///
-    /// Will return `None` if the language version of the site doesn't support profile pages.
+    /// Will return `None` if the language version of the site doesn't support profile pages, or if the Creator has
+    /// disabled their profile page.
     ///
     /// **Unsupported Languages**:
     /// - Korean
@@ -317,25 +283,14 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!(Some(true), creator.has_patreon().await?);
+    /// assert_eq!(Some(true), creator.has_patreon());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.has_patreon))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
-
-            let homepage = homepage(self.language, profile, &self.client).await?;
-            let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
-
-            self.homepage.insert(homepage);
-
-            Ok(has_patreon)
-        }
+    #[inline]
+    #[must_use]
+    pub fn has_patreon(&self) -> Option<bool> {
+        self.has_patreon
     }
 }
 
