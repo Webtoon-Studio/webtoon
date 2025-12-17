@@ -986,31 +986,6 @@ impl Webtoon {
     pub async fn rss(&self) -> Result<Rss, RssError> {
         rss::feed(self).await
     }
-
-    /// Checks if the current user session is subscribed to the `Webtoon`.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::with_session("my-session");
-    ///
-    /// let Some(webtoon) = client.webtoon(2159, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if webtoon.is_subscribed().await? {
-    ///    println!("Already subscribed to {}!", webtoon.title().await?);
-    /// }
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn is_subscribed(&self) -> Result<bool, SessionError> {
-        Ok(self.client.user_info(self).await?.favorite)
-    }
 }
 
 impl Webtoon {
