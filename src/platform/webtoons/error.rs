@@ -7,9 +7,9 @@ use thiserror::Error;
 pub use _inner::DownloadError;
 
 pub use _inner::{
-    BlockUserError, CanvasError, ClientBuilderError, CreatorError, DeletePostError, EpisodeError,
-    EpisodesError, Error, LikesError, OriginalsError, PostError, PostsError, ReplyError, RssError,
-    SearchError, SessionError, SubscribersError, UserInfoError, ViewsError, WebtoonError,
+    CanvasError, ClientBuilderError, CreatorError, EpisodeError, EpisodesError, Error, LikesError,
+    OriginalsError, PostsError, RssError, SearchError, SessionError, SubscribersError,
+    UserInfoError, ViewsError, WebtoonError,
 };
 
 #[derive(Debug, Error)]
@@ -53,10 +53,6 @@ mod _inner {
         || CreatorError
         || WebtoonError
         || EpisodeError
-        || PostError
-        || DeletePostError
-        || ReplyError
-        || BlockUserError
         || ClientError
         || SessionError
         || PostsError
@@ -93,35 +89,13 @@ mod _inner {
 
         PostsError := Base || ClientError || InvalidSession
 
-        LikesError := Base || ClientError || InvalidSession
+        LikesError := Base || ClientError
 
-        // TODO: Need to add `InvalidPermissions` as session provided might be a valid
-        // one, but not the one needed for the specific webtoon.
-        ViewsError := Base || ClientError || InvalidSession
-
-        SubscribersError := Base || ClientError || InvalidSession
-
+        // TODO: Need to add `InvalidPermissions` as session provided might be a
+        // valid one, but not the one needed for the specific webtoon.
         EpisodesError :=  Base || ClientError || InvalidSession
-
-        DownloadError := {
-            IoError(std::io::Error),
-        } || Base || ClientError
-
-        PostError := Base || ClientError || SessionError
-
-        DeletePostError := Base || ClientError || SessionError || InvalidPermissions
-
-        ReplyError := {
-            #[display("cannot reply to a deleted post")]
-            DeletedPost,
-        } || Base || ClientError || SessionError
-
-        BlockUserError := {
-            #[display("cannot block self on own webtoon")]
-            BlockSelf,
-            #[display("insufficient permissions (not creator)")]
-            NotCreator,
-        } || Base || ClientError || SessionError
+        ViewsError := Base || ClientError || InvalidSession
+        SubscribersError := Base || ClientError || InvalidSession
 
         SessionError :=  Base || ClientError || NoSessionProvided || InvalidSession
 
@@ -130,6 +104,10 @@ mod _inner {
         ClientBuilderError := {
             BuildFailed,
         }
+
+        DownloadError := {
+            IoError(std::io::Error),
+        } || Base || ClientError
 
         // --- Internal ---
 
@@ -144,7 +122,7 @@ mod _inner {
         }
 
         InvalidPermissions := {
-            #[display("insufficient permissions (not creator or poster)")]
+            #[display("insufficient permissions (not creator)")]
             InvalidPermissions,
         }
 

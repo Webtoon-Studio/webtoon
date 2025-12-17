@@ -77,6 +77,8 @@ pub(super) struct Homepage {
     pub has_patreon: bool,
 }
 
+// TODO: Might not need to return `Option` as `None` would only be used for if page
+// is not viewable, which us already returned as a Err.
 impl Creator {
     /// Returns a `Creators` username.
     ///

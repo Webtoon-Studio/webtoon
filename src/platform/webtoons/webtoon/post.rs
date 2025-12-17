@@ -2,11 +2,7 @@
 
 use super::Episode;
 use crate::{
-    platform::webtoons::{
-        Webtoon,
-        error::{PostError, PostsError},
-        webtoon::post::id::Id,
-    },
+    platform::webtoons::{Webtoon, error::PostsError, webtoon::post::id::Id},
     stdx::{
         cache::{Cache, Store},
         error::assumption,
@@ -221,7 +217,7 @@ impl Comment {
     ///     let comments = episode.posts();
     ///
     ///     if let Some(comment) = comments.last().await? {
-    ///         let (upvotes, downvotes) = comment.upvotes_and_downvotes().await?;
+    ///         let (upvotes, downvotes) = comment.upvotes_and_downvotes();
     ///         println!("post has {upvotes} upvotes and {downvotes} downvotes!");
     ///         # return Ok(());
     ///     }
@@ -229,8 +225,10 @@ impl Comment {
     /// # unreachable!("should have entered the post block and returned");
     /// # }
     /// ```
-    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostError> {
-        self.0.upvotes_and_downvotes().await
+    #[inline]
+    #[must_use]
+    pub fn upvotes_and_downvotes(&self) -> (u32, u32) {
+        (self.upvotes(), self.downvotes())
     }
 
     /// Returns the replies on the current post.
@@ -320,7 +318,7 @@ impl Comment {
     /// # unreachable!("should have entered the post block and returned");
     /// # }
     /// ```
-    pub async fn is_top(&self) -> Result<bool, PostError> {
+    pub async fn is_top(&self) -> Result<bool, PostsError> {
         self.0.is_top().await
     }
 
@@ -861,7 +859,7 @@ impl Reply {
     ///
     ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!((0, 0), reply.upvotes_and_downvotes().await?);
+    ///             assert_eq!((0, 0), reply.upvotes_and_downvotes());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -869,8 +867,10 @@ impl Reply {
     /// # unreachable!("should have entered the post block and returned");
     /// # }
     /// ```
-    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostError> {
-        self.0.upvotes_and_downvotes().await
+    #[inline]
+    #[must_use]
+    pub fn upvotes_and_downvotes(&self) -> (u32, u32) {
+        (self.upvotes(), self.downvotes())
     }
 
     /// Returns the reply's published date in UNIX millisecond timestamp format.
@@ -1038,7 +1038,7 @@ impl Post {
         self.downvotes
     }
 
-    pub async fn is_top(&self) -> Result<bool, PostError> {
+    pub async fn is_top(&self) -> Result<bool, PostsError> {
         if let Store::Value(top_comments) = self.episode.top_comments.get() {
             Ok(top_comments
                 .into_iter()
@@ -1093,7 +1093,11 @@ impl Post {
         self.posted.timestamp_millis()
     }
 
-    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostError> {
+    #[expect(
+        dead_code,
+        reason = "directly gets a posts upvotes and downvotes via a request and so far we just use the data initially gotten"
+    )]
+    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostsError> {
         let response = self
             .episode
             .webtoon
