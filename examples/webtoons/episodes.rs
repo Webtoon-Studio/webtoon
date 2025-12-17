@@ -27,11 +27,6 @@ async fn main() -> Result<(), Error> {
         println!("length: {:?}", episode.length().await?);
         println!("note: {:?}", episode.note().await?);
         println!();
-
-        if client.has_valid_session().await.is_ok_and(|result| result) {
-            episode.like().await?;
-            episode.unlike().await?;
-        }
     }
 
     return Ok(());

@@ -24,13 +24,5 @@ async fn main() -> Result<(), Error> {
     println!("subscribers: {}", webtoon.subscribers().await?);
     println!("summary: {}", webtoon.summary().await?);
 
-    if client.has_valid_session().await.is_ok_and(|result| result) {
-        assert!(!webtoon.is_subscribed().await?);
-        webtoon.subscribe().await?;
-        assert!(webtoon.is_subscribed().await?);
-        webtoon.unsubscribe().await?;
-        assert!(!webtoon.is_subscribed().await?);
-    }
-
-    return Ok(());
+    Ok(())
 }

@@ -7,7 +7,7 @@ use crate::stdx::error::{Assume, Assumption, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
-        error::{EpisodeError, LikesError, PostsError, RequestError, SessionError},
+        error::{EpisodeError, LikesError, PostsError, RequestError},
     },
     stdx::time::DateOrDateTime,
 };
@@ -804,117 +804,6 @@ impl Episode {
     #[must_use]
     pub fn ad_status(&self) -> Option<AdStatus> {
         self.ad_status
-    }
-
-    /// Likes the episode on behalf of the user associated with the current session.
-    ///
-    /// If episode is already liked, it will do nothing.
-    ///
-    /// # Behavior:
-    /// - **Session Required**: The method will attempt to like the episode on behalf of the user tied to the current session.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{error::{Error, SessionError}, Client, Type};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::with_session("session");
-    ///
-    /// let Some(webtoon) = client.webtoon(6679, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     match episode.like().await {
-    ///         Ok(_) => println!("Liked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
-    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
-    ///         Err(err) => println!("Error: {err}"),
-    ///     }
-    ///     # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn like(&self) -> Result<(), SessionError> {
-        self.webtoon.client.like_episode(self).await?;
-        Ok(())
-    }
-
-    /// Unlikes the episode on behalf of the user associated with the current session.
-    ///
-    /// If episode is already not liked, it will do nothing.
-    ///
-    /// # Behavior:
-    /// - **Session Required**: The method will attempt to unlike the episode on behalf of the user tied to the current session.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{error::{Error, EpisodeError, SessionError}, Client, Type};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::with_session("session");
-    ///
-    /// let Some(webtoon) = client.webtoon(6679, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     match episode.unlike().await {
-    ///         Ok(_) => println!("Uniked episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
-    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
-    ///         Err(err) => println!("Error: {err}"),
-    ///     }
-    ///     # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn unlike(&self) -> Result<(), SessionError> {
-        self.webtoon.client.unlike_episode(self).await?;
-        Ok(())
-    }
-
-    /// Posts a top-level comment on the episode.
-    ///
-    /// This method allows users to leave a comment on an episode. The comment can be marked as a spoiler.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{error::{Error,SessionError}, Client, Type};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::with_session("session");
-    ///
-    /// let Some(webtoon) = client.webtoon(6679, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     match episode.post("Loved this episode!", false).await {
-    ///         Ok(_) => println!("Left comment on episode {} of {}!", episode.number(), webtoon.title().await?),
-    ///         Err(SessionError::NoSessionProvided) => println!("Provide a session!"),
-    ///         Err(SessionError::InvalidSession) => println!("Session given was invalid!"),
-    ///         Err(err) => println!("Error: {err}"),
-    ///     }
-    ///     # return Ok(());
-    /// }
-    /// # unreachable!("should have entered the episode block and returned");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn post(&self, body: &str, is_spoiler: bool) -> Result<(), SessionError> {
-        self.webtoon
-            .client
-            .post_comment(self, body, is_spoiler)
-            .await?;
-        Ok(())
     }
 
     // TODO: If this is an alternate reader, this can fail. Should return `Option`.

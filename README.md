@@ -14,23 +14,58 @@
 
 # Webtoon
 
-Welcome to the `webtoon` library, a Rust-based SDK that allows you to interact with a Webtoon platform programmatically.
-
-This library provides a set of utilities and methods to handle various Webtoon-specific operations such as fetching episodes,
-posting comments, subscribing, liking, and managing episode metadata. Platform support varies.
+`webtoon` is an asynchronous Rust library for programmatically interacting with supported Webtoon platforms. It provides
+a strongly typed, idiomatic API for retrieving metadata, episodes, and discussion data (comments and replies), while
+abstracting away platform-specific quirks.
 
 Supported:
-- [webtoons.com](https://www.webtoons.com/) (language support varies)
+- [webtoons.com](https://www.webtoons.com/)
 - [comic.naver.com](https://comic.naver.com/)
-- More to come!
+
+## Goals and Intended Use
+
+The primary goal of this library is to provide **structured, read-only access** to Webtoon platform data for use in:
+
+- Discussion tooling and community analysis
+- Data analysis and research
+- Applications that assist creators (metrics, tracking, external tooling)
+
+This crate is intentionally designed as a **data access layer**, suitable for
+building higher-level tools on top of it. A real-world example of this approach
+is [`scrapetoon`](https://github.com/RoloEdits/scrapetoon), which uses `webtoon`
+to collect and analyze Webtoon data.
 
 ### Capabilities
 
-- Fetch information about webtoons and their episodes and their posts.
-- Subscribe/unsubscribe to webtoons(`webtoons.com` only).
-- Like/unlike episodes (`webtoons.com` only).
-- Post and manage comments(`webtoons.com` only).
-- Retrieve detailed episode information such as views, published status, season number, etc.
+- Fetch webtoon metadata (title, authors, status, etc.).
+- Enumerate and inspect episodes, including:
+  - Episode number and season
+  - Publish status and timestamps
+  - View counts and other statistics
+- Access episode discussion data:
+  - Lazily iterate over top-level comments
+  - Retrieve replies for a given comment
+  - Inspect post metadata such as votes, poster identity, and timestamps
+- Platform-specific extensions exposed behind feature flags.
+
+## Removed Interaction APIs
+
+Earlier versions of this library exposed limited *interaction* functionality,
+such as liking episodes or upvoting comments. This support has since been
+removed.
+
+The removal was driven by several factors:
+
+- Ambiguity around automated usage (e.g. bots or spam abuse)
+- Functionality falling outside the core scope of the library
+- Increased maintenance burden and difficulty testing reliably
+- Higher risk of platform-side breakage or enforcement
+
+At present, `webtoon` is intentionally **read-only**. No APIs exist for
+performing user actions such as voting, liking, or posting.
+
+This decision may be revisited in the future if a clear, responsible use case
+emerges, but interaction functionality is currently considered out of scope.
 
 ### Installation
 
@@ -46,8 +81,7 @@ webtoon = "0.9.0"
 
 ## Quick-Start
 
-The main entry point to the library is through a `Client`. Each platform has its own client that is responsible for
-exposing various ways to interact with the specific platform.
+The primary entry point is a platform-specific Client. Each client encapsulates authentication, request handling, and platform behavior.
 
 ### `webtoons.com`
 
@@ -63,14 +97,13 @@ async fn main() -> Result<(), Error> {
     let webtoon = client
         .webtoon(95, Type::Original)
         .await?
-        .expect("No webtoon with this id and type on webtoon.com");
+        .expect("known webtoon with this id and type on `webtoons.com`");
 
     // Fetch title and print to stdout
     println!("{}", webtoon.title().await?);
 
     Ok(())
 }
-
 ```
 
 ### `comic.naver.com`
@@ -87,7 +120,7 @@ async fn main() -> Result<(), Error> {
     let webtoon = client
         .webtoon(838432)
         .await?
-        .expect("No webtoon with this id on comic.naver.com");
+        .expect("known webtoon with this id on `comic.naver.com`");
 
     // Print title to stdout
     println!("{}", webtoon.title());
@@ -96,11 +129,17 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
-For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
-
 ## Features
-In an effort to reduce compile times, dependency trees, and binary sizes, there are some pieces of functionality that are locked behind features.
+Some functionality is gated behind Cargo features to reduce compile times and dependency overhead:
 
 - `rss`: Enables the ability to get the RSS feed data for a `webtoons.com`.
 - `naver`: Enables the ability to interact with `comic.naver.com`.
 - `download`: Enables the ability to download episodes, either as a single image or as multiple images.
+
+```toml
+webtoon = { version = "0.9.0", features = ["naver", "download"] }
+```
+
+## Examples
+
+For more examples, check out the [`examples`](https://github.com/Webtoon-Studio/webtoon/tree/main/examples) folder.
