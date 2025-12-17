@@ -26,7 +26,7 @@ async fn main() -> Result<(), Error> {
         let replies = comment.reply_count();
         println!("replies: {replies}");
         println!("super like: {:?}", comment.poster().super_like());
-        println!("is_top: {}", comment.is_top().await.unwrap());
+        println!("is_top: {}", comment.is_top());
 
         for reply in comment.replies().await? {
             println!("\tusername: {}", reply.poster().username());

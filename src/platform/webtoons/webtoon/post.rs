@@ -310,15 +310,23 @@ impl Comment {
     ///     let mut comments = episode.posts();
     ///
     ///     if let Some(comment) = comments.last().await? {
-    ///         assert!(!comment.is_top().await?);
+    ///         assert!(!comment.is_top());
     ///         # return Ok(());
     ///     }
     /// }
     /// # unreachable!("should have entered the post block and returned");
     /// # }
     /// ```
-    pub async fn is_top(&self) -> Result<bool, PostsError> {
-        self.0.is_top().await
+    #[inline]
+    #[must_use]
+    pub fn is_top(&self) -> bool {
+        if let Store::Value(top_comments) = self.0.episode.top_comments.get() {
+            top_comments
+                .into_iter()
+                .any(|comment| comment.is_some_and(|top| top.id() == self.id()))
+        } else {
+            unreachable!("`top_comments` should be cached from the initial posts request");
+        }
     }
 
     /// Returns whether this reply was deleted.
@@ -433,7 +441,7 @@ pub use iter::Comments;
 
 mod iter {
     use super::{Comment, Episode, Id, Post, PostsError};
-    use crate::platform::webtoons::webtoon::post::PinRepresentation;
+    use crate::{platform::webtoons::webtoon::post::PinRepresentation, stdx::error::assumption};
 
     /// Internal state machine for the [`Comments`] iterator.
     ///
@@ -525,6 +533,32 @@ mod iter {
         pub async fn next(&mut self) -> Result<Option<Comment>, PostsError> {
             match self.state {
                 State::Start => {
+                    // Cache top posts.
+                    {
+                        let response = self
+                            .episode
+                            .webtoon
+                            .client
+                            // Gets `is_top/isPinned` info.
+                            .episode_posts(self.episode, None, 10, PinRepresentation::Distinct)
+                            .await?;
+
+                        assumption!(
+                            response.result.tops.len() < 4,
+                            "there should only be at most 3 top comments on `webtoons.com` episode"
+                        );
+
+                        let mut top_comments = [None, None, None];
+
+                        for (idx, comment) in response.result.tops.into_iter().enumerate() {
+                            if let Some(top) = top_comments.get_mut(idx) {
+                                *top = Some(Comment(Post::try_from((self.episode, comment))?));
+                            }
+                        }
+
+                        self.episode.top_comments.insert(top_comments);
+                    }
+
                     let response = self
                         .episode
                         .webtoon
@@ -962,7 +996,6 @@ pub(crate) struct Post {
     pub(crate) upvotes: u32,
     pub(crate) downvotes: u32,
     pub(crate) replies: u32,
-    pub(crate) is_top: bool,
     pub(crate) is_deleted: bool,
     pub(crate) posted: DateTime<Utc>,
     pub(crate) poster: Poster,
@@ -978,7 +1011,6 @@ impl Debug for Post {
             upvotes,
             downvotes,
             replies,
-            is_top,
             is_deleted,
             posted,
             poster,
@@ -991,7 +1023,6 @@ impl Debug for Post {
             .field("upvotes", upvotes)
             .field("downvotes", downvotes)
             .field("replies", replies)
-            .field("is_top", is_top)
             .field("is_deleted", is_deleted)
             .field("posted", posted)
             .field("poster", poster)
@@ -1037,6 +1068,7 @@ impl Post {
         self.downvotes
     }
 
+    #[allow(dead_code)]
     pub async fn is_top(&self) -> Result<bool, PostsError> {
         if let Store::Value(top_comments) = self.episode.top_comments.get() {
             Ok(top_comments
