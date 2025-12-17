@@ -291,7 +291,6 @@ impl Comment {
         self.0.reply_count()
     }
 
-    // TODO: Cache the top three posts in episode, so that the network request
     // only has to happen once, and all other posts can just `top.any()` and
     // check.
     /// Returns whether this post is a `TOP` comment, one of the top three pinned comments on the episode.
