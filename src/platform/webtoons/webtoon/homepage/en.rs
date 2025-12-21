@@ -205,7 +205,9 @@ pub(super) async fn creators(
 
             assumption!(
                 username == creator.username,
-                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage"
+                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage: found `{}`, expected `{}`",
+                creator.username,
+                username
             );
 
             creators.push(creator);

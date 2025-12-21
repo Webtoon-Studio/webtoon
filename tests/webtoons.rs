@@ -828,3 +828,17 @@ async fn english_original_creator_of_korean_story_should_scrape_fine() {
         unreachable!("should find SIU on Tower of God: {creators:?}");
     }
 }
+
+#[tokio::test]
+async fn english_canvas_creator_should_not_have_html_encoded_text() {
+    let client = Client::new();
+    let webtoon = client.webtoon(808662, Type::Canvas).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+
+    if let [creator] = creators.as_slice() {
+        assert_eq!("Ash xx<33", creator.username());
+    } else {
+        unreachable!("should find SIU on Tower of God: {creators:?}");
+    }
+}

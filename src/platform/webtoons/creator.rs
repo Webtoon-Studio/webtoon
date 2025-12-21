@@ -322,11 +322,14 @@ fn username(html: &Html) -> Result<String, Assumption> {
         if let Some(class) = element.value().attr("class")
             && class.starts_with("HomeProfile_nickname")
         {
-            return Ok(element
+            let username = element
                 .text()
                 .next()
-                .assumption("username element on `webtoons.com` creator homepage was empty")?
-                .to_string());
+                .assumption("username element on `webtoons.com` creator homepage was empty")?;
+
+            let username = html_escape::decode_html_entities(&username);
+
+            return Ok(username.to_string());
         }
     }
 
