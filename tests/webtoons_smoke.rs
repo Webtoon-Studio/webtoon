@@ -1,5 +1,5 @@
 #![allow(clippy::ignore_without_reason)]
-use webtoon::platform::webtoons::{Client, Language, canvas::Sort, error::CreatorError};
+use webtoon::platform::webtoons::{Client, Language, canvas::Sort};
 
 #[tokio::test]
 #[ignore]
@@ -27,20 +27,9 @@ async fn canvas() {
                 unreachable!("canvas stories can only have one creator: {creators:?}")
             }
             [creator] => {
-                match creator.has_patreon().await {
-                    Ok(_)
-                    | Err(
-                        CreatorError::InvalidCreatorProfile | CreatorError::PageDisabledByCreator,
-                    ) => {}
-                    Err(err) => panic!("{err}"),
-                }
-                match creator.id().await {
-                    Ok(_)
-                    | Err(
-                        CreatorError::InvalidCreatorProfile | CreatorError::PageDisabledByCreator,
-                    ) => {}
-                    Err(err) => panic!("{err}"),
-                }
+                _ = creator.id();
+                _ = creator.followers();
+                _ = creator.has_patreon();
             }
         }
 
@@ -111,25 +100,9 @@ async fn originals() {
             [] => unreachable!("every webtoon must have a creator"),
             creators => {
                 for creator in creators {
-                    // TODO: Need to verify that this works for Korean Creators.
-                    match creator.has_patreon().await {
-                        Ok(_)
-                        | Err(
-                            CreatorError::PageDisabledByCreator
-                            | CreatorError::InvalidCreatorProfile,
-                        ) => {}
-                        Err(err) => panic!("{err}"),
-                    }
-
-                    // TODO: Need to verify that this works for Korean Creators.
-                    match creator.id().await {
-                        Ok(_)
-                        | Err(
-                            CreatorError::PageDisabledByCreator
-                            | CreatorError::InvalidCreatorProfile,
-                        ) => {}
-                        Err(err) => panic!("{err}"),
-                    }
+                    _ = creator.id();
+                    _ = creator.followers();
+                    _ = creator.has_patreon();
                 }
             }
         }

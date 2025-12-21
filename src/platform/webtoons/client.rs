@@ -31,7 +31,6 @@ use crate::{
         webtoon::post::{PinRepresentation, id::Id},
     },
     stdx::{
-        cache::Cache,
         error::assumption,
         http::{DEFAULT_USER_AGENT, IRetry},
     },
@@ -292,7 +291,6 @@ impl Client {
     /// - `Ok(None)`: No creator profile page exists for the given `profile` in the selected
     ///   supported language. In this case, even though the language is supported, the creator
     ///   does not have a profile page.
-    /// - [`CreatorError::PageDisabledByCreator`]: Profile for creator exists, but is disabled.
     /// - [`CreatorError::InvalidCreatorProfile`]: Profile for creator exists, but for an unknown reason, does not respond with the expected normal homepage: [`example`]
     ///
     /// # Example
@@ -307,7 +305,6 @@ impl Client {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
-    ///     Err(CreatorError::PageDisabledByCreator) => println!("Profile exists, but is disabled by creator."),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
     /// # Ok(())
@@ -325,17 +322,24 @@ impl Client {
             return Err(CreatorError::UnsupportedLanguage);
         }
 
-        let Some(page) = creator::homepage(language, profile, self).await? else {
+        let Some(creator::Homepage {
+            id,
+            username,
+            followers,
+            has_patreon,
+        }) = creator::homepage(language, profile, self).await?
+        else {
             return Ok(None);
         };
 
         Ok(Some(Creator {
             client: self.clone(),
-            language,
+            id: Some(id),
             profile: Some(profile.into()),
-            username: page.username.clone(),
-            // TODO: Can this just be `Cache::new(page)`, without the `Option`?
-            homepage: Cache::new(Some(page)),
+            username,
+            language,
+            followers: Some(followers),
+            has_patreon: Some(has_patreon),
         }))
     }
 
@@ -919,12 +923,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        if response.status() == 404 {
+        // 404 if the page does not exist (the profile does not exist).
+        // 400 if the page is disabled by the creator.
+        if matches!(response.status().as_u16(), 404 | 400) {
             return Ok(None);
-        }
-
-        if response.status() == 400 {
-            return Err(CreatorError::PageDisabledByCreator);
         }
 
         let document = response.text().await.map_err(RequestError)?;
@@ -938,7 +940,7 @@ impl Client {
         &self,
         profile: &str,
         language: Language,
-    ) -> Result<CreatorWebtoons, CreatorError> {
+    ) -> Result<CreatorWebtoons, WebtoonError> {
         let language = match language {
             Language::En => "ENGLISH",
             Language::Zh => "TRADITIONAL_CHINESE",

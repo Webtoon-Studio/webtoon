@@ -42,7 +42,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
     let html = webtoon.client.webtoon_page(webtoon, None).await?;
 
     let page = match webtoon.language {
-        Language::En => en::page(&html, webtoon)?,
+        Language::En => en::page(&html, webtoon).await?,
         Language::Zh => todo!(), // zh::page(&html, webtoon)?,
         Language::Th => todo!(), // th::page(&html, webtoon)?,
         Language::Id => todo!(), // id::page(&html, webtoon)?,
