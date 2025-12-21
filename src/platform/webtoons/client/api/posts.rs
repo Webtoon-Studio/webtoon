@@ -415,7 +415,6 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             upvotes,
             downvotes,
             replies: post.child_post_count,
-            is_top: post.is_pinned,
             is_deleted,
             posted,
             poster: Poster {
