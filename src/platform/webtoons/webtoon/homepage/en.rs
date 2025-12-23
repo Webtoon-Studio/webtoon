@@ -163,7 +163,7 @@ pub(super) async fn creators(
             let username = selected
                 .text()
                 .next()
-                .map(|str| str.trim())
+                .map(|this| this.trim())
                 .assumption("`webtoons.com` creator text element should always be populated")?;
 
             let creator = match creator::homepage(Language::En, profile, client).await {
@@ -176,7 +176,7 @@ pub(super) async fn creators(
                     client: client.clone(),
                     id: Some(id),
                     profile: Some(profile.into()),
-                    username,
+                    username: username.trim().to_string(),
                     language: Language::En,
                     followers: Some(followers),
                     has_patreon: Some(has_patreon),
@@ -261,7 +261,7 @@ pub(super) async fn creators(
                 // with multiple creators, there are (for some reason) tabs in the text:
                 //     - `" SUMPUL , HereLee , Alphatart ... "`: https://www.webtoons.com/en/fantasy/the-remarried-empress/list?title_no=2135
                 // This should allow commas in usernames, while still filtering away the standalone `,` separator.
-                'username: for username in text
+                for username in text
                     .trim()
                     .split('\t')
                     .map(|str| str.trim())
@@ -278,7 +278,7 @@ pub(super) async fn creators(
                     // to check if they already exist in the list, continuing to
                     // the next text block if so.
                     if creators.iter().any(|creator| creator.username == username) {
-                        continue 'username;
+                        continue;
                     }
 
                     creators.push(Creator {

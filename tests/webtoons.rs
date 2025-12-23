@@ -842,3 +842,23 @@ async fn english_canvas_creator_should_not_have_html_encoded_text() {
         unreachable!("should find SIU on Tower of God: {creators:?}");
     }
 }
+
+#[tokio::test]
+async fn english_canvas_creator_names_can_have_spaces_at_end() {
+    let client = Client::new();
+    let webtoon = client.webtoon(796674, Type::Canvas).await.unwrap().unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+
+    if let [creator] = creators.as_slice() {
+        // FIX: This should have a space at the end, but due to the cleaning
+        // of the creators names (because `webtoons.com` makes a mess of the names)
+        // we just trim.
+        //
+        // This is not correct! The names should be maintained, but there isn't
+        // really a good way to achieve this for now.
+        assert_eq!("illustraboxstudios", creator.username());
+    } else {
+        unreachable!("should find creator: {creators:?}");
+    }
+}
