@@ -6,7 +6,7 @@ use webtoon::platform::webtoons::{Client, Language, canvas::Sort};
 async fn canvas() {
     let client = Client::new();
 
-    let page = fastrand::u16(1..=5000);
+    let page = fastrand::u16(1..=3000);
 
     let canvas = client
         .canvas(Language::En, page..=page, Sort::Popularity)
