@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     println!("id: {:?}", creator.id());
-    println!("username: {}", creator.username());
+    println!("username: {:?}", creator.username());
     println!("followers: {:?}", creator.followers());
     println!("has_patreon: {:?}", creator.has_patreon());
     println!("webtoons: {:#?}", creator.webtoons().await?);

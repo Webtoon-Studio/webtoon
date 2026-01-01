@@ -1,7 +1,7 @@
 use webtoon::platform::webtoons::{
     Client, Language, Type,
     canvas::Sort,
-    error::CreatorError,
+    error::{CreatorError, WebtoonError},
     meta::Genre,
     originals::{Schedule, Weekday},
 };
@@ -36,7 +36,7 @@ async fn english_creator() {
         .unwrap()
         .unwrap();
 
-    let username = creator.username();
+    let username = creator.username().unwrap();
     assert_eq!("Jenny-Toons", username);
 
     let profile = creator.profile();
@@ -301,7 +301,7 @@ async fn english_webtoon_canvas() {
             unreachable!("`canvas stories can only have one creator")
         }
         [creator] => {
-            assert_eq!("RoloEdits", creator.username());
+            assert_eq!("RoloEdits", creator.username().unwrap());
             assert_eq!(Some("_nb3nw"), creator.profile());
             assert!(!creator.has_patreon().unwrap());
         }
@@ -382,7 +382,7 @@ async fn english_webtoon_original() {
             unreachable!("`I Am the Villain` should only have one creator")
         }
         [creator] => {
-            assert_eq!("Sejji", creator.username());
+            assert_eq!("Sejji", creator.username().unwrap());
             assert_eq!(Some("08x59"), creator.profile());
             assert_eq!(Some(true), creator.has_patreon());
         }
@@ -725,9 +725,9 @@ async fn english_originals_multi_korean_creators_should_be_ok() {
     match creators.as_slice() {
         [] => unreachable!("every webtoon must have a creator"),
         [first, second, third] => {
-            assert_eq!("SUMPUL", first.username());
-            assert_eq!("HereLee", second.username());
-            assert_eq!("Alphatart", third.username());
+            assert_eq!("SUMPUL", first.username().unwrap());
+            assert_eq!("HereLee", second.username().unwrap());
+            assert_eq!("Alphatart", third.username().unwrap());
         }
         _ => unreachable!("this webtoon has three creators: {creators:#?}"),
     }
@@ -742,8 +742,8 @@ async fn english_originals_multi_english_creators_should_be_ok() {
     match creators.as_slice() {
         [] => unreachable!("every webtoon must have a creator"),
         [first, second] => {
-            assert_eq!("Anne Delseit", first.username());
-            assert_eq!("Marissa Delbressine", second.username());
+            assert_eq!("Anne Delseit", first.username().unwrap());
+            assert_eq!("Marissa Delbressine", second.username().unwrap());
         }
         _ => unreachable!("this webtoon has two creators: {creators:#?}"),
     }
@@ -758,7 +758,7 @@ async fn english_originals_korean_creator_with_spaces_should_be_ok() {
     match creators.as_slice() {
         [] => unreachable!("every webtoon must have a creator"),
         [creator] => {
-            assert_eq!("kang eun young", creator.username());
+            assert_eq!("kang eun young", creator.username().unwrap());
         }
         _ => unreachable!("this webtoon has one creators: {creators:#?}"),
     }
@@ -819,7 +819,7 @@ async fn english_original_creator_of_korean_story_should_scrape_fine() {
     let creators = webtoon.creators().await.unwrap();
 
     if let [creator] = creators.as_slice() {
-        assert_eq!("SIU", creator.username());
+        assert_eq!("SIU", creator.username().unwrap());
         assert!(creator.profile().is_none());
         assert!(creator.id().is_none());
         assert!(creator.followers().is_none());
@@ -837,7 +837,7 @@ async fn english_canvas_creator_should_not_have_html_encoded_text() {
     let creators = webtoon.creators().await.unwrap();
 
     if let [creator] = creators.as_slice() {
-        assert_eq!("Ash xx<33", creator.username());
+        assert_eq!("Ash xx<33", creator.username().unwrap());
     } else {
         unreachable!("should find SIU on Tower of God: {creators:?}");
     }
@@ -857,8 +857,32 @@ async fn english_canvas_creator_names_can_have_spaces_at_end() {
         //
         // This is not correct! The names should be maintained, but there isn't
         // really a good way to achieve this for now.
-        assert_eq!("illustraboxstudios", creator.username());
+        assert_eq!("illustraboxstudios", creator.username().unwrap());
     } else {
         unreachable!("should find creator: {creators:?}");
+    }
+}
+
+#[tokio::test]
+async fn english_canvas_creator_page_is_disabled_for_community_policy_violation() {
+    let client = Client::new();
+
+    match client.creator("_o2pgx6", Language::En).await {
+        Err(CreatorError::DisabledHomepage) => {}
+        Ok(_) | Err(_) => unreachable!(),
+    }
+
+    let webtoon = client.webtoon(939253, Type::Canvas).await.unwrap().unwrap();
+
+    match webtoon.creators().await.unwrap().as_slice() {
+        [creator] => {
+            assert_eq!("Baby Liska", creator.username().unwrap());
+            assert_eq!(Some("_o2pgx6"), creator.profile());
+            assert_eq!(None, creator.id());
+            assert_eq!(None, creator.followers());
+            assert_eq!(None, creator.has_patreon());
+            // assert_eq!(, creator.webtoons().await);
+        }
+        creators => unreachable!("should find creator: {creators:?}"),
     }
 }
