@@ -316,26 +316,18 @@ pub(super) async fn homepage(
 }
 
 fn username(html: &Html) -> Result<String, Assumption> {
-    let selector = Selector::parse("h3").assumption("`h3` should be a valid selector")?;
+    let selector = Selector::parse(r#"head>meta[name="author"]"#)
+        .assumption(r#"`head>meta[name="author"]` should be a valid selector"#)?;
 
-    for element in html.select(&selector) {
-        if let Some(class) = element.value().attr("class")
-            && class.starts_with("HomeProfile_nickname")
-        {
-            let username = element
-                .text()
-                .next()
-                .assumption("username element on `webtoons.com` creator homepage was empty")?;
-
-            let username = html_escape::decode_html_entities(&username);
-
-            return Ok(username.to_string());
-        }
+    if let Some(element) = html.select(&selector).next()
+        && let Some(name) = element.value().attr("content")
+    {
+        Ok(html_escape::decode_html_entities(name).to_string())
+    } else {
+        assumption!(
+            r#"did not find `head>meta[name="author"]` on `webtoons.com` creator homepage html"#
+        );
     }
-
-    assumption!(
-        "did not find any class that starts with `HomeProfile_nickname` on `webtoons.com` creator homepage html"
-    );
 }
 
 fn followers(html: &Html) -> Result<u32, Assumption> {
