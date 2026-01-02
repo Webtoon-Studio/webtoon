@@ -892,7 +892,7 @@ impl Reply {
     ///
     ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!((0, 0), reply.upvotes_and_downvotes());
+    ///             assert_eq!((1, 0), reply.upvotes_and_downvotes());
     ///             # return Ok(());
     ///        }
     ///     }
