@@ -791,8 +791,8 @@ impl Reply {
     ///     let mut comments = episode.posts();
     ///
     ///     while let Some(comment) = comments.next().await? {
-    ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!("Her dress is hideous ", reply.body().contents());
+    ///        if let Some(reply) = comment.replies().await?.last() {
+    ///             assert_eq!("OMG, It really does but the only difference is she doesn't tourment others ", reply.body().contents());
     ///             # return Ok(());
     ///        }
     ///     }
