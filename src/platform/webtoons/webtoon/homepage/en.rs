@@ -166,7 +166,7 @@ pub(super) async fn creators(
                 .map(|this| this.trim())
                 .assumption("`webtoons.com` creator text element should always be populated")?;
 
-            let creator = match creator::homepage(Language::En, profile, client).await {
+            let creator = match creator::homepage(client, profile, Language::En).await {
                 Ok(Some(Homepage {
                     id,
                     username,
@@ -176,16 +176,16 @@ pub(super) async fn creators(
                     client: client.clone(),
                     id: Some(id),
                     profile: Some(profile.into()),
-                    username: username.trim().to_string(),
+                    username: Some(username.trim().to_string()),
                     language: Language::En,
                     followers: Some(followers),
                     has_patreon: Some(has_patreon),
                 },
-                Ok(None) => Creator {
+                Ok(None) | Err(CreatorError::DisabledHomepage) => Creator {
                     client: client.clone(),
                     id: None,
                     profile: Some(profile.into()),
-                    username: username.to_string(),
+                    username: Some(username.to_string()),
                     language: Language::En,
                     followers: None,
                     has_patreon: None,
@@ -204,8 +204,8 @@ pub(super) async fn creators(
             };
 
             assumption!(
-                username == creator.username,
-                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage: found `{}`, expected `{}`",
+                Some(username) == creator.username.as_deref(),
+                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage: found `{:?}`, expected `{}`",
                 creator.username,
                 username
             );
@@ -277,7 +277,10 @@ pub(super) async fn creators(
                     // this loop. The text should be the exact same so it's safe
                     // to check if they already exist in the list, continuing to
                     // the next text block if so.
-                    if creators.iter().any(|creator| creator.username == username) {
+                    if creators
+                        .iter()
+                        .any(|creator| creator.username.as_deref() == Some(username))
+                    {
                         continue;
                     }
 
@@ -285,7 +288,7 @@ pub(super) async fn creators(
                         client: client.clone(),
                         id: None,
                         profile: None,
-                        username: username.to_string(),
+                        username: Some(username.to_string()),
                         language: Language::En,
                         followers: None,
                         has_patreon: None,

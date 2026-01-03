@@ -327,7 +327,7 @@ impl Client {
             username,
             followers,
             has_patreon,
-        }) = creator::homepage(language, profile, self).await?
+        }) = creator::homepage(self, profile, language).await?
         else {
             return Ok(None);
         };
@@ -336,7 +336,7 @@ impl Client {
             client: self.clone(),
             id: Some(id),
             profile: Some(profile.into()),
-            username,
+            username: Some(username),
             language,
             followers: Some(followers),
             has_patreon: Some(has_patreon),
