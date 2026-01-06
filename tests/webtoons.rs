@@ -800,11 +800,32 @@ async fn english_canvas_panel_image_with_multiple_dots_in_ext_is_ok() {
 #[tokio::test]
 async fn english_canvas_creator_invalid_creator_profile() {
     let client = Client::new();
-    let creator = client.creator("y87lz", Language::En).await;
 
-    match creator {
-        Err(CreatorError::InvalidCreatorProfile) => {}
-        Ok(_) | Err(_) => unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}"),
+    {
+        match client.creator("y87lz", Language::En).await {
+            Err(CreatorError::InvalidCreatorProfile) => {}
+            creator => {
+                unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
+            }
+        }
+    }
+
+    {
+        match client.creator("k7yid", Language::En).await {
+            Err(CreatorError::InvalidCreatorProfile) => {}
+            creator => {
+                unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
+            }
+        }
+    }
+
+    {
+        match client.creator("m8sw0", Language::En).await {
+            Err(CreatorError::InvalidCreatorProfile) => {}
+            creator => {
+                unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
+            }
+        }
     }
 }
 
@@ -860,5 +881,32 @@ async fn english_canvas_creator_names_can_have_spaces_at_end() {
         assert_eq!("illustraboxstudios", creator.username());
     } else {
         unreachable!("should find creator: {creators:?}");
+    }
+}
+
+#[tokio::test]
+async fn english_canvas_creators_have_invalid_profiles_but_should_fallback_and_not_error() {
+    let client = Client::new();
+
+    {
+        let webtoon = client.webtoon(715380, Type::Canvas).await.unwrap().unwrap();
+        let creators = webtoon.creators().await.unwrap();
+
+        if let [creator] = creators.as_slice() {
+            assert_eq!("Gacha R0bin", creator.username());
+        } else {
+            unreachable!("should find creator: {creators:?}");
+        }
+    }
+
+    {
+        let webtoon = client.webtoon(639752, Type::Canvas).await.unwrap().unwrap();
+        let creators = webtoon.creators().await.unwrap();
+
+        if let [creator] = creators.as_slice() {
+            assert_eq!("minutsi-minu", creator.username());
+        } else {
+            unreachable!("should find creator: {creators:?}");
+        }
     }
 }
