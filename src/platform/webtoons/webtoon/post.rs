@@ -719,12 +719,12 @@ impl Reply {
     /// let webtoon = client.webtoon(6054, Type::Original).await?
     ///     .expect("webtoon is known to exist");
     ///
-    /// if let Some(episode) = webtoon.episode(70).await? {
+    /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(reply.id(), "GW-epicom:0-w_6054_70-3y-1w");
+    ///             assert_eq!(reply.id(), "GW-epicom:0-w_6054_2-1-x");
     ///             # return Ok(());
     ///        }
     ///     }
@@ -756,9 +756,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(50).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(reply.parent_id(), "GW-epicom:0-w_6054_50-4n");
+    ///             assert_eq!(reply.parent_id(), "GW-epicom:0-w_6054_50-1");
     ///             # return Ok(());
     ///        }
     ///     }
@@ -790,9 +790,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(60).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
-    ///        if let Some(reply) = comment.replies().await?.last() {
-    ///             assert_eq!("OMG, It really does but the only difference is she doesn't tourment others ", reply.body().contents());
+    ///     if let Some(comment) = comments.last().await? {
+    ///        if let Some(reply) = comment.replies().await?.first() {
+    ///             assert_eq!("Well if it’s rigged so Nerys is Queen, hopefully it’s not a Carrie scenario ", reply.body().contents());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -822,9 +822,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(0, reply.upvotes());
+    ///             assert_eq!(152, reply.upvotes());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -855,9 +855,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(0, reply.downvotes());
+    ///             assert_eq!(1, reply.downvotes());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -886,13 +886,12 @@ impl Reply {
     /// let webtoon = client.webtoon(6054, Type::Original).await?
     ///     .expect("webtoon is known to exist");
     ///
-    ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!((1, 0), reply.upvotes_and_downvotes());
+    ///             assert_eq!((776, 18), reply.upvotes_and_downvotes());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -923,9 +922,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(1766106029553, reply.posted());
+    ///             assert_eq!(1710923850950, reply.posted());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -956,12 +955,12 @@ impl Reply {
     /// let webtoon = client.webtoon(6054, Type::Original).await?
     ///     .expect("webtoon is known to exist");
     ///
-    /// if let Some(episode) = webtoon.episode(70).await? {
+    /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     while let Some(comment) = comments.next().await? {
+    ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!("Natsumaybe", reply.poster().username());
+    ///             assert_eq!("Sasageyo47", reply.poster().username());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -1630,7 +1629,12 @@ pub mod id {
 
     use crate::stdx::base36::Base36;
     use serde::{Deserialize, Serialize};
-    use std::{cmp::Ordering, fmt::Display, num::ParseIntError, str::FromStr};
+    use std::{
+        cmp::Ordering,
+        fmt::{Debug, Display},
+        num::ParseIntError,
+        str::FromStr,
+    };
     use thiserror::Error;
 
     // TODO: Make just a tuple struct that takes a `String`.
@@ -1692,7 +1696,7 @@ pub mod id {
     /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
     ///   were posted earlier than those with higher values.
     /// - The ID must have non-zero values for both the post and reply components, ensuring that each comment and reply is uniquely identifiable.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
     #[serde(try_from = "String")]
     #[serde(into = "String")]
     pub struct Id {
@@ -1919,6 +1923,12 @@ pub mod id {
             } else {
                 write!(f, "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}",)
             }
+        }
+    }
+
+    impl Debug for Id {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            Display::fmt(&self, f)
         }
     }
 

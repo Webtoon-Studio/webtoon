@@ -367,7 +367,7 @@ async fn english_webtoon_original() {
     let banner = webtoon.banner().await.unwrap();
     assert_eq!(
         Some(
-            "https://swebtoon-phinf.pstatic.net/20230613_266/168661779606648vbe_PNG/5ImTheVillain_landingpage_desktop_fg.png"
+            "https://swebtoon-phinf.pstatic.net/20260128_210/1769549433316rbQCg_PNG/4I_Am_the_Villain_Landing_Page_PC_Character.png"
         ),
         banner.as_deref()
     );
@@ -641,7 +641,7 @@ async fn english_canvas_panel_pixels_non_zero_decimal() {
 
     let length = episode.length().await.unwrap().unwrap();
 
-    assert_eq!(36012, length);
+    assert_eq!(37216, length);
 }
 
 #[tokio::test]
