@@ -44,7 +44,9 @@ use scraper::{Html, Selector};
 pub struct Creator {
     pub(super) client: Client,
     pub(super) language: Language,
-    pub(super) username: String,
+    // If the page is disabled, and `Client::creator` was used, there is no way
+    // to get the username, so we have as `Option`.
+    pub(super) username: Option<String>,
 
     // Originals authors might not have a profile:
     // - Korean
@@ -109,8 +111,8 @@ impl Creator {
     /// ```
     #[inline]
     #[must_use]
-    pub fn username(&self) -> &str {
-        &self.username
+    pub fn username(&self) -> Option<&str> {
+        self.username.as_deref()
     }
 
     /// Returns a `Creators` profile segment in `https://www.webtoons.com/*/creator/{profile}`
@@ -295,9 +297,9 @@ impl Creator {
 }
 
 pub(super) async fn homepage(
-    language: Language,
-    profile: &str,
     client: &Client,
+    profile: &str,
+    language: Language,
 ) -> Result<Option<Homepage>, CreatorError> {
     let Some(html) = client.creator_page(language, profile).await? else {
         return Ok(None);
@@ -305,6 +307,10 @@ pub(super) async fn homepage(
 
     if is_invalid(&html)? {
         return Err(CreatorError::InvalidCreatorProfile);
+    }
+
+    if is_disabled_for_community_violation(&html)? {
+        return Err(CreatorError::DisabledHomepage);
     }
 
     Ok(Some(Homepage {
@@ -446,4 +452,24 @@ fn is_invalid(html: &Html) -> Result<bool, Assumption> {
         });
 
     Ok(is_invalid)
+}
+
+// When a creator page is disabled due to community policy violations, `webtoons.com`
+// still returns a 200 status, so we must search for the text that is presented
+// when its disabled.
+//
+// https://www.webtoons.com/p/community/en/u/_o2pgx6
+fn is_disabled_for_community_violation(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("p") //
+        .assumption("`p` should be a valid selector")?;
+
+    let is_disabled = html.select(&selector).any(|element| {
+        element.text().next().is_some_and(|text| {
+            text.starts_with(
+                "This account has been disabled because it didn’t follow our community policy.",
+            )
+        })
+    });
+
+    Ok(is_disabled)
 }

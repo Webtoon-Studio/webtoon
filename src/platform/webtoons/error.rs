@@ -71,6 +71,8 @@ mod _inner {
             UnsupportedLanguage,
             #[display("invalid creator profile")]
             InvalidCreatorProfile,
+            #[display("creator homepage was disabled due to violation of community policy")]
+            DisabledHomepage,
         } || Base || ClientError
 
         WebtoonError := Base || ClientError
