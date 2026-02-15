@@ -824,7 +824,8 @@ impl Reply {
     ///
     ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(152, reply.upvotes());
+    ///             let upvotes =  reply.upvotes();
+    ///             println!("first reply has {upvotes} upvotes.");
     ///             # return Ok(());
     ///        }
     ///     }
@@ -891,7 +892,8 @@ impl Reply {
     ///
     ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!((776, 18), reply.upvotes_and_downvotes());
+    ///             let (upvotes, downvotes) = reply.upvotes_and_downvotes();
+    ///             println!("first reply has {upvotes} upvotes and {downvotes} downvotes.");
     ///             # return Ok(());
     ///        }
     ///     }

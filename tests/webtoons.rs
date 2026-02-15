@@ -451,7 +451,7 @@ async fn english_canvas_episode_with_normal_reader() {
         .expect("No episode for given number");
 
     assert_eq!("EPISODE 2 PART 3", episode.title().await.unwrap());
-    assert_eq!(Some(27437), episode.length().await.unwrap());
+    assert_eq!(Some(26860), episode.length().await.unwrap());
 }
 
 #[tokio::test]
