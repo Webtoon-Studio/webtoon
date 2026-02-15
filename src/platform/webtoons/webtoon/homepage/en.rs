@@ -181,7 +181,8 @@ pub(super) async fn creators(
                     followers: Some(followers),
                     has_patreon: Some(has_patreon),
                 },
-                Ok(None) => Creator {
+                // Invalid creator profiles can be found for `webtoons.com` links
+                Ok(None) | Err(CreatorError::InvalidCreatorProfile) => Creator {
                     client: client.clone(),
                     id: None,
                     profile: Some(profile.into()),
@@ -198,9 +199,6 @@ pub(super) async fn creators(
                 Err(CreatorError::UnsupportedLanguage) => {
                     assumption!("`Language::En` should be a supported language")
                 }
-                Err(CreatorError::InvalidCreatorProfile) => assumption!(
-                    "creator profiles found on `webtoons.com` Webtoon homepage should be a valid profile"
-                ),
             };
 
             assumption!(
