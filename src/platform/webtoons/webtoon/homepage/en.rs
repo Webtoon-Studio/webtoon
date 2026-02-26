@@ -2,8 +2,7 @@ use super::{super::episode::PublishedStatus, Page};
 use crate::{
     platform::webtoons::{
         Client, Language, Type, Webtoon,
-        creator::{self, Creator, Homepage},
-        error::CreatorError,
+        creator::Creator,
         meta::{Genre, Scope},
         originals::Schedule,
         webtoon::{
@@ -22,11 +21,11 @@ use scraper::{ElementRef, Html, Selector};
 use std::str::FromStr;
 use url::Url;
 
-pub(super) async fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {
+pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError> {
     let page = match webtoon.scope {
         Scope::Original(_) => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type()).await?,
+            creators: creators(html, &webtoon.client, webtoon.r#type())?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -38,7 +37,7 @@ pub(super) async fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, Webtoon
         },
         Scope::Canvas => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type()).await?,
+            creators: creators(html, &webtoon.client, webtoon.r#type())?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -94,7 +93,7 @@ pub(super) fn title(html: &Html) -> Result<String, WebtoonError> {
     Ok(title)
 }
 
-pub(super) async fn creators(
+pub(super) fn creators(
     html: &Html,
     client: &Client,
     r#type: Type,
@@ -166,49 +165,13 @@ pub(super) async fn creators(
                 .map(|this| this.trim())
                 .assumption("`webtoons.com` creator text element should always be populated")?;
 
-            let creator = match creator::homepage(Language::En, profile, client).await {
-                Ok(Some(Homepage {
-                    id,
-                    username,
-                    followers,
-                    has_patreon,
-                })) => Creator {
-                    client: client.clone(),
-                    id: Some(id),
-                    profile: Some(profile.into()),
-                    username: username.trim().to_string(),
-                    language: Language::En,
-                    followers: Some(followers),
-                    has_patreon: Some(has_patreon),
-                },
-                Ok(None) => Creator {
-                    client: client.clone(),
-                    id: None,
-                    profile: Some(profile.into()),
-                    username: username.to_string(),
-                    language: Language::En,
-                    followers: None,
-                    has_patreon: None,
-                },
-
-                Err(CreatorError::Internal(err)) => return Err(WebtoonError::Internal(err)),
-                Err(CreatorError::RequestFailed(err)) => {
-                    return Err(WebtoonError::RequestFailed(err));
-                }
-                Err(CreatorError::UnsupportedLanguage) => {
-                    assumption!("`Language::En` should be a supported language")
-                }
-                Err(CreatorError::InvalidCreatorProfile) => assumption!(
-                    "creator profiles found on `webtoons.com` Webtoon homepage should be a valid profile"
-                ),
+            let creator = Creator {
+                client: client.clone(),
+                language: Language::En,
+                username: username.to_string(),
+                profile: Some(profile.into()),
+                homepage: Cache::empty(),
             };
-
-            assumption!(
-                username == creator.username,
-                "scraped creator username on `webtoons.com` Webtoon homepage should match the username found on the Creator homepage: found `{}`, expected `{}`",
-                creator.username,
-                username
-            );
 
             creators.push(creator);
 
@@ -283,12 +246,10 @@ pub(super) async fn creators(
 
                     creators.push(Creator {
                         client: client.clone(),
-                        id: None,
                         profile: None,
                         username: username.to_string(),
                         language: Language::En,
-                        followers: None,
-                        has_patreon: None,
+                        homepage: Cache::empty(),
                     });
                 }
             }

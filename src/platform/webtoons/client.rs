@@ -31,6 +31,7 @@ use crate::{
         webtoon::post::{PinRepresentation, id::Id},
     },
     stdx::{
+        cache::Cache,
         error::assumption,
         http::{DEFAULT_USER_AGENT, IRetry},
     },
@@ -322,24 +323,16 @@ impl Client {
             return Err(CreatorError::UnsupportedLanguage);
         }
 
-        let Some(creator::Homepage {
-            id,
-            username,
-            followers,
-            has_patreon,
-        }) = creator::homepage(language, profile, self).await?
-        else {
+        let Some(homepage) = creator::homepage(language, profile, self).await? else {
             return Ok(None);
         };
 
         Ok(Some(Creator {
             client: self.clone(),
-            id: Some(id),
             profile: Some(profile.into()),
-            username,
+            username: homepage.username.clone(),
             language,
-            followers: Some(followers),
-            has_patreon: Some(has_patreon),
+            homepage: Cache::new(Some(homepage)),
         }))
     }
 
