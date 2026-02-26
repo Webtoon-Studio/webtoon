@@ -858,7 +858,8 @@ impl Reply {
     ///
     ///     if let Some(comment) = comments.last().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(1, reply.downvotes());
+    ///             let downvotes =  reply.downvotes();
+    ///             println!("first reply has {downvotes} downvotes.");
     ///             # return Ok(());
     ///        }
     ///     }
