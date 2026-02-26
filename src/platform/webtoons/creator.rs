@@ -3,7 +3,10 @@
 use super::{Client, Language, Webtoon, error::CreatorError};
 use crate::{
     platform::webtoons::error::WebtoonError,
-    stdx::error::{Assume, AssumeFor, Assumption, assumption},
+    stdx::{
+        cache::{Cache, Store},
+        error::{Assume, AssumeFor, Assumption, assumption},
+    },
 };
 use core::fmt::{self, Debug};
 use futures::future;
@@ -52,9 +55,7 @@ pub struct Creator {
     // - German
     // - French
     pub(super) profile: Option<String>,
-    pub(super) followers: Option<u32>,
-    pub(super) id: Option<String>,
-    pub(super) has_patreon: Option<bool>,
+    pub(super) homepage: Cache<Option<Homepage>>,
 }
 
 impl Debug for Creator {
@@ -64,19 +65,30 @@ impl Debug for Creator {
             language,
             username,
             profile,
-            followers,
-            id,
-            has_patreon,
+            homepage,
         } = self;
 
-        f.debug_struct("Creator")
-            .field("id", id)
+        let mut debug = f.debug_struct("Creator");
+
+        debug
             .field("profile", profile)
             .field("username", username)
-            .field("language", language)
-            .field("followers", followers)
-            .field("has_patreon", has_patreon)
-            .finish()
+            .field("language", language);
+
+        if let Store::Value(Some(Homepage {
+            followers,
+            has_patreon,
+            id,
+            ..
+        })) = homepage.get()
+        {
+            debug
+                .field("id", &id)
+                .field("followers", &followers)
+                .field("has_patreon", &has_patreon);
+        }
+
+        debug.finish()
     }
 }
 
@@ -159,14 +171,26 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!(Some("w7ml9"), creator.id());
+    /// assert_eq!(Some("w7ml9"), creator.id().await?.as_deref());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    #[must_use]
-    pub fn id(&self) -> Option<&str> {
-        self.id.as_deref()
+    pub async fn id(&self) -> Result<Option<String>, CreatorError> {
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.map(|homepage| homepage.id))
+        } else {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let id = homepage.as_ref().map(|homepage| homepage.id.clone());
+
+            self.homepage.insert(homepage);
+
+            Ok(id)
+        }
     }
 
     /// Returns the number of followers for the `Creator`.
@@ -191,14 +215,26 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// println!("{} has {:?} followers!", creator.username(), creator.followers());
+    /// println!("{} has {:?} followers!", creator.username(), creator.followers().await?);
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    #[must_use]
-    pub fn followers(&self) -> Option<u32> {
-        self.followers
+    pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.map(|homepage| homepage.followers))
+        } else {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let followers = homepage.as_ref().map(|page| page.followers);
+
+            self.homepage.insert(homepage);
+
+            Ok(followers)
+        }
     }
 
     /// Returns a list of [`Webtoon`] that the creator is/was involved with.
@@ -239,12 +275,12 @@ impl Creator {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, WebtoonError> {
-        let Some(id) = self.id() else {
+    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
+        let Some(id) = self.id().await? else {
             return Ok(None);
         };
 
-        let response = self.client.creator_webtoons(id, self.language).await?;
+        let response = self.client.creator_webtoons(&id, self.language).await?;
 
         let webtoons =
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
@@ -283,14 +319,26 @@ impl Creator {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
-    /// assert_eq!(Some(true), creator.has_patreon());
+    /// assert_eq!(Some(true), creator.has_patreon().await?);
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    #[must_use]
-    pub fn has_patreon(&self) -> Option<bool> {
-        self.has_patreon
+    pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
+        if let Store::Value(homepage) = self.homepage.get() {
+            Ok(homepage.map(|homepage| homepage.has_patreon))
+        } else {
+            let Some(profile) = self.profile.as_deref() else {
+                return Ok(None);
+            };
+
+            let homepage = homepage(self.language, profile, &self.client).await?;
+            let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
+
+            self.homepage.insert(homepage);
+
+            Ok(has_patreon)
+        }
     }
 }
 

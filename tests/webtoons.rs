@@ -42,13 +42,13 @@ async fn english_creator() {
     let profile = creator.profile();
     assert_eq!(Some("JennyToons"), profile);
 
-    let id = creator.id();
-    assert_eq!(Some("n5z4d"), id);
+    let id = creator.id().await.unwrap();
+    assert_eq!(Some("n5z4d"), id.as_deref());
 
-    let followers = creator.followers();
+    let followers = creator.followers().await.unwrap();
     assert!(followers.is_some());
 
-    let has_patreon = creator.has_patreon();
+    let has_patreon = creator.has_patreon().await.unwrap();
     assert_eq!(Some(true), has_patreon);
 
     let webtoons = creator.webtoons().await.unwrap().unwrap();
@@ -303,7 +303,7 @@ async fn english_webtoon_canvas() {
         [creator] => {
             assert_eq!("RoloEdits", creator.username());
             assert_eq!(Some("_nb3nw"), creator.profile());
-            assert!(!creator.has_patreon().unwrap());
+            assert!(!creator.has_patreon().await.unwrap().unwrap());
         }
     }
 
@@ -384,7 +384,7 @@ async fn english_webtoon_original() {
         [creator] => {
             assert_eq!("Sejji", creator.username());
             assert_eq!(Some("08x59"), creator.profile());
-            assert_eq!(Some(true), creator.has_patreon());
+            assert_eq!(Some(true), creator.has_patreon().await.unwrap());
         }
     }
 
@@ -821,9 +821,9 @@ async fn english_original_creator_of_korean_story_should_scrape_fine() {
     if let [creator] = creators.as_slice() {
         assert_eq!("SIU", creator.username());
         assert!(creator.profile().is_none());
-        assert!(creator.id().is_none());
-        assert!(creator.followers().is_none());
-        assert!(creator.has_patreon().is_none());
+        assert!(creator.id().await.unwrap().is_none());
+        assert!(creator.followers().await.unwrap().is_none());
+        assert!(creator.has_patreon().await.unwrap().is_none());
     } else {
         unreachable!("should find SIU on Tower of God: {creators:?}");
     }
@@ -883,5 +883,26 @@ async fn english_webtoon_genre() {
             }
             _ => unreachable!("'The Phoenix & the Fearless' should only have one genre"),
         }
+    }
+}
+
+#[tokio::test]
+async fn english_canvas_invalid_creator_profile() {
+    let client = Client::new();
+
+    let webtoon = client
+        .webtoon_from_url(
+            "https://www.webtoons.com/en/canvas/my-monster-friend/list?title_no=1006940",
+        )
+        .unwrap();
+
+    let creators = webtoon.creators().await.unwrap();
+    match creators.as_slice() {
+        [] => unreachable!("should have at least one creator"),
+        [creator] => match creator.id().await {
+            Err(CreatorError::InvalidCreatorProfile) => {}
+            _ => unreachable!("should error with `InvalidCreatorProfile`"),
+        },
+        _ => unreachable!("should only have one creator"),
     }
 }
