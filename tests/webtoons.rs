@@ -899,3 +899,27 @@ async fn english_canvas_invalid_creator_profile() {
         }
     }
 }
+
+#[tokio::test]
+async fn english_canvas_creator_page_is_disabled_for_community_policy_violation() {
+    let client = Client::new();
+
+    match client.creator("_o2pgx6", Language::En).await {
+        Ok(None) => {}
+        _ => unreachable!("Creator profile page should be disabled for community violations"),
+    }
+
+    let webtoon = client.webtoon(939253, Type::Canvas).await.unwrap().unwrap();
+
+    match webtoon.creators().await.unwrap().as_slice() {
+        [creator] => {
+            assert_eq!("Baby Liska", creator.username());
+            assert_eq!(Some("_o2pgx6"), creator.profile());
+            assert_eq!(None, creator.id().await.unwrap());
+            assert_eq!(None, creator.followers().await.unwrap());
+            assert_eq!(None, creator.has_patreon().await.unwrap());
+            assert_eq!(None, creator.webtoons().await.unwrap());
+        }
+        creators => unreachable!("should find creator: {creators:?}"),
+    }
+}
