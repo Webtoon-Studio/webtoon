@@ -862,3 +862,26 @@ async fn english_canvas_creator_names_can_have_spaces_at_end() {
         unreachable!("should find creator: {creators:?}");
     }
 }
+
+#[tokio::test]
+async fn english_webtoon_genre() {
+    let client = Client::new();
+
+    // Romance Fantasy
+    {
+        let webtoon = client
+            .webtoon_from_url(
+                "https://www.webtoons.com/en/canvas/the-phoenix-the-fearless/list?title_no=1113767",
+            )
+            .unwrap();
+
+        let genres = webtoon.genres().await.unwrap();
+        match genres.as_slice() {
+            [] => unreachable!("every webtoons must have a genre"),
+            [genre] => {
+                assert_eq!(Genre::RomanticFantasy, *genre);
+            }
+            _ => unreachable!("'The Phoenix & the Fearless' should only have one genre"),
+        }
+    }
+}
