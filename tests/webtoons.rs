@@ -904,10 +904,14 @@ async fn english_canvas_invalid_creator_profile() {
 async fn english_canvas_creator_page_is_disabled_for_community_policy_violation() {
     let client = Client::new();
 
-    match client.creator("_o2pgx6", Language::En).await {
-        Ok(None) => {}
-        _ => unreachable!("Creator profile page should be disabled for community violations"),
+    for profile in ["_dcrhv7", "_pdi0q8", "_o2pgx6"] {
+        match client.creator(profile, Language::En).await {
+            Ok(None) => {}
+            _ => unreachable!("Creator profile page should be disabled for community violations"),
+        }
     }
+
+    // Sanity check for getting the creator page from the webtoon page.
 
     let webtoon = client.webtoon(939253, Type::Canvas).await.unwrap().unwrap();
 

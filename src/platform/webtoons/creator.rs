@@ -201,7 +201,7 @@ impl Creator {
     /// - Korean
     /// - Chinese.
     ///
-    /// If the profile page is disabled by the creator, this will also return `None`.
+    /// If the profile page is disabled, this will also return `None`.
     ///
     /// # Example
     ///
@@ -245,7 +245,7 @@ impl Creator {
     ///
     /// This is for creators where there are no profile, either due to being a Korean based creator,
     /// or that the language version of `webtoons.com` does not support profile pages. It also will return `None` if the
-    /// Creator has disabled their creator page.
+    /// creator page is disabled.
     ///
     /// The webtoons returned are only those that are publicly viewable. If there are no viewable webtoons, it will return an empty `Vec`.
     ///
@@ -298,8 +298,8 @@ impl Creator {
 
     /// Returns if creator has a `Patreon` linked to their account.
     ///
-    /// Will return `None` if the language version of the site doesn't support profile pages, or if the Creator has
-    /// disabled their profile page.
+    /// Will return `None` if the language version of the site doesn't support profile pages, or if the profile page is
+    /// disabled.
     ///
     /// **Unsupported Languages**:
     /// - Korean
