@@ -81,6 +81,14 @@ impl Debug for Webtoon {
     }
 }
 
+impl PartialEq for Webtoon {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Webtoon {}
+
 impl Webtoon {
     /// Returns the [`Language`] of this `Webtoon`.
     ///

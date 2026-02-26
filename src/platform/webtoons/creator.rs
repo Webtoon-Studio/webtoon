@@ -355,6 +355,13 @@ pub(super) async fn homepage(
         return Err(CreatorError::InvalidCreatorProfile);
     }
 
+    // QUESTION:
+    // Is this worth making an `CreatorError::DisabledHomepage` error for this?
+    // It's not really actionable, so in theory `None` should be fine?
+    if is_disabled_for_community_violation(&html)? {
+        return Ok(None);
+    }
+
     Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
@@ -474,6 +481,7 @@ fn has_patreon(html: &Html) -> Result<bool, Assumption> {
 // means that it does exist, but for some reason is reporting an error.
 //
 // https://www.webtoons.com/p/community/en/u/y87lz
+#[inline]
 fn is_invalid(html: &Html) -> Result<bool, Assumption> {
     let selector = Selector::parse("p") //
         .assumption("`p` should be a valid selector")?;
@@ -494,4 +502,25 @@ fn is_invalid(html: &Html) -> Result<bool, Assumption> {
         });
 
     Ok(is_invalid)
+}
+
+// When a creator page is disabled due to community policy violations, `webtoons.com`
+// still returns a 200 status, so we must search for the text that is presented
+// when its disabled.
+//
+// https://www.webtoons.com/p/community/en/u/_o2pgx6
+#[inline]
+fn is_disabled_for_community_violation(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("p") //
+        .assumption("`p` should be a valid selector")?;
+
+    let is_disabled = html.select(&selector).any(|element| {
+        element.text().next().is_some_and(|text| {
+            text.starts_with(
+                "This account has been disabled because it didn’t follow our community policy.",
+            )
+        })
+    });
+
+    Ok(is_disabled)
 }
