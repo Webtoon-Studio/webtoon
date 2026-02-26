@@ -890,19 +890,12 @@ async fn english_webtoon_genre() {
 async fn english_canvas_invalid_creator_profile() {
     let client = Client::new();
 
-    let webtoon = client
-        .webtoon_from_url(
-            "https://www.webtoons.com/en/canvas/my-monster-friend/list?title_no=1006940",
-        )
-        .unwrap();
-
-    let creators = webtoon.creators().await.unwrap();
-    match creators.as_slice() {
-        [] => unreachable!("should have at least one creator"),
-        [creator] => match creator.id().await {
+    for profile in ["_91ms9c", "y87lz", "k7yid", "m8sw0"] {
+        match client.creator(profile, Language::En).await {
             Err(CreatorError::InvalidCreatorProfile) => {}
-            _ => unreachable!("should error with `InvalidCreatorProfile`"),
-        },
-        _ => unreachable!("should only have one creator"),
+            creator => {
+                unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
+            }
+        }
     }
 }
