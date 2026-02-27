@@ -247,7 +247,9 @@ fn try_parse_completed(release: &str) -> Result<Schedule, &str> {
 
 fn try_parse_daily(release: &str) -> Result<Schedule, &str> {
     match release.trim() {
-        "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => Ok(Schedule::Daily),
+        "DAILY" | "EVERYDAY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" => {
+            Ok(Schedule::Daily)
+        }
         release => Err(release),
     }
 }
