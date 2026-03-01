@@ -76,7 +76,7 @@ To use this library, add `webtoon` to your `Cargo.toml`:
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-webtoon = "0.9.0"
+webtoon = "0.10.0"
 ```
 
 ## Quick-Start
@@ -137,7 +137,7 @@ Some functionality is gated behind Cargo features to reduce compile times and de
 - `download`: Enables the ability to download episodes, either as a single image or as multiple images.
 
 ```toml
-webtoon = { version = "0.9.0", features = ["naver", "download"] }
+webtoon = { version = "0.10.0", features = ["naver", "download"] }
 ```
 
 ## Examples
