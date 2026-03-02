@@ -806,6 +806,39 @@ impl Episode {
         self.ad_status
     }
 
+    /// Returns if the current episode is published.
+    ///
+    /// This is the same as checking for `PublishedStatus::Published`. If there
+    /// is no known status, it will return `false`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use webtoon::platform::webtoons::{error::Error, webtoon::episode::PublishedStatus, Client, Type};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
+    ///     unreachable!("webtoon is known to exist");
+    /// };
+    ///
+    /// let episodes = webtoon.episodes().await?;
+    ///
+    /// if let Some(episode) = episodes.episode(1) {
+    ///     assert!(episode.is_published());
+    ///     # return Ok(());
+    /// }
+    /// # unreachable!("should have entered the episode block and returned");
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn is_published(&self) -> bool {
+        matches!(self.published_status, Some(PublishedStatus::Published))
+    }
+
     // TODO: If this is an alternate reader, this can fail. Should return `Option`.
     /// Will download the panels of the episode.
     ///
