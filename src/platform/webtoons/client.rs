@@ -755,10 +755,10 @@ impl Client {
 
         match (user_info.is_logged_in(), user_info.profile()) {
             (true, None) => assumption!(
-                "if `UserInfo::is_logged_in` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid"
+                "if `UserInfo::is_logged_in` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {user_info:?}"
             ),
             (false, Some(profile)) => assumption!(
-                "if `UserInfo::is_logged_in` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination"
+                "if `UserInfo::is_logged_in` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {user_info:?}"
             ),
             // Expected combination of a response.
             (false, None) | (true, Some(_)) => {}
