@@ -93,12 +93,6 @@ async fn french_originals_page() {
 }
 
 #[tokio::test]
-async fn german_originals_page() {
-    let client = Client::new();
-    let _webtoons = client.originals(Language::De).await.unwrap();
-}
-
-#[tokio::test]
 async fn english_canvas_page() {
     let client = Client::new();
 
@@ -249,31 +243,6 @@ async fn french_canvas_page() {
 
     {
         let webtoons = client.canvas(Language::Fr, 1..2, Sort::Date).await.unwrap();
-        for _webtoon in webtoons {}
-    }
-}
-
-#[tokio::test]
-async fn german_canvas_page() {
-    let client = Client::new();
-    {
-        let webtoons = client
-            .canvas(Language::De, 1..2, Sort::Popularity)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client
-            .canvas(Language::De, 1..2, Sort::Likes)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client.canvas(Language::De, 1..2, Sort::Date).await.unwrap();
         for _webtoon in webtoons {}
     }
 }
