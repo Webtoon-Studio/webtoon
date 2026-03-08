@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::stdx::error::{Assumption, assumption};
+
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///
 /// This can be used to get the username and profile, as well as check if user is logged in. This type is not constructed
@@ -7,32 +9,26 @@ use serde::Deserialize;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 /// # use webtoon::platform::webtoons::{error::Error, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let user_info = client.user_info_for_session("session").await?;
+/// if let Some(user_info) = client.user_info_for_session("session").await? {
+///     assert!(user_info.is_canvas_creator());
+///     assert_eq!("username", user_info.username());
+///     assert_eq!(Some("profile"), user_info.profile());
+///     # unreachable!("should be `None`");
+/// }
 ///
-/// assert!(!user_info.is_logged_in());
-/// assert_eq!(Some("username"), user_info.username());
-/// assert_eq!(Some("profile"), user_info.profile());
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Deserialize, Debug)]
+#[derive(Debug)]
 pub struct UserInfo {
-    #[serde(rename = "challengeAuthor")]
     is_canvas_creator: bool,
-
-    #[serde(rename = "loginUser")]
-    is_logged_in: bool,
-
-    #[serde(rename = "nickname")]
-    username: Option<String>,
-
-    #[serde(rename = "profileUrl")]
+    username: String,
     profile: Option<String>,
 }
 
@@ -41,15 +37,17 @@ impl UserInfo {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user = client.user_info_for_session("session").await?;
+    /// if let Some(user) = client.user_info_for_session("session").await? {
+    ///     assert!(user.is_canvas_creator());
+    ///     # unreachable!("should be `None`");
+    /// }
     ///
-    /// assert!(user.is_canvas_creator());
     /// # Ok(())
     /// # }
     /// ```
@@ -59,52 +57,28 @@ impl UserInfo {
         self.is_canvas_creator
     }
 
-    /// Returns if current user session is logged in.
-    ///
-    /// Functionally, this tells whether a session is valid or not.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use webtoon::platform::webtoons::{error::Error, Client};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let user_info = client.user_info_for_session("session").await?;
-    ///
-    /// assert!(!user_info.is_logged_in());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn is_logged_in(&self) -> bool {
-        self.is_logged_in
-    }
-
     /// Returns the users' username.
     ///
-    /// If the session provided is invalid, then `username` will be `None`.
-    ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("session").await?;
+    /// if let Some(user_info) = client.user_info_for_session("session").await? {
+    ///     assert_eq!("username", user_info.username());
+    ///     # unreachable!("should be `None`");
+    /// }
     ///
-    /// assert_eq!(Some("username"), user_info.username());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
     #[must_use]
-    pub fn username(&self) -> Option<&str> {
-        self.username.as_deref()
+    pub fn username(&self) -> &str {
+        self.username.as_str()
     }
 
     /// Returns the profile segment for `webtoons.com/*/creator/{profile}`.
@@ -113,15 +87,17 @@ impl UserInfo {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("session").await?;
+    /// if let Some(user_info) = client.user_info_for_session("session").await? {
+    ///     assert_eq!(Some("profile"), user_info.profile());
+    ///     # unreachable!("should be `None`");
+    /// }
     ///
-    /// assert_eq!(Some("profile"), user_info.profile());
     /// # Ok(())
     /// # }
     /// ```
@@ -130,4 +106,36 @@ impl UserInfo {
     pub fn profile(&self) -> Option<&str> {
         self.profile.as_deref()
     }
+}
+
+impl TryFrom<UserInfoRaw> for UserInfo {
+    type Error = Assumption;
+    fn try_from(user: UserInfoRaw) -> Result<Self, Self::Error> {
+        let Some(username) = user.username else {
+            assumption!(
+                "`UserInfoRaw::username` was `None`, and when using `try_from|into`, should be checked beforehand that it is `Some`"
+            );
+        };
+
+        Ok(Self {
+            is_canvas_creator: user.is_canvas_creator,
+            username,
+            profile: user.profile,
+        })
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct UserInfoRaw {
+    #[serde(rename = "challengeAuthor")]
+    pub is_canvas_creator: bool,
+
+    #[serde(rename = "loginUser")]
+    pub is_logged_in: bool,
+
+    #[serde(rename = "nickname")]
+    pub username: Option<String>,
+
+    #[serde(rename = "profileUrl")]
+    pub profile: Option<String>,
 }

@@ -15,9 +15,7 @@ async fn user_info_should_deserialize_even_with_invalid_session() {
         .await
         .unwrap();
 
-    assert_eq!(None, user_info.username());
-    assert_eq!(None, user_info.profile());
-    assert!(!user_info.is_logged_in());
+    assert!(user_info.is_none());
 }
 
 #[tokio::test]
