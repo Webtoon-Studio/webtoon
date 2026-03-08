@@ -753,15 +753,22 @@ impl Client {
             }
         };
 
-        match (user_info.is_logged_in(), user_info.profile()) {
-            (true, None) => assumption!(
-                "if `UserInfo::is_logged_in` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {response}"
+        match (
+            user_info.is_logged_in(),
+            user_info.is_canvas_creator(),
+            user_info.profile(),
+        ) {
+            (false, true, _) => assumption!(
+                "if `UserInfo::is_logged_in` is false, then `UserInfo::is_canvas_creator` should also be false, yet was true: {response}"
             ),
-            (false, Some(profile)) => assumption!(
-                "if `UserInfo::is_logged_in` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {response}"
+            (_, false, Some(profile)) => assumption!(
+                "if `UserInfo::is_canvas_creator` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {response}"
+            ),
+            (true, true, None) => assumption!(
+                "if `UserInfo::is_logged_in` is true, and user is canvas creator, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {response}"
             ),
             // Expected combination of a response.
-            (false, None) | (true, Some(_)) => {}
+            (_, false, None) | (true, true, Some(_)) => {}
         }
 
         Ok(user_info)
