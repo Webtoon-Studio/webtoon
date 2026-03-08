@@ -23,6 +23,9 @@ use serde::Deserialize;
 /// ```
 #[derive(Deserialize, Debug)]
 pub struct UserInfo {
+    #[serde(rename = "challengeAuthor")]
+    is_canvas_creator: bool,
+
     #[serde(rename = "loginUser")]
     is_logged_in: bool,
 
@@ -34,6 +37,28 @@ pub struct UserInfo {
 }
 
 impl UserInfo {
+    /// Returns if current user is a canvas creator.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Error> {
+    /// let client = Client::new();
+    ///
+    /// let user = client.user_info_for_session("session").await?;
+    ///
+    /// assert!(user.is_canvas_creator());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn is_canvas_creator(&self) -> bool {
+        self.is_canvas_creator
+    }
+
     /// Returns if current user session is logged in.
     ///
     /// Functionally, this tells whether a session is valid or not.
