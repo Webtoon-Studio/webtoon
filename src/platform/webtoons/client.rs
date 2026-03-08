@@ -21,6 +21,7 @@ use crate::{
             dashboard::episodes::DashboardEpisode,
             likes::RawLikesResponse,
             posts::{Count, RawPostResponse},
+            user_info::UserInfoRaw,
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
@@ -714,24 +715,29 @@ impl Client {
 
     /// Returns a [`UserInfo`] derived from a passed in session.
     ///
-    /// This can be useful if you need to get the profile or username from the session alone.
+    /// If session is not of a logged in user, this will return `None`.
+    ///
+    /// This can be useful if you need to get the profile or username from the session alone
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user_info = client.user_info_for_session("session").await?;
+    /// let user = client.user_info_for_session("session").await?;
     ///
     /// // When no session, or an invalid session, is passed in, `is_logged_in()` will be false.
-    /// assert!(!user_info.is_logged_in());
+    /// assert!(user.is_none());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn user_info_for_session(&self, session: &str) -> Result<UserInfo, UserInfoError> {
+    pub async fn user_info_for_session(
+        &self,
+        session: &str,
+    ) -> Result<Option<UserInfo>, UserInfoError> {
         let response = self
             .http
             .get("https://www.webtoons.com/en/member/userInfo")
@@ -744,8 +750,25 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        let user_info = match serde_json::from_str::<UserInfo>(&response) {
-            Ok(user_info) => user_info,
+        let user: UserInfo = match serde_json::from_str::<UserInfoRaw>(&response) {
+            // WARN: Must check if logged in before all other arms.
+            // If not logged in, can return directly.
+            Ok(user) if !user.is_logged_in => return Ok(None),
+            // WARN: Must check before `user.try_into`
+            // If user is logged in, then username should be `Some`.
+            Ok(user) if user.username.is_none() => assumption!(
+                "if `UserInfoRaw::is_logged_in` is true, which should be the first arm matched, then `UserInfoRaw::username` must be `Some`, yet got: {response}"
+            ),
+            Ok(user) => match (user.is_canvas_creator, &user.profile) {
+                (true, None) => assumption!(
+                    "if `UserInfo::is_canvas_creator` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {response}"
+                ),
+                (false, Some(profile)) => assumption!(
+                    "if `UserInfo::is_canvas_creator` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {response}"
+                ),
+                // Expected combination of a response.
+                (false, None) | (true, Some(_)) => user.try_into()?,
+            },
             Err(err) => {
                 assumption!(
                     "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
@@ -753,25 +776,7 @@ impl Client {
             }
         };
 
-        match (
-            user_info.is_logged_in(),
-            user_info.is_canvas_creator(),
-            user_info.profile(),
-        ) {
-            (false, true, _) => assumption!(
-                "if `UserInfo::is_logged_in` is false, then `UserInfo::is_canvas_creator` should also be false, yet was true: {response}"
-            ),
-            (_, false, Some(profile)) => assumption!(
-                "if `UserInfo::is_canvas_creator` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {response}"
-            ),
-            (true, true, None) => assumption!(
-                "if `UserInfo::is_logged_in` is true, and user is canvas creator, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {response}"
-            ),
-            // Expected combination of a response.
-            (_, false, None) | (true, true, Some(_)) => {}
-        }
-
-        Ok(user_info)
+        Ok(Some(user))
     }
 
     /// Returns if the `Client` was provided a session.
@@ -1445,9 +1450,7 @@ impl Session {
             return Err(SessionError::NoSessionProvided);
         };
 
-        let user_info = client.user_info_for_session(session).await?;
-
-        if !user_info.is_logged_in() {
+        if client.user_info_for_session(session).await?.is_none() {
             return Err(SessionError::InvalidSession);
         }
 
