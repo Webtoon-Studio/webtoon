@@ -279,68 +279,14 @@ pub(super) fn views(html: &Html) -> Result<u64, WebtoonError> {
         "views element(`em.cnt`) on english `webtoons.com` Webtoon homepage should never be empty"
     );
 
-    match views.as_str() {
-        billions if billions.ends_with('B') => {
-            let number = billions.trim_end_matches('B');
+    let views = match views.as_str() {
+        billion if billion.ends_with('B') => count(billion, Unit::Billion, Some('.'), Some('B'))?,
+        million if million.ends_with('M') => count(million, Unit::Million, Some('.'), Some('M'))?,
+        thousand if thousand.contains(',') => count(thousand, Unit::Thousand, Some(','), None)?,
+        hundred => count(hundred, Unit::Hundred, None, None)?,
+    };
 
-            match number.split_once('.') {
-                Some((b, m)) => {
-                    let billion = b.parse::<u64>()
-                            .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the billions part of the views count should always fit in a `u64`, got: {b}: {err}"))?;
-
-                    let hundred_million = m.parse::<u64>()
-                            .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred millions part of the views count should always fit in a `u64`, got: {m}: {err}"))?;
-
-                    Ok((billion * 1_000_000_000) + (hundred_million * 100_000_000))
-                }
-                // If there is `1B`, this should just be `1` here, and thus we multiply by 1 billion.
-                None => match number.parse::<u64>() {
-                    Ok(digit) => Ok(digit * 1_000_000_000),
-                    Err(err) => assumption!(
-                        "on the english `webtoons.com` Webtoon homepage, a billion views without any `.` separator should cleanly parse into single digit repesentation, got: {number}: {err}"
-                    ),
-                },
-            }
-        }
-        millions if millions.ends_with('M') => {
-            let number = millions.trim_end_matches('M');
-
-            match number.split_once('.') {
-                Some((m, t)) => {
-                    let million = m.parse::<u64>()
-                        .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the millions part of the views count should always fit in a `u64`, got: {m}: {err}"))?;
-
-                    let hundred_thousand = t.parse::<u64>()
-                        .assumption_for(|err| format!("`on the english `webtoons.com` Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u64`, got: {t}: {err}"))?;
-
-                    Ok((million * 1_000_000) + (hundred_thousand * 100_000))
-                }
-                // If there is `1M`, this should just be `1` here, and thus we multiply by 1 million.
-                None => match number.parse::<u64>() {
-                    Ok(digit) => Ok(digit * 1_000_000),
-                    Err(err) => assumption!(
-                        "on the english `webtoons.com` Webtoon homepage, a million views without any `.` separator should cleanly parse into `u64`, got: {number}: {err}"
-                    ),
-                },
-            }
-        }
-        thousands if thousands.contains(',') => {
-            let (thousandth, hundreth) = thousands
-                .split_once(',')
-                .with_assumption(|| format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 views is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
-
-            let thousands = thousandth.parse::<u64>()
-                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the views count should always fit in a `u64`, got: {thousandth}: {err}"))?;
-
-            let hundreds = hundreth.parse::<u64>()
-                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the views count should always fit in a `u64`, got: {hundreth}: {err}"))?;
-
-            Ok((thousands * 1_000) + hundreds)
-        }
-        hundreds => Ok(hundreds.parse::<u64>().assumption_for(|err| {
-            format!("hundreds of views should fit in a `u64`, got: {hundreds}: {err}",)
-        })?),
-    }
+    Ok(views)
 }
 
 pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
@@ -359,48 +305,13 @@ pub(super) fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         "subscriber element(`em.cnt`) on english `webtoons.com` Webtoon homepage should never be empty"
     );
 
-    match subscribers.as_str() {
-        millions if millions.ends_with('M') => {
-            match millions {
-                float if float.contains('.') => {
-                    let (millionth, hundred_thousandth) = millions
-                        .trim_end_matches('M')
-                        .split_once('.')
-                        .assumption("on `webtoons.com` english Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
+    let subscribers = match subscribers.as_str() {
+        million if million.ends_with('M') => count(million, Unit::Million, Some('.'), Some('M'))?,
+        thousand if thousand.contains(',') => count(thousand, Unit::Thousand, Some(','), None)?,
+        hundred => count(hundred, Unit::Hundred, None, None)?,
+    };
 
-                    let millions = millionth.parse::<u32>()
-                        .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}: {err}"))?;
-
-                    let hundred_thousands = hundred_thousandth.parse::<u32>()
-                        .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundred_thousandth}: {err}"))?;
-
-                    Ok((millions * 1_000_000) + (hundred_thousands * 100_000))
-                }
-                // Can be `1M` as well, with no decimal.
-                digit =>Ok(digit
-                    .trim_end_matches('M')
-                    .parse::<u32>()
-                    .map(|million| million * 1_000_000  )
-                    .assumption_for(|err|format!(  "`webtoons.com` subscribers count ended with `M`, didn't have any `.` inside, which must mean its a whole number, yet failed to parse into a `u32`: {err}\n\n{digit}"))?),
-            }
-        }
-        thousands if thousands.contains(',') => {
-            let (thousandth, hundreth) = thousands
-                .split_once(',')
-                .with_assumption(|| format!("on `webtoons.com` english Webtoon homepage, < 1,000,000 subscribers is always represented as a decimal value, eg. `469,035`, and so should always split on `,`, got: {thousands}"))?;
-
-            let thousands = thousandth.parse::<u32>()
-                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the thousands part of the subscribers count should always fit in a `u32`, got: {thousandth}: {err}"))?;
-
-            let hundreds = hundreth.parse::<u32>()
-                .assumption_for(|err| format!("`on the `webtoons.com` english Webtoon homepage, the hundred thousands part of the veiws count should always fit in a `u32`, got: {hundreth}: {err}"))?;
-
-            Ok((thousands * 1_000) + hundreds)
-        }
-        hundreds => Ok(hundreds.parse::<u32>().assumption_for(|err| {
-            format!("`0..999` should fit into a `u32`, got: {hundreds}: {err}")
-        })?),
-    }
+    Ok(subscribers as u32)
 }
 
 // NOTE: Could also parse from the json on the story page `logParam`
@@ -411,6 +322,9 @@ pub(super) fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
 
     let mut releases = Vec::new();
 
+    // TODO: refactor similar to creator names, so that we aren't hard coded to
+    // things like `UP` text, or `EVERY`. This will make it simpler to expand
+    // for use with other language versions.
     for text in html
         .select(&selector)
         .next()
@@ -723,4 +637,143 @@ fn usernames(element: ElementRef<'_>) -> impl Iterator<Item = String> {
         // For stories with many creators, `webtoons` appends a "..."
         // text node. We stop iterating here as no names follow this symbol.
         .take_while(|str| str != "...")
+}
+
+#[derive(Clone, Copy)]
+enum Unit {
+    Hundred = 100,
+    Thousand = 1_000,
+    Million = 1_000_000,
+    Billion = 1_000_000_000,
+}
+
+/// A helper function that parses the counts(e.g. views and subscribers) on a Webtoons homepage.
+fn count(
+    input: &str,
+    unit: Unit,
+    separator: Option<char>,
+    suffix: Option<char>,
+) -> Result<u64, Assumption> {
+    fn parse(prefix: &str, remainder: &str) -> Result<(u64, u64), Assumption> {
+        let left = prefix.parse::<u64>()
+                            .assumption_for(|err| {
+                                 format!("`on the `webtoons.com` Webtoon homepage, prefix part of a count should always fit in a `u64`, got: {prefix}: {err}")
+                             })?;
+
+        let right = remainder.parse::<u64>()
+                            .assumption_for(|err| {
+                                format!("`on the `webtoons.com` Webtoon homepage, the remainder part of the count should always fit in a `u64`, got: {remainder}: {err}")
+                            })?;
+
+        Ok((left, right))
+    }
+
+    let number = match suffix {
+        Some(suffix) => input.trim_end_matches(suffix),
+        None => input,
+    };
+
+    let multiplier = unit as u64;
+
+    match separator.map(|sep| number.split_once(sep)) {
+        // Separator found (e.g., "1.5").
+        Some(Some((prefix, remainder))) if matches!(unit, Unit::Million | Unit::Billion) => {
+            let (left, right) = parse(prefix, remainder)?;
+            assumption!(right < 10, "the `{right}` part of `{number}` should be less than '10', as the abbreviated million and billion numbers should only be single digit, i.e. 1..=9");
+            Ok((left * multiplier) + (right * (multiplier / 10)))
+        }
+
+        // Separator found (e.g., "450,123").
+        Some(Some((prefix, remainder))) if matches!(unit, Unit::Thousand) => {
+            let (left, right) = parse(prefix, remainder)?;
+            Ok((left * multiplier) + right)
+        }
+
+        // If separator failed to split(e.g., "1B" or "10M"), then can parse directly.
+        //
+        // Example:
+        //     "1B" -> "1" -> 1 -> 1 * multiplier -> 1_000_000_000
+        Some(None) => number
+            .parse::<u64>()
+            .map(|digit| digit * multiplier)
+            .assumption_for(|err| {
+                 format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got: {number}: {err}")
+             }),
+
+        // If no separator provided, then can parse directly.
+        None => number
+            .parse::<u64>()
+            .assumption_for(|err| {
+                format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got: {number}: {err}")
+            }),
+
+        Some(Some(_)) => assumption!("on `webtoons.com` Webtoon homepage, split `{number}` on `{separator:?}` but failed to match expected Thousand, Million, or Billion `matches!` arm"),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn should_parse_correct_counts() {
+        // --- Billions ---
+        assert_eq!(
+            1_300_000_000,
+            count("1.3B", Unit::Billion, Some('.'), Some('B')).unwrap()
+        );
+        assert_eq!(
+            1_000_000_000,
+            count("1B", Unit::Billion, Some('.'), Some('B')).unwrap()
+        );
+        assert_eq!(
+            10_500_000_000, // Multi-digit leading part
+            count("10.5B", Unit::Billion, Some('.'), Some('B')).unwrap()
+        );
+
+        // --- Millions ---
+        assert_eq!(
+            1_300_000,
+            count("1.3M", Unit::Million, Some('.'), Some('M')).unwrap()
+        );
+        assert_eq!(
+            1_000_000,
+            count("1M", Unit::Million, Some('.'), Some('M')).unwrap()
+        );
+        assert_eq!(
+            1_000_000, // Explicit zero decimal
+            count("1.0M", Unit::Million, Some('.'), Some('M')).unwrap()
+        );
+
+        // --- Thousands ---
+        assert_eq!(
+            112_362,
+            count("112,362", Unit::Thousand, Some(','), None).unwrap()
+        );
+        assert_eq!(
+            1_005, // Comma with zero-padding in remainder
+            count("1,005", Unit::Thousand, Some(','), None).unwrap()
+        );
+        assert_eq!(
+            1_000, // Minimum thousand
+            count("1,000", Unit::Thousand, Some(','), None).unwrap()
+        );
+
+        // --- Hundreds ---
+        assert_eq!(999, count("999", Unit::Hundred, None, None).unwrap());
+        assert_eq!(0, count("0", Unit::Hundred, None, None).unwrap());
+        assert_eq!(1, count("1", Unit::Hundred, None, None).unwrap());
+    }
+
+    #[test]
+    #[should_panic]
+    fn should_fail_on_invalid_format() {
+        // Example of a case that would break the logic (two decimal places)
+        // If the assumption is 1 decimal place, "1.55B" would result in
+        // (1 * 1B) + (55 * 100M) = 6.5B, which is wrong.
+        //
+        // This test ensures we know our current logic's limitations.
+        let result = count("1.55B", Unit::Billion, Some('.'), Some('B')).unwrap();
+        assert_eq!(1_550_000_000, result);
+    }
 }
