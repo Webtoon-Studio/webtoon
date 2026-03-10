@@ -1,7 +1,7 @@
 use super::{super::episode::PublishedStatus, Page};
 use crate::{
     platform::webtoons::{
-        Client, Language, Type, Webtoon,
+        Client, Webtoon,
         creator::Creator,
         meta::{Genre, Scope},
         originals::Schedule,
@@ -25,7 +25,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
     let page = match webtoon.scope {
         Scope::Original(_) => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type())?,
+            creators: creators(html, &webtoon.client, webtoon)?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -37,7 +37,7 @@ pub(super) fn page(html: &Html, webtoon: &Webtoon) -> Result<Page, WebtoonError>
         },
         Scope::Canvas => Page {
             title: title(html)?,
-            creators: creators(html, &webtoon.client, webtoon.r#type())?,
+            creators: creators(html, &webtoon.client, webtoon)?,
             genres: genres(html)?,
             summary: summary(html)?,
             views: views(html)?,
@@ -96,7 +96,7 @@ pub(super) fn title(html: &Html) -> Result<String, WebtoonError> {
 pub(super) fn creators(
     html: &Html,
     client: &Client,
-    r#type: Type,
+    webtoon: &Webtoon,
 ) -> Result<Vec<Creator>, WebtoonError> {
     // NOTE:
     // Some creators have a little popup when you click on a button. Others have
@@ -128,130 +128,93 @@ pub(super) fn creators(
     let mut creators = Vec::new();
 
     // Canvas
-    {
-        let selector = Selector::parse(r"a.author") //
-            .assumption("`a.author` should be a valid selector")?;
+    let selector = Selector::parse(r"a.author") //
+        .assumption("`a.author` should be a valid selector")?;
 
-        // Canvas creator must have a `webtoons.com` account.
-        for selected in html.select(&selector) {
-            let url = selected
+    // Canvas creator must have a `webtoons.com` account.
+    for selected in html.select(&selector) {
+        let url = selected
                 .value()
                 .attr("href")
                 .assumption("`href` is missing, `a.author` on a `webtoons.com` Canvas Webtoon homepage should always have one")?;
 
-            let url = Url::parse(url)
-                .assumption("`webtoons.com` canvas Webtoon homepage should always return valid and wellformed urls")?;
+        let url = Url::parse(url) //
+            .assumption("`webtoons.com` canvas Webtoon homepage should always return valid and wellformed urls")?;
 
-            // Creator profile should always be the last path segment:
-            //     - https://www.webtoons.com/en/creator/792o8
-            let profile = url
+        // Creator profile should always be the last path segment:
+        //     - https://www.webtoons.com/en/creator/792o8
+        let profile = url
                 .path_segments()
                 .assumption("`href` attribute on `webtoons.com` canvas Webtoon homepage should have path segments")?
                 .next_back()
                 .assumption("Creator homepage url on `webtoons.com` Canvas homepage had segments, but `next_back` failed")?;
 
-            // This is for cases where `webtoons.com`, for some ungodly reason, is
-            // surrounding the name with a bunch of tabs and newlines, even if only
-            // one creator.
-            //
-            // Examples:
-            // - 66,666 Years: Advent of the Dark Mage
-            // - Archie Comics: Big Ethel Energy
-            // - Tower of God
-            // - Press Play, Sami
-            let username = selected
-                .text()
-                .next()
-                .map(|this| this.trim())
-                .assumption("`webtoons.com` creator text element should always be populated")?;
+        // This is for cases where `webtoons.com`, for some ungodly reason, is
+        // surrounding the name with a bunch of tabs and newlines, even if only
+        // one creator.
+        //
+        // Examples:
+        // - 66,666 Years: Advent of the Dark Mage
+        // - Archie Comics: Big Ethel Energy
+        // - Tower of God
+        // - Press Play, Sami
+        let username = selected
+            .text()
+            .next()
+            .map(|this| this.trim())
+            .assumption("`webtoons.com` creator text element should always be populated")?;
 
-            let creator = Creator {
-                client: client.clone(),
-                language: Language::En,
-                username: username.to_string(),
-                profile: Some(profile.into()),
-                homepage: Cache::empty(),
-            };
+        let creator = Creator {
+            client: client.clone(),
+            language: webtoon.language(),
+            username: username.to_string(),
+            profile: Some(profile.into()),
+            homepage: Cache::empty(),
+        };
 
-            creators.push(creator);
+        creators.push(creator);
+    }
 
-            // This check is needed as the creator limit is only for actual canvas
-            // stories, and originals can have multiple creators, including creators
-            // with accounts, which end up matching this selection.
-            //
-            // We still allow this loop to run even if on an Original, as this helps
-            // to distinguish the `profile` field, always being `Some` for `webtoons.com`
-            // accounts.
-            if r#type == Type::Canvas {
-                // NOTE: While this is saying that the loop will only run once, we
-                // actually want to be informed if the platform can now have multiple
-                // creators on canvas stories. This would be a big thing that we must
-                // fix to accommodate!
-                assumption!(
-                    creators.len() == 1,
-                    "`webtoons.com` canvas Webtoon homepages can only have one creator account associated with the Webtoon, got: {creators:?}"
-                );
-            }
-        }
+    // This check is needed as the creator limit is only for actual Canvas
+    // stories, and Originals can have multiple creators, including creators
+    // with accounts, which end up matching this selection.
+    //
+    // We still allow this to run even if on an Original, as this helps
+    // to distinguish the `profile` field, always being `Some` for `webtoons.com`
+    // accounts.
+    if webtoon.is_canvas() {
+        // NOTE: While this is saying that the loop will only run once, we
+        // actually want to be informed if the platform can now have multiple
+        // creators on canvas stories. This would be a big thing that we must
+        // fix to accommodate!
+        assumption!(
+            creators.len() == 1,
+            "`webtoons.com` canvas Webtoon homepages can only have one creator account associated with the Webtoon, got: {creators:?}"
+        );
+        return Ok(creators);
     }
 
     // Originals
-    {
-        let selector = Selector::parse(r"div.author_area") //
-            .assumption("`div.author_area` should be a valid selector")?;
+    let selector = Selector::parse(r"div.author_area") //
+        .assumption("`div.author_area` should be a valid selector")?;
 
-        // Originals creators that have no Webtoon account, or a mix of no accounts and `webtoons.com` accounts.
-        if let Some(selected) = html.select(&selector).next() {
-            for text in selected.text() {
-                // The last text block in the element, meaning all creators have
-                // been gone through.
-                if text == "author info" {
-                    break;
-                }
-
-                // This is for cases where `webtoons.com`, for some ungodly reason, is
-                // putting a bunch of tabs and newlines in the names, even if only one
-                // creator.
-                //
-                // Examples:
-                // - 66,666 Years: Advent of the Dark Mage
-                // - Archie Comics: Big Ethel Energy
-                // - Tower of God
-                //
-                // NOTE: Creator can have a username with `,` in it.
-                //     - https://www.webtoons.com/en/canvas/animals/list?title_no=738855
-                // To combat this, we end up splitting for `\t`(tab) as for stories
-                // with multiple creators, there are (for some reason) tabs in the text:
-                //     - `" SUMPUL , HereLee , Alphatart ... "`: https://www.webtoons.com/en/fantasy/the-remarried-empress/list?title_no=2135
-                // This should allow commas in usernames, while still filtering away the standalone `,` separator.
-                for username in text
-                    .trim()
-                    .split('\t')
-                    .map(|str| str.trim())
-                    .filter(|&str| str != ",")
-                    // Last username in a multi-username scenario ends with ` ... `
-                    .filter(|&str| str != "...")
-                {
-                    if username.is_empty() {
-                        continue;
-                    }
-
-                    // `webtoons.com` creators have their name come up again in
-                    // this loop. The text should be the exact same so it's safe
-                    // to check if they already exist in the list, continuing to
-                    // the next text block if so.
-                    if creators.iter().any(|creator| creator.username == username) {
-                        continue;
-                    }
-
-                    creators.push(Creator {
-                        client: client.clone(),
-                        profile: None,
-                        username: username.to_string(),
-                        language: Language::En,
-                        homepage: Cache::empty(),
-                    });
-                }
+    // Originals creators that have no Webtoon account, or a mix of no accounts and `webtoons.com` accounts.
+    if let Some(selected) = html.select(&selector).next() {
+        for username in usernames(selected) {
+            // If any Creators were encountered again, ignore, as the `Creator`
+            // added to the `Vec` in the Canvas section holds more info, like
+            // having `Some` for `profile`.
+            if !creators
+                .iter()
+                .any(|creator| creator.username() == username)
+            {
+                creators.push(Creator {
+                    client: client.clone(),
+                    profile: None,
+                    username,
+                    language: webtoon.language(),
+                    homepage: Cache::empty(),
+                });
             }
         }
     }
@@ -703,4 +666,61 @@ fn date(episode: &ElementRef<'_>) -> Result<NaiveDate, Assumption> {
         .assumption_for(|err| format!("the english `webtoons.com` Webtoon homepage episode date should follow the `Jun 3, 2022` format, got: {text}: {err}"))?;
 
     Ok(date)
+}
+
+/// Extracts creator usernames from the `div.author_area`.
+///
+/// This handles three specific `webtoons.com` quirks:
+/// 1. Creators with accounts are inside `<a>` tags, while others are raw text nodes.
+/// 2. The platform often inserts excessive tabs (`\t`) and newlines around names.
+/// 3. Lists are terminated by a `...` text node or a language-specific "author info" button.
+fn usernames(element: ElementRef<'_>) -> impl Iterator<Item = String> {
+    element
+        .children()
+        // The "author info" button is always the last child.
+        // We stop here so we don't accidentally parse the button's label as a username.
+        .take_while(|node| {
+            node.value()
+                .as_element()
+                // We stop if we hit an element node that is a button
+                .is_none_or(|element| element.name() != "button")
+        })
+        // `webtoons` mixes <a> tags (accounts) and raw text (non-accounts).
+        .filter_map(|node| {
+            // If it's a text node, take it. If it's an element (like <a>), grab its inner text.
+            node.value()
+                .as_text()
+                .map(|text| text.to_string())
+                .or_else(|| {
+                    ElementRef::wrap(node).map(|element| element.text().collect::<String>())
+                })
+        })
+        // This is for cases where `webtoons.com`, for some ungodly reason, is
+        // putting a bunch of tabs and newlines in the names, even if only one
+        // creator.
+        //
+        // Examples:
+        // - 66,666 Years: Advent of the Dark Mage
+        // - Archie Comics: Big Ethel Energy
+        // - Tower of God
+        //
+        // NOTE:
+        // Creator can have a username with `,` in it.
+        //     - https://www.webtoons.com/en/canvas/animals/list?title_no=738855
+        //
+        // To combat this, we end up splitting for `\t`(tab) as for stories
+        // with multiple creators, there are (for some reason) tabs in the text:
+        //     - `" SUMPUL , HereLee , Alphatart ... "`: https://www.webtoons.com/en/fantasy/the-remarried-empress/list?title_no=2135
+        // This should allow commas in usernames, while still filtering away the standalone `,` separator.
+        .flat_map(|text| {
+            text.split('\t')
+                .map(|str| str.trim().to_string())
+                .collect::<Vec<_>>()
+        })
+        // Remove empty strings and the standalone comma separators
+        // placed between creator links/nodes.
+        .filter(|str| !str.is_empty() && str != ",")
+        // For stories with many creators, `webtoons` appends a "..."
+        // text node. We stop iterating here as no names follow this symbol.
+        .take_while(|str| str != "...")
 }
