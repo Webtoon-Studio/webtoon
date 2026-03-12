@@ -1,4 +1,4 @@
-// mod de;
+mod de;
 mod en;
 // mod es;
 // mod fr;
@@ -201,6 +201,9 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     let mut creators = Vec::new();
 
     // Canvas
+    // NOTE: Not all language versions have this in their Canvas page. They instead
+    // have the same as the Originals below. This is because not every language
+    // has creator profiles.
     let selector = Selector::parse(r"a.author") //
         .assumption("`a.author` should be a valid selector")?;
 
@@ -255,14 +258,18 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     // We still allow this to run even if on an Original, as this helps
     // to distinguish the `profile` field, always being `Some` for `webtoons.com`
     // accounts.
-    if webtoon.is_canvas() {
+    //
+    // NOTE: Not every languages' Canvas page will match the above selector.
+    // This is because not every language supports Creator profiles. We need to
+    // filter those languages away.
+    if webtoon.is_canvas() && !matches!(webtoon.language(), Language::De) {
         // NOTE: While this is saying that the loop will only run once, we
         // actually want to be informed if the platform can now have multiple
         // creators on canvas stories. This would be a big thing that we must
         // fix to accommodate!
         assumption!(
             creators.len() == 1,
-            "`webtoons.com` canvas Webtoon homepages can only have one creator account associated with the Webtoon, got: {creators:?}"
+            "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
         );
         return Ok(creators);
     }
@@ -357,7 +364,7 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
         Language::Id => todo!(),
         Language::Es => todo!(),
         Language::Fr => todo!(),
-        Language::De => todo!(),
+        Language::De => de::views(&views)?,
     };
 
     Ok(views)
@@ -386,7 +393,7 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
         Language::Id => todo!(),
         Language::Es => todo!(),
         Language::Fr => todo!(),
-        Language::De => todo!(),
+        Language::De => de::subscribers(&subscribers)?,
     };
 
     Ok(subscribers as u32)
@@ -650,17 +657,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
 
         for element in html.select(&selector) {
-            let episode = match webtoon.language {
-                Language::En => episode(&element, webtoon)?,
-                Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
-                Language::Th => todo!(), // th::episode(&element, webtoon)?,
-                Language::Id => todo!(), // id::episode(&element, webtoon)?,
-                Language::Es => todo!(), // es::episode(&element, webtoon)?,
-                Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
-                Language::De => todo!(), // de::episode(&element, webtoon)?,
-            };
-
-            episodes.push(episode);
+            episodes.push(episode(&element, webtoon)?);
         }
 
         // Sleep for one second to prevent getting a 429 response code for going between the pages to quickly.
@@ -700,19 +697,7 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
     let first = html
         .select(&selector)
         .next_back()
-        .map(|element| {
-            let episode = match webtoon.language {
-                Language::En => episode(&element, webtoon)?,
-                Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
-                Language::Th => todo!(), // th::episode(&element, webtoon)?,
-                Language::Id => todo!(), // id::episode(&element, webtoon)?,
-                Language::Es => todo!(), // es::episode(&element, webtoon)?,
-                Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
-                Language::De => todo!(), // de::episode(&element, webtoon)?,
-            };
-
-            Ok::<Episode, Assumption>(episode)
-        })
+        .map(|element| episode(&element, webtoon))
         .transpose()?;
 
     match first {
@@ -744,17 +729,7 @@ pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, Webtoon
     let idx = fastrand::usize(0..elements.len());
     let element = elements[idx];
 
-    let episode = match webtoon.language {
-        Language::En => episode(&element, webtoon)?,
-        Language::Zh => todo!(), // zh::episode(&element, webtoon)?,
-        Language::Th => todo!(), // th::episode(&element, webtoon)?,
-        Language::Id => todo!(), // id::episode(&element, webtoon)?,
-        Language::Es => todo!(), // es::episode(&element, webtoon)?,
-        Language::Fr => todo!(), // fr::episode(&element, webtoon)?,
-        Language::De => todo!(), // de::episode(&element, webtoon)?,
-    };
-
-    Ok(episode)
+    Ok(episode(&element, webtoon)?)
 }
 
 fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assumption> {
@@ -777,7 +752,7 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
         Language::Id => todo!(),
         Language::Es => todo!(),
         Language::Fr => todo!(),
-        Language::De => todo!(),
+        Language::De => de::date(text)?,
     };
 
     Ok(date)
@@ -945,11 +920,19 @@ mod test {
             1_000_000, // Explicit zero decimal
             count("1.0M", Unit::Million, Some('.'), Some('M')).unwrap()
         );
+        assert_eq!(
+            4_900_000,
+            count("4,9M", Unit::Million, Some(','), Some('M')).unwrap()
+        );
 
         // --- Thousands ---
         assert_eq!(
             112_362,
             count("112,362", Unit::Thousand, Some(','), None).unwrap()
+        );
+        assert_eq!(
+            46_547,
+            count("46.547", Unit::Thousand, Some('.'), None).unwrap()
         );
         assert_eq!(
             1_005, // Comma with zero-padding in remainder
