@@ -927,6 +927,7 @@ async fn english_canvas_creator_page_is_disabled_for_community_policy_violation(
 }
 
 #[tokio::test]
+#[ignore = "no webtoons currently release daily as of March 11, 2026"]
 async fn english_webtoon_everyday_is_daily_schedule() {
     let client = Client::new();
 
