@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language,
+    Client, Language, Type,
     canvas::Sort,
     meta::Genre,
     originals::{Schedule, Weekday},
@@ -122,5 +122,26 @@ async fn german_webtoon_original() {
         assert_eq!(4, published.day());
         assert_eq!(7, published.month());
         assert_eq!(2022, published.year());
+    }
+}
+
+#[tokio::test]
+async fn german_originals_romantasy_is_romantic_fantasy() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1119143, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [fantasy, romantasy] => {
+            assert_eq!(Genre::Fantasy, *fantasy);
+            assert_eq!(Genre::RomanticFantasy, *romantasy);
+        }
+
+        _ => unreachable!("`The Dragon Legion` should have two generes"),
     }
 }
