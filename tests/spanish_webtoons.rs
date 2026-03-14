@@ -153,3 +153,24 @@ async fn spanish_originals_historia_corta_is_short_story() {
         _ => unreachable!("`Fábrica de monos` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn spanish_originals_crimen_misterio_is_mystery() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1127650, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [mystery, romance] => {
+            assert_eq!(Genre::Mystery, *mystery);
+            assert_eq!(Genre::Romance, *romance);
+        }
+
+        _ => unreachable!("`Mi Vida Sensible` should have two generes"),
+    }
+}
