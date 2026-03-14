@@ -20,3 +20,6 @@ jobs:
 
       - name: Run german webtoons smoke test
         run:  cargo test --all-features --profile test --test german_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
+
+      - name: Run spanish webtoons smoke test
+        run:  cargo test --all-features --profile test --test spanish_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
