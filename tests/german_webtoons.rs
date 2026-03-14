@@ -166,3 +166,24 @@ async fn german_originals_übernatürlich_is_supernatural() {
         _ => unreachable!("`THE JEST3R - Born Of Noise` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn german_originals_kurzgeschichten_is_short_story() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1121691, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [comedy, short_story] => {
+            assert_eq!(Genre::Comedy, *comedy);
+            assert_eq!(Genre::ShortStory, *short_story);
+        }
+
+        _ => unreachable!("`Helvetia Friends Club` should have two generes"),
+    }
+}
