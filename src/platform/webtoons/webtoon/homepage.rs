@@ -1,6 +1,6 @@
 mod de;
 mod en;
-// mod es;
+mod es;
 // mod fr;
 // mod id;
 // mod th;
@@ -362,7 +362,7 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
         Language::Zh => todo!(),
         Language::Th => todo!(),
         Language::Id => todo!(),
-        Language::Es => todo!(),
+        Language::Es => es::views(&views)?,
         Language::Fr => todo!(),
         Language::De => de::views(&views)?,
     };
@@ -391,7 +391,7 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
         Language::Zh => todo!(),
         Language::Th => todo!(),
         Language::Id => todo!(),
-        Language::Es => todo!(),
+        Language::Es => es::subscribers(&subscribers)?,
         Language::Fr => todo!(),
         Language::De => de::subscribers(&subscribers)?,
     };
@@ -420,7 +420,7 @@ fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
             Language::Zh => todo!(),
             Language::Th => todo!(),
             Language::Id => todo!(),
-            Language::Es => todo!(),
+            Language::Es => es::schedule(text),
             Language::Fr => todo!(),
             Language::De => de::schedule(text),
         })
@@ -752,7 +752,7 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
         Language::Zh => todo!(),
         Language::Th => todo!(),
         Language::Id => todo!(),
-        Language::Es => todo!(),
+        Language::Es => es::date(text)?,
         Language::Fr => todo!(),
         Language::De => de::date(text)?,
     };
