@@ -145,3 +145,24 @@ async fn german_originals_romantasy_is_romantic_fantasy() {
         _ => unreachable!("`The Dragon Legion` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn german_originals_übernatürlich_is_supernatural() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1123578, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [superhero, supernatural] => {
+            assert_eq!(Genre::Superhero, *superhero);
+            assert_eq!(Genre::Supernatural, *supernatural);
+        }
+
+        _ => unreachable!("`THE JEST3R - Born Of Noise` should have two generes"),
+    }
+}

@@ -273,9 +273,8 @@ impl FromStr for Genre {
             }
             "ZOMBIES" | "Zombies" | "zombies" => Ok(Self::Zombies),
             "SCHOOL" | "School" | "school" | "校園" => Ok(Self::School),
-            "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal" => {
-                Ok(Self::Supernatural)
-            }
+            "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal"
+            | "Übernatürlich" => Ok(Self::Supernatural),
             "ANIMALS" | "Animals" | "animals" => Ok(Self::Animals),
             "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" | "懸疑推理"
             | "Krimi/Mystery" => Ok(Self::Mystery),
