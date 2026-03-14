@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language,
+    Client, Language, Type,
     canvas::Sort,
     meta::Genre,
     originals::{Schedule, Weekday},
@@ -130,5 +130,26 @@ async fn spanish_webtoon_original() {
 
         let likes = episode.likes().await.unwrap();
         assert!(likes >= 31_070);
+    }
+}
+
+#[tokio::test]
+async fn spanish_originals_historia_corta_is_short_story() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1128134, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [short_story, scifi] => {
+            assert_eq!(Genre::ShortStory, *short_story);
+            assert_eq!(Genre::SciFi, *scifi);
+        }
+
+        _ => unreachable!("`Fábrica de monos` should have two generes"),
     }
 }
