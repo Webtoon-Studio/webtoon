@@ -241,7 +241,7 @@ impl FromStr for Genre {
             "SCI-FI" | "Sci-fi" | "Sci-Fi" | "sf" | "SF" | "科幻" | "ไซไฟ" | "fiksi ilmiah"
             | "Ciencia ficción" => Ok(Self::SciFi),
             "DRAMA" | "Drama" | "drama" | "劇情" | "ดราม่า" => Ok(Self::Drama),
-            "SHORT STORY" | "Short story" => Ok(Self::ShortStory),
+            "SHORT STORY" | "Short story" | "Historia Corta" => Ok(Self::ShortStory),
             "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" => {
                 Ok(Self::Action)
             }
