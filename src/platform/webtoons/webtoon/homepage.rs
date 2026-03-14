@@ -61,7 +61,7 @@ impl Page {
                 summary: summary(html)?,
                 views: views(html, webtoon)?,
                 subscribers: subscribers(html, webtoon)?,
-                schedule: Some(schedule(html)?),
+                schedule: Some(schedule(html, webtoon)?),
                 thumbnail: None,
                 banner: Some(banner(html)?),
                 pages: calculate_total_pages(html)?,
@@ -399,13 +399,13 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
     Ok(subscribers as u32)
 }
 
-fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
+fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
     let selector = Selector::parse(r"p.day_info") //
         .assumption("`p.day_info` should be a valid selector")?;
 
     let mut releases = Vec::new();
 
-    if let Some(text) = html
+    for status in html
         .select(&selector)
         .next()
         .assumption("`p.day_info`(schedule) on `webtoons.com` originals Webtoons is missing")?
@@ -414,20 +414,22 @@ fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
         .filter_map(|node| node.value().as_text())
         .map(|text| text.trim())
         .find(|text| !text.is_empty())
+        // Language specific cleaning so that only status or day/s are remaining.
+        .map(|text| match webtoon.language() {
+            Language::En => en::schedule(text),
+            Language::Zh => todo!(),
+            Language::Th => todo!(),
+            Language::Id => todo!(),
+            Language::Es => todo!(),
+            Language::Fr => todo!(),
+            Language::De => de::schedule(text),
+        })
+        .assumption("`p.day_info`(schedule) should produce some form of non-empty text")?
+        .split_whitespace()
+        // `MON,` -> `MON`
+        .map(|text| text.trim_end_matches(','))
     {
-        match text
-            .split_whitespace()
-            .map(|day| day.trim_end_matches(','))
-            .collect::<Vec<_>>()
-            .as_slice()
-        {
-            // "COMPLETED", "DAILY", etc.
-            [status] => releases.push(*status),
-            // "EVERY MON, WED", etc.
-            // We assume the first token is the "EVERY" equivalent and skip it.
-            [_prefix, days @ ..] => releases.extend(days),
-            [] => assumption!("should have filtered out empty text for `p.day_info`"),
-        }
+        releases.push(status);
     }
 
     assumption!(

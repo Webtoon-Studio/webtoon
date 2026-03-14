@@ -26,6 +26,10 @@ pub(super) fn subscribers(subscribers: &str) -> Result<u64, Assumption> {
     Ok(subscribers)
 }
 
+pub(super) fn schedule(schedule: &str) -> &str {
+    schedule.trim_start_matches("IMMER").trim_start()
+}
+
 pub(super) fn date(date: &str) -> Result<NaiveDate, Assumption> {
     const FMT: &str = "%d.%m.%Y";
 
