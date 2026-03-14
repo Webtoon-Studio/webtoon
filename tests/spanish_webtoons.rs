@@ -134,7 +134,7 @@ async fn spanish_webtoon_original() {
 }
 
 #[tokio::test]
-async fn spanish_originals_historia_corta_is_short_story() {
+async fn spanish_genre_historia_corta_is_short_story() {
     let client = Client::new();
     let webtoon = client
         .webtoon(1128134, Type::Canvas)
@@ -155,7 +155,7 @@ async fn spanish_originals_historia_corta_is_short_story() {
 }
 
 #[tokio::test]
-async fn spanish_originals_crimen_misterio_is_mystery() {
+async fn spanish_genre_crimen_misterio_is_mystery() {
     let client = Client::new();
     let webtoon = client
         .webtoon(1127650, Type::Canvas)
@@ -172,5 +172,26 @@ async fn spanish_originals_crimen_misterio_is_mystery() {
         }
 
         _ => unreachable!("`Mi Vida Sensible` should have two generes"),
+    }
+}
+
+#[tokio::test]
+async fn spanish_genre_fantasía_romántica_is_romantic_fantasy() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1123874, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [romantic_fantasy, lgbtq] => {
+            assert_eq!(Genre::RomanticFantasy, *romantic_fantasy);
+            assert_eq!(Genre::LGBTQ, *lgbtq);
+        }
+
+        _ => unreachable!("`Cazadores` should have two generes"),
     }
 }
