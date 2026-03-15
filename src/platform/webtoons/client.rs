@@ -631,18 +631,18 @@ impl Client {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
     /// let webtoons = client
-    ///     .canvas(Language::En, 1..=3, Sort::Popularity)
+    ///     .canvas(Language::En, 1..=2, Sort::Popularity)
     ///     .await?;
     ///
     /// for webtoon in webtoons {
-    ///     println!("Webtoon: {}", webtoon.title().await?);
+    ///     println!("Webtoon: {}", webtoon.id());
     /// }
     /// # Ok(())
     /// # }

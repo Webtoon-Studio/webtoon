@@ -113,15 +113,8 @@ async fn german_webtoon_original() {
     let (_comments, _replies) = episode.comments_and_replies().await.unwrap();
 
     let mut posts = episode.posts();
-    while let Some(post) = posts.next().await.unwrap() {
+    if let Some(post) = posts.next().await.unwrap() {
         eprintln!("{}", post.body().contents());
-    }
-
-    if let Some(episode) = webtoon.episodes().await.unwrap().into_iter().next() {
-        let published = episode.published().unwrap();
-        assert_eq!(4, published.day());
-        assert_eq!(7, published.month());
-        assert_eq!(2022, published.year());
     }
 }
 

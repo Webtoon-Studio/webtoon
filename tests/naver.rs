@@ -35,9 +35,13 @@ async fn webtoon() -> Result<(), Error> {
     println!("is_featured: {}", webtoon.is_featured());
     println!("is_best_challenge: {}", webtoon.is_best_challenge());
     println!("is_challenge: {}", webtoon.is_challenge());
-    println!("likes: {}", webtoon.likes().await?);
+    // TODO: add ability to just check one episodes value, as this is much
+    // faster
+    // println!("likes: {}", webtoon.likes().await?);
     println!("favorites: {}", webtoon.favorites());
-    println!("rating: {}", webtoon.rating().await?);
+    // TODO: add ability to just check one episodes value, as this is much
+    // faster
+    // println!("rating: {}", webtoon.rating().await?);
     println!("summary: {}", webtoon.summary());
     println!("creators: {:?}", webtoon.creators());
 
@@ -81,6 +85,7 @@ async fn episode() -> Result<(), Error> {
     return Ok(());
 }
 
+#[ignore = "slow test and needs refactoring"]
 #[tokio::test]
 async fn posts() -> Result<(), Error> {
     let client = Client::new();

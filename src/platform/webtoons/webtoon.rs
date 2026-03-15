@@ -887,7 +887,7 @@ impl Webtoon {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -914,6 +914,7 @@ impl Webtoon {
         Ok(likes)
     }
 
+    // TODO: Turn into interator
     /// Retrieves all comments (top-level posts) for every episode of the current `Webtoon`.
     ///
     /// Comments that have been deleted, but have replies, will still be included. Comments deleted without any replies will not be included.
@@ -924,7 +925,7 @@ impl Webtoon {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {

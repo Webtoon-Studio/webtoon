@@ -38,3 +38,5 @@ pub(super) fn date(date: &str) -> Result<NaiveDate, Assumption> {
     })?;
     Ok(date)
 }
+
+// TODO: Add tests for the dates and check the day, month, and year return value.
