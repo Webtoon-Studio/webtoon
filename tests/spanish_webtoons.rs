@@ -216,3 +216,19 @@ async fn spanish_genre_postapocalíptico_is_post_apocalyptic() {
         _ => unreachable!("`CACERIA CIBERNETICA 01` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn spanish_genre_misterio_is_mystery() {
+    let client = Client::new();
+    let webtoon = client.webtoon(8433, Type::Original).await.unwrap().unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [mystery] => {
+            assert_eq!(Genre::Mystery, *mystery);
+        }
+
+        _ => unreachable!("`Señorita Cometa` should have one genre"),
+    }
+}
