@@ -126,7 +126,7 @@ async fn german_webtoon_original() {
 }
 
 #[tokio::test]
-async fn german_originals_romantasy_is_romantic_fantasy() {
+async fn german_genre_romantasy_is_romantic_fantasy() {
     let client = Client::new();
     let webtoon = client
         .webtoon(1119143, Type::Canvas)
@@ -147,7 +147,7 @@ async fn german_originals_romantasy_is_romantic_fantasy() {
 }
 
 #[tokio::test]
-async fn german_originals_übernatürlich_is_supernatural() {
+async fn german_genre_übernatürlich_is_supernatural() {
     let client = Client::new();
     let webtoon = client
         .webtoon(1123578, Type::Canvas)
@@ -168,7 +168,7 @@ async fn german_originals_übernatürlich_is_supernatural() {
 }
 
 #[tokio::test]
-async fn german_originals_kurzgeschichten_is_short_story() {
+async fn german_genre_kurzgeschichten_is_short_story() {
     let client = Client::new();
     let webtoon = client
         .webtoon(1121691, Type::Canvas)
@@ -185,5 +185,26 @@ async fn german_originals_kurzgeschichten_is_short_story() {
         }
 
         _ => unreachable!("`Helvetia Friends Club` should have two generes"),
+    }
+}
+
+#[tokio::test]
+async fn german_genre_alle_altersklassen_is_all_ages() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1124411, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [fantasy, all_ages] => {
+            assert_eq!(Genre::Fantasy, *fantasy);
+            assert_eq!(Genre::AllAges, *all_ages);
+        }
+
+        _ => unreachable!("`Spiegelbruch` should have two generes"),
     }
 }
