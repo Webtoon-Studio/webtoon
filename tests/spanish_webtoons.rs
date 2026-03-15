@@ -195,3 +195,24 @@ async fn spanish_genre_fantasía_romántica_is_romantic_fantasy() {
         _ => unreachable!("`Cazadores` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn spanish_genre_postapocalíptico_is_post_apocalyptic() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1114348, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [scifi, post_apocalyptic] => {
+            assert_eq!(Genre::SciFi, *scifi);
+            assert_eq!(Genre::PostApocalyptic, *post_apocalyptic);
+        }
+
+        _ => unreachable!("`CACERIA CIBERNETICA 01` should have two generes"),
+    }
+}
