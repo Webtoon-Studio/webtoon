@@ -279,7 +279,7 @@ impl FromStr for Genre {
             | "Übernatürlich" => Ok(Self::Supernatural),
             "ANIMALS" | "Animals" | "animals" => Ok(Self::Animals),
             "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" | "懸疑推理"
-            | "Krimi/Mystery" | "Crimen/Misterio" => Ok(Self::Mystery),
+            | "Krimi/Mystery" | "Crimen/Misterio" | "Misterio" => Ok(Self::Mystery),
             "HISTORICAL"
             | "Historical"
             | "historical"
