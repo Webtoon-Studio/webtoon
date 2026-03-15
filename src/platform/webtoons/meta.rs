@@ -270,7 +270,7 @@ impl FromStr for Genre {
             "HORROR" | "Horror" | "horror" | "สยองขวัญ" | "horor" | "Terror" | "Horreur" => {
                 Ok(Self::Horror)
             }
-            "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" => {
+            "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" | "Postapocalíptico" => {
                 Ok(Self::PostApocalyptic)
             }
             "ZOMBIES" | "Zombies" | "zombies" => Ok(Self::Zombies),
