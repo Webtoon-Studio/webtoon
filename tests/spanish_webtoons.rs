@@ -225,3 +225,24 @@ async fn spanish_genre_misterio_is_mystery() {
         _ => unreachable!("`Señorita Cometa` should have one genre"),
     }
 }
+
+#[tokio::test]
+async fn spanish_genre_inspirador_is_inspirational() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1123106, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [short_story, inspirational] => {
+            assert_eq!(Genre::ShortStory, *short_story);
+            assert_eq!(Genre::Inspirational, *inspirational);
+        }
+
+        _ => unreachable!("`Imay - ¿Quien Soy?` should have two genres"),
+    }
+}
