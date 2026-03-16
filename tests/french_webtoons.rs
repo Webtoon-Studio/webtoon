@@ -139,3 +139,19 @@ async fn french_genre_éducatif_is_informative() {
         _ => unreachable!("`5 ans de WEBTOON !` should have one genre"),
     }
 }
+
+#[tokio::test]
+async fn french_genre_local_is_local() {
+    let client = Client::new();
+    let webtoon = client.webtoon(7240, Type::Original).await.unwrap().unwrap();
+
+    assert_eq!(Language::Fr, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [local] => {
+            assert_eq!(Genre::Local, *local);
+        }
+
+        _ => unreachable!("`25 jours pour sauver Noël` should have one genre"),
+    }
+}
