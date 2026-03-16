@@ -295,7 +295,7 @@ impl FromStr for Genre {
             "SPORTS" | "Sports" | "sports" | "運動" | "กีฬา" | "olahraga" | "Deportes" => {
                 Ok(Self::Sports)
             }
-            "INSPIRATIONAL" | "Inspirational" | "inspirational" | "Inspirador" => {
+            "INSPIRATIONAL" | "Inspirational" | "inspirational" | "Inspirador" | "Inspirierend" => {
                 Ok(Self::Inspirational)
             }
             "LGBTQ+ / Y" | "LGBTQ+" | "bl-gl" => Ok(Self::LGBTQ),
