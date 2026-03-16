@@ -201,3 +201,24 @@ async fn german_genre_alle_altersklassen_is_all_ages() {
         _ => unreachable!("`Spiegelbruch` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn german_genre_inspirierend_is_inspirational() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1117195, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [all_ages, inspirational] => {
+            assert_eq!(Genre::AllAges, *all_ages);
+            assert_eq!(Genre::Inspirational, *inspirational);
+        }
+
+        _ => unreachable!("`nichts` should have two generes"),
+    }
+}
