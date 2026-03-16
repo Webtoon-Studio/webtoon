@@ -1493,9 +1493,13 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
         let data_url = img
             .value()
             .attr("data-url")
+            // Some urls contain html encoded entities (e.g. https://webtoon-phinf.pstatic.net/20221005_56/1664941257466o9LqU_JPEG/Mom-I&#39;m-Sorry_DE_EP002_01_02.jpg).
+            // If we do not clean these, then the parsing of the `ext` will fail
+            // as the part after the `#` will be part of fragment, not the path.
+            .map(|url|html_escape::decode_html_entities(url) )
             .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
-        let mut url = match Url::parse(data_url) {
+        let mut url = match Url::parse(&data_url) {
             Ok(url) => url,
             Err(err) => assumption!(
                 "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"

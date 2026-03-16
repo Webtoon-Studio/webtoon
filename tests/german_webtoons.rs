@@ -243,3 +243,17 @@ async fn german_genre_schule_is_school() {
         _ => unreachable!("`Love shot` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn german_original_should_parse_ext_from_episode_panels() {
+    let client = Client::new();
+    let webtoon = client.webtoon(4850, Type::Original).await.unwrap().unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    let episode = webtoon.episode(2).await.unwrap().unwrap();
+
+    let length = episode.length().await.unwrap().unwrap();
+
+    assert_eq!(90455, length);
+}
