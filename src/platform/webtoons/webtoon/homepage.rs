@@ -1,7 +1,7 @@
 mod de;
 mod en;
 mod es;
-// mod fr;
+mod fr;
 // mod id;
 // mod th;
 // mod zh;
@@ -262,7 +262,7 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     // NOTE: Not every languages' Canvas page will match the above selector.
     // This is because not every language supports Creator profiles. We need to
     // filter those languages away.
-    if webtoon.is_canvas() && !matches!(webtoon.language(), Language::De) {
+    if webtoon.is_canvas() && !matches!(webtoon.language(), Language::De | Language::Fr) {
         // NOTE: While this is saying that the loop will only run once, we
         // actually want to be informed if the platform can now have multiple
         // creators on canvas stories. This would be a big thing that we must
@@ -363,7 +363,7 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
         Language::Th => todo!(),
         Language::Id => todo!(),
         Language::Es => es::views(&views)?,
-        Language::Fr => todo!(),
+        Language::Fr => fr::views(&views.replace("&nbsp;", " "))?,
         Language::De => de::views(&views)?,
     };
 
@@ -392,7 +392,7 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
         Language::Th => todo!(),
         Language::Id => todo!(),
         Language::Es => es::subscribers(&subscribers)?,
-        Language::Fr => todo!(),
+        Language::Fr => fr::subscribers(&subscribers.replace("&nbsp;", " "))?,
         Language::De => de::subscribers(&subscribers)?,
     };
 
@@ -421,7 +421,7 @@ fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
             Language::Th => todo!(),
             Language::Id => todo!(),
             Language::Es => es::schedule(text),
-            Language::Fr => todo!(),
+            Language::Fr => fr::schedule(text),
             Language::De => de::schedule(text),
         })
         .assumption("`p.day_info`(schedule) should produce some form of non-empty text")?
@@ -753,7 +753,7 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
         Language::Th => todo!(),
         Language::Id => todo!(),
         Language::Es => es::date(text)?,
-        Language::Fr => todo!(),
+        Language::Fr => fr::date(text)?,
         Language::De => de::date(text)?,
     };
 
