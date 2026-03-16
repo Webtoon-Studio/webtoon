@@ -222,3 +222,24 @@ async fn german_genre_inspirierend_is_inspirational() {
         _ => unreachable!("`nichts` should have two generes"),
     }
 }
+
+#[tokio::test]
+async fn german_genre_schule_is_school() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1120696, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::De, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [romance, school] => {
+            assert_eq!(Genre::Romance, *romance);
+            assert_eq!(Genre::School, *school);
+        }
+
+        _ => unreachable!("`Love shot` should have two generes"),
+    }
+}
