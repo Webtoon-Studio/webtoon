@@ -681,7 +681,7 @@ impl From<Vec<Post>> for Posts {
 /// };
 ///
 /// if let Some(episode) = webtoon.episode(1).await? {
-///     for post in episode.posts().await? {
+///     if let Some(post) = episode.posts().await?.into_iter().next() {
 ///         let poster = post.poster();
 ///
 ///         println!("poster: {}", poster.username());
@@ -770,7 +770,7 @@ impl Poster {
     /// };
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     for post in episode.posts().await? {
+    ///     if let Some(post) = episode.posts().await?.into_iter().next() {
     ///         let poster = post.poster();
     ///
     ///         println!("poster: {}", poster.username());

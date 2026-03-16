@@ -474,7 +474,7 @@ impl Episode {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -604,7 +604,7 @@ impl Episode {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {

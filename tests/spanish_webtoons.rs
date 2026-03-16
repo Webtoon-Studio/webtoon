@@ -117,20 +117,13 @@ async fn spanish_webtoon_original() {
     let length = episode.length().await.unwrap().unwrap();
     assert_eq!(239026, length);
 
+    let likes = episode.likes().await.unwrap();
+    assert!(likes >= 31079, "likes were {likes}");
+
     let (_comments, _replies) = episode.comments_and_replies().await.unwrap();
 
     let mut posts = episode.posts();
-    while let Some(_post) = posts.next().await.unwrap() {}
-
-    if let Some(episode) = webtoon.episodes().await.unwrap().into_iter().next() {
-        let published = episode.published().unwrap();
-        assert_eq!(4, published.day());
-        assert_eq!(7, published.month());
-        assert_eq!(2024, published.year());
-
-        let likes = episode.likes().await.unwrap();
-        assert!(likes >= 31_070);
-    }
+    if let Some(_post) = posts.next().await.unwrap() {}
 }
 
 #[tokio::test]

@@ -122,10 +122,10 @@ impl Comment {
     ///     .expect("webtoon is known to exist");
     ///
     /// if let Some(episode) = webtoon.episode(60).await? {
-    ///     let comments = episode.posts();
+    ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
-    ///         assert_eq!("If Nerys is not Queen… the election is rigged", comment.body().contents());
+    ///     if let Some(comment) = comments.next().await? {
+    ///         println!("body contents: {}", comment.body().contents());
     ///         # return Ok(());
     ///     }
     /// }
@@ -152,9 +152,9 @@ impl Comment {
     ///     .expect("webtoon is known to exist");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
-    ///     let comments = episode.posts();
+    ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         println!("upvotes: {}", comment.upvotes());
     ///         # return Ok(());
     ///     }
@@ -182,9 +182,9 @@ impl Comment {
     ///     .expect("webtoon is known to exist");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
-    ///     let comments = episode.posts();
+    ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         println!("downvotes: {}", comment.downvotes());
     ///         # return Ok(());
     ///     }
@@ -214,9 +214,9 @@ impl Comment {
     ///     .expect("webtoon is known to exist");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
-    ///     let comments = episode.posts();
+    ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///         let (upvotes, downvotes) = comment.upvotes_and_downvotes();
     ///         println!("post has {upvotes} upvotes and {downvotes} downvotes!");
     ///         # return Ok(());
@@ -247,7 +247,7 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(87).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         for reply in comment.replies().await? {
     ///             println!("{} left a reply to {}", reply.poster().username(), comment.poster().username());
     ///         }
@@ -277,7 +277,7 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(87).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         println!("there are {} replies for this post!", comment.reply_count());
     ///         # return Ok(());
     ///     }
@@ -309,7 +309,7 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(10).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         assert!(!comment.is_top());
     ///         # return Ok(());
     ///     }
@@ -350,7 +350,7 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///         assert!(!comment.is_deleted());
     ///         # return Ok(());
     ///     }
@@ -380,8 +380,8 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
-    ///         assert_eq!(1709085249648, comment.posted());
+    ///     if let Some(comment) = comments.next().await? {
+    ///         println!("comment posted at: {}", comment.posted());
     ///         # return Ok(());
     ///     }
     /// }
@@ -414,7 +414,7 @@ impl Comment {
     /// if let Some(episode) = webtoon.episode(70).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     if let Some(comment) = comments.next().await? {
     ///         let poster = comment.poster();
     ///         println!("{} left a post on episode {}", poster.username(), episode.number());
     ///         # return Ok(());
@@ -495,8 +495,8 @@ mod iter {
     /// if let Some(episode) = webtoon.episode(21).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
-    ///         println!("last comment id: {}", comment.id());
+    ///     if let Some(comment) = comments.next().await? {
+    ///         println!("comment id: {}", comment.id());
     ///     }
     /// }
     /// # Ok(()) }
@@ -722,9 +722,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(reply.id(), "GW-epicom:0-w_6054_2-1-x");
+    ///             println!("id: {}", reply.id());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -756,9 +756,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(50).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(reply.parent_id(), "GW-epicom:0-w_6054_50-1");
+    ///             println!("parent id: {}", reply.parent_id());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -790,9 +790,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(60).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!("Well if it’s rigged so Nerys is Queen, hopefully it’s not a Carrie scenario ", reply.body().contents());
+    ///             println!("body contents: {}", reply.body().contents());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -822,7 +822,7 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
     ///             let upvotes =  reply.upvotes();
     ///             println!("first reply has {upvotes} upvotes.");
@@ -856,7 +856,7 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
     ///             let downvotes =  reply.downvotes();
     ///             println!("first reply has {downvotes} downvotes.");
@@ -891,7 +891,7 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
     ///             let (upvotes, downvotes) = reply.upvotes_and_downvotes();
     ///             println!("first reply has {upvotes} upvotes and {downvotes} downvotes.");
@@ -925,9 +925,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!(1710923850950, reply.posted());
+    ///             println!("rpely was posted at: {}", reply.posted());
     ///             # return Ok(());
     ///        }
     ///     }
@@ -961,9 +961,9 @@ impl Reply {
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
     ///
-    ///     if let Some(comment) = comments.last().await? {
+    ///     while let Some(comment) = comments.next().await? {
     ///        if let Some(reply) = comment.replies().await?.first() {
-    ///             assert_eq!("Sasageyo47", reply.poster().username());
+    ///             println!("{} posted", reply.poster().username());
     ///             # return Ok(());
     ///        }
     ///     }

@@ -2,7 +2,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```rust
 //! # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
@@ -13,7 +13,7 @@
 //!     .await?;
 //!
 //! for webtoon in webtoons {
-//!     println!("Webtoon: {}", webtoon.title().await?);
+//!     println!("Webtoon: {}", webtoon.id());
 //! }
 //! # Ok(())
 //! # }

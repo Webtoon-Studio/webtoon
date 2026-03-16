@@ -372,9 +372,6 @@ async fn english_webtoon_original() {
     let views = webtoon.views().await.unwrap();
     assert!(views >= 64_300_000);
 
-    let likes = webtoon.likes().await.unwrap();
-    assert!(likes > 5_333_000, "likes were {likes}");
-
     let subscribers = webtoon.subscribers().await.unwrap();
     assert!(subscribers >= 1_200_000);
 
@@ -383,6 +380,14 @@ async fn english_webtoon_original() {
         "Working hard is supposed to take you far - but into the world of your best friend's novel? For Lucy, being whisked into a life of ballrooms and picnics isn't exactly what it's cracked up to be; at least, not when everyone has mistaken her for the villain flagged for death. To escape this fate, Lucy must transform from modern workaholic to high society schemer if she even has a chance at returning home. Will she make it? Or will this world of beautiful outfits, strawberry desserts, and dashingly handsome gentlemen seal her fate?",
         summary
     );
+
+    // PERF: `webtoon.likes()` fetches every episode and then sums up the likes
+    // for each. This can be very slow, so we just try one episode and get its
+    // likes. This can mean that not everything will be caught, but it speeds up
+    // the test dramatically.
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    let likes = episode.likes().await.unwrap();
+    assert!(likes >= 134_305, "likes were {likes}");
 }
 
 #[tokio::test]

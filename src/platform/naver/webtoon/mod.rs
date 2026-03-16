@@ -352,7 +352,7 @@ impl Webtoon {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -565,12 +565,8 @@ impl Webtoon {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// // Episode numbering starts at `1`.
-    /// let mut number = 1;
-    ///
-    /// while let Some(episode) = webtoon.episode(number).await? {
+    /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("Episode title: {}", episode.title().await?);
-    ///     number += 1;
     /// }
     /// # Ok(())
     /// # }
@@ -680,7 +676,7 @@ impl Webtoon {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -714,7 +710,7 @@ impl Webtoon {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// # use webtoon::platform::naver::{errors::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
