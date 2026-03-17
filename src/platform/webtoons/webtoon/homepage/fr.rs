@@ -9,9 +9,11 @@ use super::count;
 
 pub(super) fn views(views: &str) -> Result<u64, Assumption> {
     let views = match views {
-        billion if billion.ends_with('B') => count(billion, Unit::Billion, Some(','), Some('B'))?,
-        million if million.ends_with('M') => count(million, Unit::Million, Some(','), Some('M'))?,
-        thousand if thousand.contains(' ') => count(thousand, Unit::Thousand, Some(' '), None)?,
+        billion if billion.ends_with("B") => count(billion, Unit::Billion, Some(","), Some("B"))?,
+        million if million.ends_with("M") => count(million, Unit::Million, Some(","), Some("M"))?,
+        thousand if thousand.contains("&nbsp;") => {
+            count(thousand, Unit::Thousand, Some("&nbsp;"), None)?
+        }
         hundred => count(hundred, Unit::Hundred, None, None)?,
     };
     Ok(views)
@@ -19,8 +21,10 @@ pub(super) fn views(views: &str) -> Result<u64, Assumption> {
 
 pub(super) fn subscribers(subscribers: &str) -> Result<u64, Assumption> {
     let subscribers = match subscribers {
-        million if million.ends_with('M') => count(million, Unit::Million, Some(','), Some('M'))?,
-        thousand if thousand.contains(' ') => count(thousand, Unit::Thousand, Some(' '), None)?,
+        million if million.ends_with("M") => count(million, Unit::Million, Some(","), Some("M"))?,
+        thousand if thousand.contains("&nbsp;") => {
+            count(thousand, Unit::Thousand, Some("&nbsp;"), None)?
+        }
         hundred => count(hundred, Unit::Hundred, None, None)?,
     };
     Ok(subscribers)
@@ -46,7 +50,9 @@ pub(super) fn date(date: &str) -> Result<NaiveDate, Assumption> {
         oct if oct.contains("oct.") => oct.replace("oct.", "10"),
         nov if nov.contains("nov.") => nov.replace("nov.", "11"),
         dec if dec.contains("déc.") => dec.replace("déc.", "12"),
-        _ => assumption!("spanish date should only contain 12 months aprebiated with a `.` suffix"),
+        _ => assumption!(
+            "french date should only contain 12 months aprebiated with a `.` suffix, got: {date}"
+        ),
     };
 
     let date = NaiveDate::parse_from_str(&date, FMT).assumption_for(|err| {

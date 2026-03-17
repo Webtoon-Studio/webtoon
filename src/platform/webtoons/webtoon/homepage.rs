@@ -2,7 +2,7 @@ mod de;
 mod en;
 mod es;
 mod fr;
-// mod id;
+mod id;
 // mod th;
 // mod zh;
 
@@ -361,9 +361,9 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
         Language::En => en::views(&views)?,
         Language::Zh => todo!(),
         Language::Th => todo!(),
-        Language::Id => todo!(),
+        Language::Id => id::views(&views)?,
         Language::Es => es::views(&views)?,
-        Language::Fr => fr::views(&views.replace("&nbsp;", " "))?,
+        Language::Fr => fr::views(&views)?,
         Language::De => de::views(&views)?,
     };
 
@@ -390,9 +390,9 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
         Language::En => en::subscribers(&subscribers)?,
         Language::Zh => todo!(),
         Language::Th => todo!(),
-        Language::Id => todo!(),
+        Language::Id => id::subscribers(&subscribers)?,
         Language::Es => es::subscribers(&subscribers)?,
-        Language::Fr => fr::subscribers(&subscribers.replace("&nbsp;", " "))?,
+        Language::Fr => fr::subscribers(&subscribers)?,
         Language::De => de::subscribers(&subscribers)?,
     };
 
@@ -419,7 +419,7 @@ fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
             Language::En => en::schedule(text),
             Language::Zh => todo!(),
             Language::Th => todo!(),
-            Language::Id => todo!(),
+            Language::Id => id::schedule(text),
             Language::Es => es::schedule(text),
             Language::Fr => fr::schedule(text),
             Language::De => de::schedule(text),
@@ -751,7 +751,7 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
         Language::En => en::date(text)?,
         Language::Zh => todo!(),
         Language::Th => todo!(),
-        Language::Id => todo!(),
+        Language::Id => id::date(text)?,
         Language::Es => es::date(text)?,
         Language::Fr => fr::date(text)?,
         Language::De => de::date(text)?,
@@ -829,8 +829,8 @@ enum Unit {
 fn count(
     input: &str,
     unit: Unit,
-    separator: Option<char>,
-    suffix: Option<char>,
+    separator: Option<&str>,
+    suffix: Option<&str>,
 ) -> Result<u64, Assumption> {
     fn parse(prefix: &str, remainder: &str) -> Result<(u64, u64), Assumption> {
         let left = prefix.parse::<u64>()
@@ -898,51 +898,59 @@ mod test {
         // --- Billions ---
         assert_eq!(
             1_300_000_000,
-            count("1.3B", Unit::Billion, Some('.'), Some('B')).unwrap()
+            count("1.3B", Unit::Billion, Some("."), Some("B")).unwrap()
         );
         assert_eq!(
             1_000_000_000,
-            count("1B", Unit::Billion, Some('.'), Some('B')).unwrap()
+            count("1B", Unit::Billion, Some("."), Some("B")).unwrap()
         );
         assert_eq!(
             10_500_000_000, // Multi-digit leading part
-            count("10.5B", Unit::Billion, Some('.'), Some('B')).unwrap()
+            count("10.5B", Unit::Billion, Some("."), Some("B")).unwrap()
+        );
+        assert_eq!(
+            1_200_000_000,
+            count("1,2M", Unit::Billion, Some(","), Some("M")).unwrap()
         );
 
         // --- Millions ---
         assert_eq!(
             1_300_000,
-            count("1.3M", Unit::Million, Some('.'), Some('M')).unwrap()
+            count("1.3M", Unit::Million, Some("."), Some("M")).unwrap()
         );
         assert_eq!(
             1_000_000,
-            count("1M", Unit::Million, Some('.'), Some('M')).unwrap()
+            count("1M", Unit::Million, Some("."), Some("M")).unwrap()
         );
         assert_eq!(
             1_000_000, // Explicit zero decimal
-            count("1.0M", Unit::Million, Some('.'), Some('M')).unwrap()
+            count("1.0M", Unit::Million, Some("."), Some("M")).unwrap()
         );
         assert_eq!(
             4_900_000,
-            count("4,9M", Unit::Million, Some(','), Some('M')).unwrap()
+            count("4,9M", Unit::Million, Some(","), Some("M")).unwrap()
+        );
+        assert_eq!(
+            1_200_000,
+            count("1,2JT", Unit::Million, Some(","), Some("JT")).unwrap()
         );
 
         // --- Thousands ---
         assert_eq!(
             112_362,
-            count("112,362", Unit::Thousand, Some(','), None).unwrap()
+            count("112,362", Unit::Thousand, Some(","), None).unwrap()
         );
         assert_eq!(
             46_547,
-            count("46.547", Unit::Thousand, Some('.'), None).unwrap()
+            count("46.547", Unit::Thousand, Some("."), None).unwrap()
         );
         assert_eq!(
             1_005, // Comma with zero-padding in remainder
-            count("1,005", Unit::Thousand, Some(','), None).unwrap()
+            count("1,005", Unit::Thousand, Some(","), None).unwrap()
         );
         assert_eq!(
             1_000, // Minimum thousand
-            count("1,000", Unit::Thousand, Some(','), None).unwrap()
+            count("1,000", Unit::Thousand, Some(","), None).unwrap()
         );
 
         // --- Hundreds ---
@@ -959,7 +967,7 @@ mod test {
         // (1 * 1B) + (55 * 100M) = 6.5B, which is wrong.
         //
         // This test ensures we know our current logic's limitations.
-        let result = count("1.55B", Unit::Billion, Some('.'), Some('B')).unwrap();
+        let result = count("1.55B", Unit::Billion, Some("."), Some("B")).unwrap();
         assert_eq!(1_550_000_000, result);
     }
 }

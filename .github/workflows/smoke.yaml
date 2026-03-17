@@ -26,3 +26,6 @@ jobs:
 
       - name: Run french webtoons smoke test
         run:  cargo test --all-features --profile test --test french_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
+
+      - name: Run indonesian webtoons smoke test
+        run:  cargo test --all-features --profile test --test indonesian_webtoons_smoke -- --include-ignored --no-capture --test-threads 1

@@ -216,9 +216,8 @@ impl FromStr for Genre {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "COMEDY" | "Comedy" | "comedy" | "ตลก" | "komedi" | "Comedia" | "Comédie" => {
-                Ok(Self::Comedy)
-            }
+            "COMEDY" | "Comedy" | "comedy" | "ตลก" | "komedi" | "Comedia" | "Comédie"
+            | "Komedi" => Ok(Self::Comedy),
             "FANTASY"
             | "Fantasy"
             | "fantasy"
@@ -226,10 +225,16 @@ impl FromStr for Genre {
             | "แฟนตาซี"
             | "fantasi"
             | "Fantasía"
-            | "Fantastique" => Ok(Self::Fantasy),
-            "ROMANCE" | "Romance" | "romance" | "愛情" | "โรแมนซ์" | "romantis" | "Romantisch" => {
-                Ok(Self::Romance)
-            }
+            | "Fantastique"
+            | "Fantasi" => Ok(Self::Fantasy),
+            "ROMANCE"
+            | "Romance"
+            | "romance"
+            | "愛情"
+            | "โรแมนซ์"
+            | "romantis"
+            | "Romantisch"
+            | "Romantis" => Ok(Self::Romance),
             "SLICE OF LIFE"
             | "Slice of life"
             | "slice-of-life"
@@ -239,12 +244,13 @@ impl FromStr for Genre {
             | "Tranche de vie"
             | "Alltagsstory" => Ok(Self::SliceOfLife),
             "SCI-FI" | "Sci-fi" | "Sci-Fi" | "sf" | "SF" | "科幻" | "ไซไฟ" | "fiksi ilmiah"
-            | "Ciencia ficción" => Ok(Self::SciFi),
+            | "Ciencia ficción" | "Fiksi ilmiah" => Ok(Self::SciFi),
+
             "DRAMA" | "Drama" | "drama" | "劇情" | "ดราม่า" => Ok(Self::Drama),
             "SHORT STORY" | "Short story" | "Historia Corta" | "Kurzgeschichten" => {
                 Ok(Self::ShortStory)
             }
-            "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" => {
+            "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" | "Aksi" => {
                 Ok(Self::Action)
             }
             "ALL AGES" | "All Ages" | "Alle Altersklassen" => Ok(Self::AllAges),
@@ -263,13 +269,19 @@ impl FromStr for Genre {
             | "療癒/萌系"
             | "อบอุ่นหัวใจ"
             | "menyentuh"
-            | "Conmovedor" => Ok(Self::Heartwarming),
+            | "Conmovedor"
+            | "Menyentuh" => Ok(Self::Heartwarming),
             "THRILLER" | "Thriller" | "thriller" | "驚悚/恐怖" | "ระทึกขวัญ" | "Suspenso" => {
                 Ok(Self::Thriller)
             }
-            "HORROR" | "Horror" | "horror" | "สยองขวัญ" | "horor" | "Terror" | "Horreur" => {
-                Ok(Self::Horror)
-            }
+            "HORROR"
+            | "Horror"
+            | "horror"
+            | "สยองขวัญ"
+            | "horor"
+            | "Terror"
+            | "Horreur"
+            | "Horor" => Ok(Self::Horror),
             "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" | "Postapocalíptico" => {
                 Ok(Self::PostApocalyptic)
             }
@@ -287,11 +299,11 @@ impl FromStr for Genre {
             | "ย้อนยุค"
             | "sejarah"
             | "Histórico"
-            | "Historisch" => Ok(Self::Historical),
+            | "Historisch"
+            | "Sejarah" => Ok(Self::Historical),
             "INFORMATIVE" | "Informative" | "informative" | "tiptoon" | "生活常識漫畫" | "ทิปตูน"
-            | "tips & trik" | "Informativo" | "Info" | "Informativ" | "Éducatif" => {
-                Ok(Self::Informative)
-            }
+            | "tips & trik" | "Informativo" | "Info" | "Informativ" | "Éducatif"
+            | "Tips & trik" => Ok(Self::Informative),
             "SPORTS" | "Sports" | "sports" | "運動" | "กีฬา" | "olahraga" | "Deportes" | "Sport" => {
                 Ok(Self::Sports)
             }
@@ -305,7 +317,8 @@ impl FromStr for Genre {
             | "โรแมนซ์แฟนตาซี"
             | "kerajaan"
             | "Romantasy"
-            | "Fantasía Romántica" => Ok(Self::RomanticFantasy),
+            | "Fantasía Romántica"
+            | "Kerajaan" => Ok(Self::RomanticFantasy),
             "martial-arts" | "武俠" => Ok(Self::MartialArts),
             "western-palace" | "歐式宮廷" => Ok(Self::WesternPalace),
             "eastern-palace" | "古代宮廷" => Ok(Self::EasternPalace),
