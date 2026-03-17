@@ -246,3 +246,24 @@ async fn spanish_genre_inspirador_is_inspirational() {
         _ => unreachable!("`Imay - ¿Quien Soy?` should have two genres"),
     }
 }
+
+#[tokio::test]
+async fn spanish_genre_escuela_is_school() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1119315, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [drama, school] => {
+            assert_eq!(Genre::Drama, *drama);
+            assert_eq!(Genre::School, *school);
+        }
+
+        _ => unreachable!("`La Edad de los casi` should have two genres"),
+    }
+}
