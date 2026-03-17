@@ -176,3 +176,20 @@ async fn french_genre_sport_is_sport() {
         _ => unreachable!("`À ma façon` should have two genre"),
     }
 }
+
+#[tokio::test]
+async fn french_genre_histoires_courtes_is_short_story() {
+    let client = Client::new();
+    let webtoon = client.webtoon(825864, Type::Canvas).await.unwrap().unwrap();
+
+    assert_eq!(Language::Fr, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [short_story, slice_of_life] => {
+            assert_eq!(Genre::ShortStory, *short_story);
+            assert_eq!(Genre::SliceOfLife, *slice_of_life);
+        }
+
+        _ => unreachable!("`Antenne Râteau` should have two genre"),
+    }
+}
