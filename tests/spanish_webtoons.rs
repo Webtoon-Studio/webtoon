@@ -267,3 +267,24 @@ async fn spanish_genre_escuela_is_school() {
         _ => unreachable!("`La Edad de los casi` should have two genres"),
     }
 }
+
+#[tokio::test]
+async fn spanish_genre_animales_is_animals() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1123814, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [comedy, animals] => {
+            assert_eq!(Genre::Comedy, *comedy);
+            assert_eq!(Genre::Animals, *animals);
+        }
+
+        _ => unreachable!("`Dukes Of Doom` should have two genres"),
+    }
+}
