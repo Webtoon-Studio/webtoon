@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language,
+    Client, Language, Type,
     canvas::Sort,
     meta::Genre,
     originals::{Schedule, Weekday},
@@ -119,4 +119,25 @@ async fn indonesian_webtoon_original() {
 
     let mut posts = episode.posts();
     if let Some(_post) = posts.next().await.unwrap() {}
+}
+
+#[tokio::test]
+async fn indonesian_genre_kriminal_misteri_is_mystery() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1127801, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Id, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [horror, mystery] => {
+            assert_eq!(Genre::Horror, *horror);
+            assert_eq!(Genre::Mystery, *mystery);
+        }
+
+        _ => unreachable!("`Antenne Râteau` should have two genre"),
+    }
 }
