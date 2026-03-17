@@ -292,7 +292,7 @@ impl FromStr for Genre {
             | "tips & trik" | "Informativo" | "Info" | "Informativ" | "Éducatif" => {
                 Ok(Self::Informative)
             }
-            "SPORTS" | "Sports" | "sports" | "運動" | "กีฬา" | "olahraga" | "Deportes" => {
+            "SPORTS" | "Sports" | "sports" | "運動" | "กีฬา" | "olahraga" | "Deportes" | "Sport" => {
                 Ok(Self::Sports)
             }
             "INSPIRATIONAL" | "Inspirational" | "inspirational" | "Inspirador" | "Inspirierend" => {

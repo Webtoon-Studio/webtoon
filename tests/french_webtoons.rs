@@ -155,3 +155,24 @@ async fn french_genre_local_is_local() {
         _ => unreachable!("`25 jours pour sauver Noël` should have one genre"),
     }
 }
+
+#[tokio::test]
+async fn french_genre_sport_is_sport() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1115714, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Fr, webtoon.language());
+
+    match webtoon.genres().await.unwrap().as_slice() {
+        [slice_of_life, sports] => {
+            assert_eq!(Genre::SliceOfLife, *slice_of_life);
+            assert_eq!(Genre::Sports, *sports);
+        }
+
+        _ => unreachable!("`À ma façon` should have two genre"),
+    }
+}
