@@ -30,6 +30,7 @@ pub(super) fn schedule(schedule: &str) -> &str {
     schedule
         .trim_start_matches("Update")
         .trim_start_matches("Baca Tiap")
+        .trim_start_matches("Diupdate setiap")
         .trim_start()
 }
 
