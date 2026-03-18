@@ -288,3 +288,26 @@ async fn spanish_genre_animales_is_animals() {
         _ => unreachable!("`Dukes Of Doom` should have two genres"),
     }
 }
+
+#[tokio::test]
+async fn spanish_canvas_creator_does_not_have_a_profile() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1115030, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    let creator = webtoon.creators().await.unwrap();
+
+    match creator.as_slice() {
+        [a] => {
+            assert_eq!("Minina_Oficial", a.username());
+            assert!(a.profile().is_none());
+        }
+
+        _ => unreachable!("Canvas stories should only have one creator, got: {creator:?}"),
+    }
+}

@@ -251,29 +251,6 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
         creators.push(creator);
     }
 
-    // This check is needed as the creator limit is only for actual Canvas
-    // stories, and Originals can have multiple creators, including creators
-    // with accounts, which end up matching this selection.
-    //
-    // We still allow this to run even if on an Original, as this helps
-    // to distinguish the `profile` field, always being `Some` for `webtoons.com`
-    // accounts.
-    //
-    // NOTE: Not every languages' Canvas page will match the above selector.
-    // This is because not every language supports Creator profiles. We need to
-    // filter those languages away.
-    if webtoon.is_canvas() && !matches!(webtoon.language(), Language::De | Language::Fr) {
-        // NOTE: While this is saying that the loop will only run once, we
-        // actually want to be informed if the platform can now have multiple
-        // creators on canvas stories. This would be a big thing that we must
-        // fix to accommodate!
-        assumption!(
-            creators.len() == 1,
-            "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
-        );
-        return Ok(creators);
-    }
-
     // Originals
     let selector = Selector::parse(r"div.author_area") //
         .assumption("`div.author_area` should be a valid selector")?;
@@ -297,6 +274,14 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
                 });
             }
         }
+    }
+
+    if webtoon.is_canvas() {
+        assumption!(
+            creators.len() == 1,
+            "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
+        );
+        return Ok(creators);
     }
 
     assumption!(
