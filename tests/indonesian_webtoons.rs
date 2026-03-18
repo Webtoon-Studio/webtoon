@@ -152,3 +152,26 @@ async fn indonesian_schedule_everyday() {
     let schedule = webtoon.schedule().await.unwrap().unwrap();
     assert_eq!(Schedule::Daily, schedule);
 }
+
+#[tokio::test]
+async fn indonesian_canvas_creator_does_not_have_a_profile() {
+    let client = Client::new();
+    let webtoon = client
+        .webtoon(1066566, Type::Canvas)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(Language::Id, webtoon.language());
+
+    let creator = webtoon.creators().await.unwrap();
+
+    match creator.as_slice() {
+        [a] => {
+            assert_eq!("Pluto's_alien", a.username());
+            assert!(a.profile().is_none());
+        }
+
+        _ => unreachable!("Canvas stories should only have one creator, got: {creator:?}"),
+    }
+}
