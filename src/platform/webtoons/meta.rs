@@ -311,7 +311,7 @@ impl FromStr for Genre {
             "INSPIRATIONAL" | "Inspirational" | "inspirational" | "Inspirador" | "Inspirierend" => {
                 Ok(Self::Inspirational)
             }
-            "LGBTQ+ / Y" | "LGBTQ+" | "bl-gl" => Ok(Self::LGBTQ),
+            "LGBTQ+ / Y" | "LGBTQ+" | "bl-gl" | "LGBTQI+" => Ok(Self::LGBTQ),
             "romantic-fantasy"
             | "Romance Fantasy"
             | "ROMANTIC_FANTASY"
