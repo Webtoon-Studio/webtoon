@@ -252,7 +252,9 @@ impl FromStr for Genre {
             "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" | "Aksi" => {
                 Ok(Self::Action)
             }
-            "ALL AGES" | "All Ages" | "Alle Altersklassen" => Ok(Self::AllAges),
+            "ALL AGES" | "All Ages" | "Alle Altersklassen" | "Todas las edades" => {
+                Ok(Self::AllAges)
+            }
             "SUPERHERO"
             | "Superhero"
             | "super-hero"
