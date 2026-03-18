@@ -223,7 +223,7 @@ impl FromStr for Schedule {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" => {
+            "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" | "hari" => {
                 Ok(Self::Daily)
             }
             "COMPLETED"
@@ -250,7 +250,7 @@ fn try_parse_completed(release: &str) -> Result<Schedule, &str> {
 
 fn try_parse_daily(release: &str) -> Result<Schedule, &str> {
     match release.trim() {
-        "DAILY" | "EVERYDAY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" => {
+        "DAILY" | "EVERYDAY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" | "hari" => {
             Ok(Schedule::Daily)
         }
         release => Err(release),
