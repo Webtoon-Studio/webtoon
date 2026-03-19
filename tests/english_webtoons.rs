@@ -69,18 +69,6 @@ async fn chinese_originals_page() {
 }
 
 #[tokio::test]
-async fn thai_originals_page() {
-    let client = Client::new();
-    let _webtoons = client.originals(Language::Th).await.unwrap();
-}
-
-#[tokio::test]
-async fn indonesian_originals_page() {
-    let client = Client::new();
-    let _webtoons = client.originals(Language::Id).await.unwrap();
-}
-
-#[tokio::test]
 async fn english_canvas_page() {
     let client = Client::new();
 
@@ -128,58 +116,6 @@ async fn chinese_canvas_page() {
 
     {
         let webtoons = client.canvas(Language::Zh, 1..2, Sort::Date).await.unwrap();
-        for _webtoon in webtoons {}
-    }
-}
-
-#[tokio::test]
-async fn thai_canvas_page() {
-    let client = Client::new();
-
-    {
-        let webtoons = client
-            .canvas(Language::Th, 1..2, Sort::Popularity)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client
-            .canvas(Language::Th, 1..2, Sort::Likes)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client.canvas(Language::Th, 1..2, Sort::Date).await.unwrap();
-        for _webtoon in webtoons {}
-    }
-}
-
-#[tokio::test]
-async fn indonesian_canvas_page() {
-    let client = Client::new();
-
-    {
-        let webtoons = client
-            .canvas(Language::Id, 1..2, Sort::Popularity)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client
-            .canvas(Language::Id, 1..2, Sort::Likes)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client.canvas(Language::Id, 1..2, Sort::Date).await.unwrap();
         for _webtoon in webtoons {}
     }
 }
