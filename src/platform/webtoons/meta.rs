@@ -333,7 +333,9 @@ impl FromStr for Genre {
             "eastern-palace" | "古代宮廷" => Ok(Self::EasternPalace),
             "romance-m" | "大人系" => Ok(Self::MatureRomance),
             "time-slip" | "穿越/轉生" => Ok(Self::TimeSlip),
-            "local" | "台灣原創作品" | "LOKAL" | "LOCAL" => Ok(Self::Local),
+            "local" | "台灣原創作品" | "LOKAL" | "LOCAL" | "เรื่องไทย" => {
+                Ok(Self::Local)
+            }
             "city-office" | "現代/職場" => Ok(Self::CityOffice),
             "adaptation" | "影視化" => Ok(Self::Adaptation),
             "shonen" | "少年" => Ok(Self::Shonen),
