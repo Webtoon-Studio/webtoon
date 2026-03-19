@@ -3,7 +3,7 @@ mod en;
 mod es;
 mod fr;
 mod id;
-// mod th;
+mod th;
 // mod zh;
 
 use chrono::NaiveDate;
@@ -345,7 +345,7 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
     let views = match webtoon.language() {
         Language::En => en::views(&views)?,
         Language::Zh => todo!(),
-        Language::Th => todo!(),
+        Language::Th => th::views(&views)?,
         Language::Id => id::views(&views)?,
         Language::Es => es::views(&views)?,
         Language::Fr => fr::views(&views)?,
@@ -374,7 +374,7 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
     let subscribers = match webtoon.language() {
         Language::En => en::subscribers(&subscribers)?,
         Language::Zh => todo!(),
-        Language::Th => todo!(),
+        Language::Th => th::subscribers(&subscribers)?,
         Language::Id => id::subscribers(&subscribers)?,
         Language::Es => es::subscribers(&subscribers)?,
         Language::Fr => fr::subscribers(&subscribers)?,
@@ -403,7 +403,7 @@ fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
         .map(|text| match webtoon.language() {
             Language::En => en::schedule(text),
             Language::Zh => todo!(),
-            Language::Th => todo!(),
+            Language::Th => th::schedule(text),
             Language::Id => id::schedule(text),
             Language::Es => es::schedule(text),
             Language::Fr => fr::schedule(text),
@@ -735,7 +735,7 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
     let date = match webtoon.language() {
         Language::En => en::date(text)?,
         Language::Zh => todo!(),
-        Language::Th => todo!(),
+        Language::Th => th::date(text)?,
         Language::Id => id::date(text)?,
         Language::Es => es::date(text)?,
         Language::Fr => fr::date(text)?,
