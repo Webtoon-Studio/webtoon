@@ -283,9 +283,8 @@ impl FromStr for Genre {
             | "Terror"
             | "Horreur"
             | "Horor" => Ok(Self::Horror),
-            "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" | "Postapocalíptico" => {
-                Ok(Self::PostApocalyptic)
-            }
+            "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" | "Postapocalíptico"
+            | "Post Apocalypse" => Ok(Self::PostApocalyptic),
             "ZOMBIES" | "Zombies" | "zombies" | "Zombis" => Ok(Self::Zombies),
             "SCHOOL" | "School" | "school" | "校園" | "Schule" | "Escuela" => Ok(Self::School),
             "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal"
