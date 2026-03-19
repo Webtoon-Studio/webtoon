@@ -296,7 +296,8 @@ impl Episode {
     /// - `[S\d+]`
     /// - `(S\d+)`
     ///
-    /// If no season pattern is found, the method will return `None`.
+    /// If no season pattern is found, the method will return `None`. If the episode is not viewable, for example if the
+    /// episode is only viewable on the app, this will return `Err(EpisodeError::NotViewable)`
     ///
     /// # Example
     ///
@@ -364,16 +365,11 @@ impl Episode {
         }
     }
 
-    // TODO: Need to see if `NotViewable` will be returned from `length`. If so,
-    // need to remove the document stating that None will be returned any situation
-    // that isn't the alternate reader.
-    //
-    // Might even be worth to remove the Option and just return an error on the alternate reader.
-    //
     /// Returns the sum of the vertical length in pixels.
     ///
-    /// If the page cannot be viewed publicly, for example its behind fast-pass, it will return `None`. It can also be
-    /// `None` for some episodes that have audio or GIFs, as this viewer is unsupported.
+    /// If the page cannot be viewed publicly, for example its behind fast-pass or only available on the app, it will
+    /// return `Err(EpisodeError::NotViewable)`. It can return `None` for some episodes that have audio or GIFs, as this
+    /// viewer is unsupported.
     ///
     /// # Example
     ///
@@ -675,6 +671,8 @@ impl Episode {
 
     /// Returns the thumbnail URL for episode.
     ///
+    /// If an episode is only viewable on the app, depending on how an `Episode` is constructed, then this can return `Err(EpisodeError::NotViewable)`.
+    ///
     /// # Example
     ///
     /// ```
@@ -938,6 +936,10 @@ impl Episode {
             .episode(&self.webtoon, self.number)
             .await?;
 
+        if only_viewable_on_app(&html)? {
+            return Err(EpisodeError::NotViewable);
+        }
+
         self.title.insert(title(&html)?);
         self.thumbnail.insert(thumbnail(&html, self.number)?);
         self.length.insert(length(&html)?);
@@ -1197,6 +1199,14 @@ fn is_audio_reader(html: &Html) -> Result<bool, Assumption> {
         .assumption("`button#soundControl` should be a valid selector")?;
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
+    Ok(html.select(&selector).next().is_some())
+}
+
+#[inline]
+fn only_viewable_on_app(html: &Html) -> Result<bool, Assumption> {
+    let selector = Selector::parse("div.publishing_wrap>img.qrcode")
+        .assumption("`div.publishing_wrap>img.qrcode` should be a valid selector")?;
+
     Ok(html.select(&selector).next().is_some())
 }
 

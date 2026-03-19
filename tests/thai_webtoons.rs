@@ -1,6 +1,7 @@
 use webtoon::platform::webtoons::{
     Client, Language, Type,
     canvas::Sort,
+    error::EpisodeError,
     meta::Genre,
     originals::{Schedule, Weekday},
 };
@@ -133,4 +134,62 @@ async fn thai_original_can_have_empty_summary() {
 
     assert_eq!(Language::Th, webtoon.language());
     assert!(webtoon.summary().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn thai_webtoon_original_episode_can_only_be_read_on_epp() {
+    let client = Client::new();
+
+    let webtoon = client
+        .webtoon_from_url("https://www.webtoons.com/th/fantasy/uq-holder/list?title_no=5617")
+        .unwrap();
+
+    let title = webtoon.title().await.unwrap();
+    assert_eq!("UQ HOLDER! [รายเล่ม]", title);
+
+    let language = webtoon.language();
+    assert_eq!(Language::Th, language);
+
+    let schedule = webtoon.schedule().await.unwrap().unwrap();
+    assert_eq!(Schedule::Completed, schedule);
+
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+
+    match episode.title().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    match episode.season().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    match episode.thumbnail().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    match episode.panels().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    match episode.note().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    match episode.length().await {
+        Err(EpisodeError::NotViewable) => {}
+        _ => unreachable!("epsiode should only be viewable on the app, and this is `NotViewable`"),
+    }
+
+    let likes = episode.likes().await.unwrap();
+    assert!(likes >= 164, "likes were {likes}");
+
+    let (_comments, _replies) = episode.comments_and_replies().await.unwrap();
+
+    let mut posts = episode.posts();
+    if let Some(_post) = posts.next().await.unwrap() {}
 }
