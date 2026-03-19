@@ -319,7 +319,8 @@ impl FromStr for Genre {
             | "kerajaan"
             | "Romantasy"
             | "Fantasía Romántica"
-            | "Kerajaan" => Ok(Self::RomanticFantasy),
+            | "Kerajaan"
+            | "ROMANCE FANTASTIQUE" => Ok(Self::RomanticFantasy),
             "martial-arts" | "武俠" => Ok(Self::MartialArts),
             "western-palace" | "歐式宮廷" => Ok(Self::WesternPalace),
             "eastern-palace" | "古代宮廷" => Ok(Self::EasternPalace),
