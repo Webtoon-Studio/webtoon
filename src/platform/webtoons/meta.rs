@@ -252,7 +252,8 @@ impl FromStr for Genre {
             | "Historia Corta"
             | "Kurzgeschichten"
             | "Histoires Courtes"
-            | "เรื่องสั้น" => Ok(Self::ShortStory),
+            | "เรื่องสั้น"
+            | "Cerita pendek" => Ok(Self::ShortStory),
             "ACTION" | "Action" | "action" | "動作" | "แอกชัน" | "aksi" | "Acción" | "Aksi" => {
                 Ok(Self::Action)
             }
