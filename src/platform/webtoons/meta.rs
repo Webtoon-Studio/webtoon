@@ -300,9 +300,17 @@ impl FromStr for Genre {
             "ANIMALS" | "Animals" | "animals" | "Animales" | "Tiere" | "Animaux" => {
                 Ok(Self::Animals)
             }
-            "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" | "懸疑推理"
-            | "Krimi/Mystery" | "Crimen/Misterio" | "Misterio" | "Kriminal/Misteri"
-            | "Crime/Mystère" => Ok(Self::Mystery),
+            "CRIME/MYSTERY"
+            | "Crime/Mystery"
+            | "Mystery"
+            | "mystery"
+            | "懸疑推理"
+            | "Krimi/Mystery"
+            | "Crimen/Misterio"
+            | "Misterio"
+            | "Kriminal/Misteri"
+            | "Crime/Mystère"
+            | "อาชญากรรม / ปริศนา" => Ok(Self::Mystery),
             "HISTORICAL"
             | "Historical"
             | "historical"
