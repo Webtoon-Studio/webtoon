@@ -296,7 +296,7 @@ impl FromStr for Genre {
             | "Vie scolaire" => Ok(Self::School),
             "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal"
             | "Übernatürlich" | "Supranatural" | "Surnaturel" => Ok(Self::Supernatural),
-            "ANIMALS" | "Animals" | "animals" | "Animales" | "Tiere" | "Animaux" => {
+            "ANIMALS" | "Animals" | "animals" | "Animales" | "Tiere" | "Animaux" | "Hewan" => {
                 Ok(Self::Animals)
             }
             "CRIME/MYSTERY"
