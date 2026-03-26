@@ -275,7 +275,8 @@ impl FromStr for Genre {
             | "อบอุ่นหัวใจ"
             | "menyentuh"
             | "Conmovedor"
-            | "Menyentuh" => Ok(Self::Heartwarming),
+            | "Menyentuh"
+            | "Réconfortant" => Ok(Self::Heartwarming),
             "THRILLER" | "Thriller" | "thriller" | "驚悚/恐怖" | "ระทึกขวัญ" | "Suspenso" => {
                 Ok(Self::Thriller)
             }
