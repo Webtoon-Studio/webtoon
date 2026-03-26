@@ -326,7 +326,8 @@ impl FromStr for Genre {
             | "sejarah"
             | "Histórico"
             | "Historisch"
-            | "Sejarah" => Ok(Self::Historical),
+            | "Sejarah"
+            | "Historique" => Ok(Self::Historical),
             "INFORMATIVE" | "Informative" | "informative" | "tiptoon" | "生活常識漫畫" | "ทิปตูน"
             | "tips & trik" | "Informativo" | "Info" | "Informativ" | "Éducatif"
             | "Tips & trik" => Ok(Self::Informative),
