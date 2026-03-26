@@ -258,7 +258,7 @@ impl FromStr for Genre {
                 Ok(Self::Action)
             }
             "ALL AGES" | "All Ages" | "Alle Altersklassen" | "Todas las edades" | "Semua Umur"
-            | "Tout âge" => Ok(Self::AllAges),
+            | "Tout âge" | "ทุกวัย" => Ok(Self::AllAges),
             "SUPERHERO"
             | "Superhero"
             | "super-hero"
