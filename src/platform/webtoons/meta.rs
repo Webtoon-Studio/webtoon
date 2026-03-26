@@ -302,8 +302,15 @@ impl FromStr for Genre {
             | "Sekolah"
             | "Vie scolaire"
             | "โรงเรียน" => Ok(Self::School),
-            "SUPERNATURAL" | "Supernatural" | "supernatural" | "PARANORMAL" | "Paranormal"
-            | "Übernatürlich" | "Supranatural" | "Surnaturel" => Ok(Self::Supernatural),
+            "SUPERNATURAL"
+            | "Supernatural"
+            | "supernatural"
+            | "PARANORMAL"
+            | "Paranormal"
+            | "Übernatürlich"
+            | "Supranatural"
+            | "Surnaturel"
+            | "เหนือธรรมชาติ" => Ok(Self::Supernatural),
             "ANIMALS" | "Animals" | "animals" | "Animales" | "Tiere" | "Animaux" | "Hewan" => {
                 Ok(Self::Animals)
             }
