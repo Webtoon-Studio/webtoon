@@ -311,3 +311,17 @@ async fn spanish_canvas_creator_does_not_have_a_profile() {
         _ => unreachable!("Canvas stories should only have one creator, got: {creator:?}"),
     }
 }
+
+#[tokio::test]
+async fn spanish_original_posts_should_have_expected_json() {
+    let client = Client::new();
+    let webtoon = client.webtoon(3358, Type::Original).await.unwrap().unwrap();
+
+    assert_eq!(Language::Es, webtoon.language());
+
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+
+    let mut posts = episode.posts();
+
+    while let Some(_post) = posts.next().await.unwrap() {}
+}
