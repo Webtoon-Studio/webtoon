@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language,
+    Client, Language, Type,
     canvas::Sort,
     meta::Genre,
     originals::{Schedule, Weekday},
@@ -124,4 +124,13 @@ async fn thai_webtoon_original() {
 
     let mut posts = episode.posts();
     if let Some(_post) = posts.next().await.unwrap() {}
+}
+
+#[tokio::test]
+async fn thai_original_can_have_empty_summary() {
+    let client = Client::new();
+    let webtoon = client.webtoon(5709, Type::Original).await.unwrap().unwrap();
+
+    assert_eq!(Language::Th, webtoon.language());
+    assert!(webtoon.summary().await.unwrap().is_empty());
 }

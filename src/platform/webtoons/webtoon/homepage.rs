@@ -462,11 +462,6 @@ fn summary(html: &Html) -> Result<String, WebtoonError> {
     // Removes the final spacing at the end while keeping it a string.
     summary.pop();
 
-    assumption!(
-        !summary.is_empty(),
-        "`webtoons.com` requires that the summary is not empty when creating/editing the Webtoon"
-    );
-
     Ok(summary)
 }
 
