@@ -206,7 +206,8 @@ pub struct ContentMetaData {
     content_type: String,
     content_sub_type: String,
     content_id: String,
-    pub info: ContentInfo,
+    // If webtoon is deleted, then this will be empty.
+    pub info: Option<ContentInfo>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -262,9 +263,6 @@ impl TryFrom<(&Episode, RawPost)> for Post {
 
     #[allow(clippy::too_many_lines)]
     fn try_from((episode, post): (&Episode, RawPost)) -> Result<Self, Self::Error> {
-        let mut liked: bool = false;
-        let mut disliked: bool = false;
-
         let emotions = post
             .reactions
             .first()
@@ -274,23 +272,22 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             .emotions
             .as_slice();
 
-        let upvotes = emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "like")
-            .map(|likes| {
-                liked = likes.reacted;
-                likes.count
-            })
-            .unwrap_or_default();
+        let votes = |id: &str, target: &mut bool| {
+            emotions
+                .iter()
+                .find(|e| e.emotion_id == id)
+                .map(|e| {
+                    *target = e.reacted;
+                    e.count
+                })
+                .unwrap_or_default()
+        };
 
-        let downvotes = emotions
-            .iter()
-            .find(|emotion| emotion.emotion_id == "dislike")
-            .map(|dislikes| {
-                disliked = dislikes.reacted;
-                dislikes.count
-            })
-            .unwrap_or_default();
+        let mut liked: bool = false;
+        let mut disliked: bool = false;
+
+        let upvotes = votes("likes", &mut liked);
+        let downvotes = votes("dislikes", &mut disliked);
 
         assumption!(
             !(liked && disliked),
@@ -298,13 +295,10 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         );
 
         // The way `webtoons.com` keeps track of a like or dislike guarantees(?): they are mutually exclusive.
-        let reaction = if liked {
-            Reaction::Upvote
-        } else if disliked {
-            Reaction::Downvote
-        } else {
-            // Defaults to `None` if no session was available for use.
-            Reaction::None
+        let reaction = match (liked, disliked) {
+            (true, _) => Reaction::Upvote,
+            (_, true) => Reaction::Downvote,
+            _ => Reaction::None,
         };
 
         let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
@@ -314,93 +308,70 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             );
         };
 
-        let is_deleted = post.status == "DELETE";
-        let is_spoiler = post.settings.spoiler_filter == "ON";
+        let mut webtoons = Vec::new();
         let mut super_like: Option<u32> = None;
+        let mut giphy_or_sticker = None;
 
-        // QUESTION: Super likes might be able to exist along with other flare?
-        // Only Webtoon flare can have multiple.
-        let flare = if post.section_group.sections.len() > 1 {
-            let mut webtoons = Vec::new();
-            for section in post.section_group.sections {
-                match section {
-                    Section::ContentMeta { data, .. } => {
-                        let path = data.info.extra.episode_list_path.as_str();
-
-                        let url = match url::Url::parse("https://www.webtoons.com")
-                            .assumption("`https://www.webtoons.com` should be a valid url")?
-                            .join(path)
-                        {
-                            Ok(url) => url,
-                            Err(err) => assumption!(
-                                "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
-                            ),
-                        };
-
-                        let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
-                            Ok(webtoon) => webtoon,
-                            Err(err) => assumption!(
-                                "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
-                            ),
-                        };
-
-                        webtoons.push(webtoon);
-                    }
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                    }
-                    _ => {
+        for section in post.section_group.sections {
+            match section {
+                Section::Giphy { data, .. } => {
+                    assumption!(
+                        giphy_or_sticker.is_none(),
+                        "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
+                    );
+                    giphy_or_sticker = Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())));
+                }
+                Section::Sticker { data, .. } => match Sticker::from_str(&data.sticker_id) {
+                    Ok(sticker) => {
                         assumption!(
-                            "only the Webtoon meta flare can have more than one in the section group, yet encountered a case where there was more than one of another flare type: {section:?}"
+                            giphy_or_sticker.is_none(),
+                            "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
                         );
+                        giphy_or_sticker = Some(Flare::Sticker(sticker));
                     }
+                    Err(err) => assumption!(
+                        "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id: {err}\n\n{}",
+                        data.sticker_id
+                    ),
+                },
+                Section::ContentMeta { data, .. } => {
+                    let Some(path) = data
+                        .info
+                        .as_ref()
+                        .map(|info| info.extra.episode_list_path.as_str())
+                    else {
+                        break;
+                    };
+
+                    let url = match url::Url::parse("https://www.webtoons.com")
+                        .assumption("`https://www.webtoons.com` should be a valid url")?
+                        .join(path)
+                    {
+                        Ok(url) => url,
+                        Err(err) => assumption!(
+                            "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
+                        ),
+                    };
+
+                    let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
+                        Ok(webtoon) => webtoon,
+                        Err(err) => assumption!(
+                            "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
+                        ),
+                    };
+
+                    webtoons.push(webtoon);
+                }
+                Section::SuperLike { data, .. } => {
+                    super_like = Some(data.super_like_count);
                 }
             }
-            Some(Flare::Webtoons(webtoons))
+        }
+
+        let flare = if webtoons.is_empty() {
+            giphy_or_sticker
         } else {
-            match post.section_group.sections.first() {
-                Some(section) => match section {
-                    Section::Giphy { data, .. } => {
-                        Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())))
-                    }
-                    Section::Sticker { data, .. } => match Sticker::from_str(&data.sticker_id) {
-                        Ok(sticker) => Some(Flare::Sticker(sticker)),
-                        Err(err) => assumption!(
-                            "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id: {err}\n\n{}",
-                            data.sticker_id
-                        ),
-                    },
-                    Section::ContentMeta { data, .. } => {
-                        let path = data.info.extra.episode_list_path.as_str();
-
-                        let url = match url::Url::parse("https://www.webtoons.com")
-                            .assumption("`https://www.webtoons.com` should be a valid url")?
-                            .join(path)
-                        {
-                            Ok(url) => url,
-                            Err(err) => assumption!(
-                                "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
-                            ),
-                        };
-
-                        let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
-                            Ok(webtoon) => webtoon,
-                            Err(err) => assumption!(
-                                "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
-                            ),
-                        };
-
-                        Some(Flare::Webtoons(vec![webtoon]))
-                    }
-                    // Assign super likes, but as far as being a flare, as it's
-                    // unknown if it exists as a flare in `webtoons.com`.
-                    Section::SuperLike { data, .. } => {
-                        super_like = Some(data.super_like_count);
-                        None
-                    }
-                },
-                None => None,
-            }
+            Some(Flare::Webtoons(webtoons))
         };
 
         Ok(Self {
@@ -410,12 +381,12 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             body: Body {
                 contents: Arc::from(post.body),
                 flare,
-                is_spoiler,
+                is_spoiler: post.settings.spoiler_filter == "ON",
             },
             upvotes,
             downvotes,
             replies: post.child_post_count,
-            is_deleted,
+            is_deleted: post.status == "DELETE",
             posted,
             poster: Poster {
                 episode: episode.number,
