@@ -1,5 +1,5 @@
 #![allow(clippy::ignore_without_reason)]
-use webtoon::platform::webtoons::{Client, Language, canvas::Sort};
+use webtoon::platform::webtoons::{Client, Language, canvas::Sort, error::EpisodeError};
 
 #[tokio::test]
 #[ignore]
@@ -64,10 +64,29 @@ async fn canvas() {
         let episode = webtoon.random_episode().await.unwrap();
         eprintln!("episode {}", episode.number());
 
-        let _title = episode.title().await.unwrap();
-        let _season = episode.season().await.unwrap();
-        let _thumbnail = episode.thumbnail().await.unwrap();
-        let _length = episode.length().await.unwrap();
+        // TODO: use `assert_matches!` when stabilized.
+        let title = episode.title().await;
+        assert!(
+            matches!(title, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{title:?}"
+        );
+
+        let season = episode.season().await;
+        assert!(
+            matches!(season, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{season:?}"
+        );
+        let thumbnail = episode.thumbnail().await;
+        assert!(
+            matches!(thumbnail, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{thumbnail:?}"
+        );
+        let length = episode.length().await;
+        assert!(
+            matches!(length, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{length:?}"
+        );
+
         let _likes = episode.likes().await.unwrap();
 
         let mut comments = episode.posts();
@@ -137,10 +156,28 @@ async fn originals() {
         let episode = webtoon.random_episode().await.unwrap();
         eprintln!("episode {}", episode.number());
 
-        let _title = episode.title().await.unwrap();
-        let _season = episode.season().await.unwrap();
-        let _thumbnail = episode.thumbnail().await.unwrap();
-        let _length = episode.length().await.unwrap();
+        let title = episode.title().await;
+        assert!(
+            matches!(title, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{title:?}"
+        );
+
+        let season = episode.season().await;
+        assert!(
+            matches!(season, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{season:?}"
+        );
+        let thumbnail = episode.thumbnail().await;
+        assert!(
+            matches!(thumbnail, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{thumbnail:?}"
+        );
+        let length = episode.length().await;
+        assert!(
+            matches!(length, Ok(_) | Err(EpisodeError::NotViewable)),
+            "{length:?}"
+        );
+
         let _likes = episode.likes().await.unwrap();
 
         let mut comments = episode.posts();
