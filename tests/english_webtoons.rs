@@ -774,12 +774,13 @@ async fn english_canvas_creator_page_is_disabled_for_community_policy_violation(
 }
 
 #[tokio::test]
-#[ignore = "no webtoons currently release daily as of March 11, 2026"]
 async fn english_webtoon_everyday_is_daily_schedule() {
     let client = Client::new();
 
     let webtoon = client
-        .webtoon_from_url("https://www.webtoons.com/en/romance/love-thy-enemy/list?title_no=9590")
+        .webtoon_from_url(
+            "https://www.webtoons.com/en/romance/goodbye-my-juliet/list?title_no=9870",
+        )
         .unwrap();
 
     match webtoon.schedule().await.unwrap() {
