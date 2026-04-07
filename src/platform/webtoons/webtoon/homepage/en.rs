@@ -27,7 +27,10 @@ pub(super) fn subscribers(subscribers: &str) -> Result<u64, Assumption> {
 }
 
 pub(super) fn schedule(schedule: &str) -> &str {
-    schedule.trim_start_matches("EVERY").trim_start()
+    match schedule {
+        "EVERYDAY" => schedule,
+        _ => schedule.trim_start_matches("EVERY").trim_start(),
+    }
 }
 
 pub(super) fn date(date: &str) -> Result<NaiveDate, Assumption> {
