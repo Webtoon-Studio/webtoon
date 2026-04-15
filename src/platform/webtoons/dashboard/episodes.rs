@@ -55,6 +55,11 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
             None => None,
         };
 
+        assumption!(
+            published.is_none_or(|published| published.year() >= 2014),
+            "`webtoons.com` only started in 2014"
+        );
+
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,

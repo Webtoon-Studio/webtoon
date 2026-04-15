@@ -537,13 +537,18 @@ fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Episode, Assum
         .parse::<u16>()
         .assumption_for(|err| format!("`data-episode-no` on `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}: {err}"))?;
 
-    let date = date(element, webtoon)?;
+    let published = Published::from(date(element, webtoon)?);
+
+    assumption!(
+        published.year() >= 2014,
+        "`webtoons.com` only started in 2014"
+    );
 
     Ok(Episode {
         webtoon: webtoon.clone(),
         title: Cache::new(title),
         number,
-        published: Some(Published::from(date)),
+        published: Some(published),
         published_status: Some(PublishedStatus::Published),
 
         length: Cache::empty(),

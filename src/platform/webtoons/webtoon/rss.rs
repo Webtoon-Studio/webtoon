@@ -94,11 +94,18 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
             .assumption("rss feed for `webtoons.com` should always have a Webtoon tile")?
             .clone();
 
+        let published = Published::from(datetime);
+
+        assumption!(
+            published.year() >= 2014,
+            "`webtoons.com` only started in 2014"
+        );
+
         episodes.push(Episode {
             webtoon: webtoon.clone(),
             number,
             title: Cache::new(title),
-            published: Some(Published::from(datetime)),
+            published: Some(published),
             // RSS can only be generated for public and free(not behind ad or fast-pass) episodes.
             published_status: Some(PublishedStatus::Published),
 
