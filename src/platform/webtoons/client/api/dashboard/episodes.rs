@@ -63,6 +63,7 @@ pub struct DashboardEpisode {
     pub metadata: Metadata,
 
     #[serde(default)]
+    #[serde(alias = "exposureYmdt")]
     #[serde(alias = "exposureDate")]
     #[serde(alias = "freeExposeOrReservationDate")]
     pub published: Option<i64>,
