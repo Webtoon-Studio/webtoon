@@ -142,16 +142,17 @@ async fn indonesian_genre_kriminal_misteri_is_mystery() {
     }
 }
 
-#[tokio::test]
-async fn indonesian_schedule_everyday() {
-    let client = Client::new();
-    let webtoon = client.webtoon(9776, Type::Original).await.unwrap().unwrap();
+// Webtoon we were using is no no longer available
+// #[tokio::test]
+// async fn indonesian_schedule_everyday() {
+//     let client = Client::new();
+//     let webtoon = client.webtoon(9776, Type::Original).await.unwrap().unwrap();
 
-    assert_eq!(Language::Id, webtoon.language());
+//     assert_eq!(Language::Id, webtoon.language());
 
-    let schedule = webtoon.schedule().await.unwrap().unwrap();
-    assert_eq!(Schedule::Daily, schedule);
-}
+//     let schedule = webtoon.schedule().await.unwrap().unwrap();
+//     assert_eq!(Schedule::Daily, schedule);
+// }
 
 #[tokio::test]
 async fn indonesian_canvas_creator_does_not_have_a_profile() {
