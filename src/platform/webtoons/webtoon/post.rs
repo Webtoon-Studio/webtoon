@@ -1202,7 +1202,7 @@ impl Post {
 
         let replies = {
             let mut replies = replies.into_iter().map(Reply).collect::<Vec<Reply>>();
-            replies.sort_unstable_by(|a, b| a.0.id.cmp(&b.0.id));
+            replies.sort_unstable_by_key(|a| a.0.id);
             replies
         };
 

@@ -667,7 +667,7 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
     }
 
     // NOTE: Consistently return by episode order
-    episodes.sort_unstable_by(|a, b| a.number.cmp(&b.number));
+    episodes.sort_unstable_by_key(|a| a.number);
 
     Ok(episodes)
 }
