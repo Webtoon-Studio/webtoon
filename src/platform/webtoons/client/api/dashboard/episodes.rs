@@ -67,6 +67,9 @@ pub struct DashboardEpisode {
     #[serde(alias = "freeExposeOrReservationDate")]
     pub published: Option<i64>,
 
+    #[serde(rename = "exposed")]
+    pub is_public: bool,
+
     // #[serde(default)]
     // #[serde(alias = "rewardAdOnDate")]
     // pub reward_ad_on_date: Option<RewardAdOnDate>,

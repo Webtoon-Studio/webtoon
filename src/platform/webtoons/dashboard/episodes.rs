@@ -60,6 +60,18 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
             "`webtoons.com` only started in 2014"
         );
 
+        assumption!(
+            episode.is_public && matches!(episode.dashboard_status, DashboardStatus::Published),
+            "if an episode is public, it should have a `PUBLISHED` status"
+        );
+
+        if episode.is_public {
+            assumption!(
+                published.is_some_and(|published| published.year() >= 2014),
+                "id an episode is public, it must have a publushed date as least from 2014"
+            );
+        }
+
         episodes.insert(Episode {
             webtoon: webtoon.clone(),
             number: episode.metadata.number,
