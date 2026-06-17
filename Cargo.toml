@@ -12,7 +12,7 @@ description = "Client for interacting with various webtoon websites."
 keywords = ["webtoon", "webtoons", "naver", "tapas", "client"]
 
 [package.metadata.playground]
-features = ["rss", "naver"]
+features = ["rss"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -54,11 +54,6 @@ default = []
 rss = ["dep:rss"]
 # `tokio/sync` is currently needed for `Semaphore`.
 download = ["dep:image", "tokio/sync", "tokio/fs"]
-# `image` is needed as currently the only way to get the size of the episodes is
-# to download the panels and then convert them to an image and use the metadata
-# to get the sizes.
-# `tokio/sync` is currently needed for `Semaphore`.
-naver = ["dep:image", "tokio/sync"]
 
 # `webtoons.com`
 [[example]]
@@ -98,37 +93,6 @@ path = "examples/webtoons/posts.rs"
 name = "webtoons-download"
 path = "examples/webtoons/download.rs"
 required-features = ["download"]
-
-# `comic.naver.com`
-[[example]]
-name = "naver-webtoon"
-path = "examples/naver/webtoon.rs"
-required-features = ["naver"]
-
-[[example]]
-name = "naver-episodes"
-path = "examples/naver/episodes.rs"
-required-features = ["naver"]
-
-[[example]]
-name = "naver-episode"
-path = "examples/naver/episode.rs"
-required-features = ["naver"]
-
-[[example]]
-name = "naver-posts"
-path = "examples/naver/posts.rs"
-required-features = ["naver"]
-
-[[example]]
-name = "naver-download"
-path = "examples/naver/download.rs"
-required-features = ["naver", "download"]
-
-[[example]]
-name = "naver-creator"
-path = "examples/naver/creator.rs"
-required-features = ["naver"]
 
 [profile.test]
 inherits = "dev"

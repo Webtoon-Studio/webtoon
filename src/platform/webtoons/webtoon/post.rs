@@ -1652,7 +1652,6 @@ pub mod id {
         ParseNumber { id: String, error: ParseIntError },
     }
 
-    // TODO: Make generic enough to be used by `naver` as well, removing any `webtoons.com` references.
     /// Represents a unique identifier for a post or comment on a Webtoon episode.
     ///
     /// The format contains multiple components, representing a different aspect of the Webtoon, episode,
