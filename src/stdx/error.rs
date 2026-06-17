@@ -8,8 +8,8 @@ macro_rules! assumption {
         return Err($crate::stdx::error::Assumption::from( format!("{}", $err)).into());
     }};
     ($cond:expr, $msg:literal $(, $args:expr)* ) => {{
-        if !$cond {
-        return Err($crate::stdx::error::Assumption::from( format!("`{}`, {}", stringify!($cond), format!($msg $(, $args)*))).into());
+        if crate::stdx::hint::unlikely(!$cond) {
+            return Err($crate::stdx::error::Assumption::from( format!("`{}`, {}", stringify!($cond), format!($msg $(, $args)*))).into());
         }
     }};
 }
