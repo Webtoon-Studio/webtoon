@@ -6,7 +6,7 @@ mod api;
 pub use api::user_info::UserInfo;
 
 use super::{
-    Language, Type, Webtoon,
+    Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
     error::{CanvasError, CreatorError, OriginalsError, SearchError, WebtoonError},
@@ -298,12 +298,12 @@ impl Client {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{Client, Language, error::{Error, CreatorError}};
+    /// # use webtoon::platform::webtoons::{Client, error::{Error, CreatorError}};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// match client.creator("w7m5o", Language::En).await {
+    /// match client.creator("w7m5o").await {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
     ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
@@ -315,16 +315,8 @@ impl Client {
     ///
     /// [`https://www.webtoons.com/p/community/en/u/w7m5o`]: https://www.webtoons.com/p/community/en/u/w7m5o
     /// [`example`]: https://www.webtoons.com/p/community/en/u/y87lz
-    pub async fn creator(
-        &self,
-        profile: &str,
-        language: Language,
-    ) -> Result<Option<Creator>, CreatorError> {
-        if matches!(language, Language::Zh | Language::De | Language::Fr) {
-            return Err(CreatorError::UnsupportedLanguage);
-        }
-
-        let Some(homepage) = creator::homepage(language, profile, self).await? else {
+    pub async fn creator(&self, profile: &str) -> Result<Option<Creator>, CreatorError> {
+        let Some(homepage) = creator::homepage(profile, self).await? else {
             return Ok(None);
         };
 
@@ -332,14 +324,13 @@ impl Client {
             client: self.clone(),
             profile: Some(profile.into()),
             username: homepage.username.clone(),
-            language,
             homepage: Cache::new(Some(homepage)),
         }))
     }
 
     /// Searches for Webtoons on `webtoons.com`.
     ///
-    /// This method performs a search on the Webtoons platform using the provided query string and [`Language`].
+    /// This method performs a search on the Webtoons platform using the provided query string.
     /// It returns a list of [`Item`] that match the search criteria.
     ///
     /// # Notes
@@ -350,12 +341,12 @@ impl Client {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{Client, Language, error::Error};
+    /// # use webtoon::platform::webtoons::{Client, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let search = client.search("Monsters And", Language::En).await?;
+    /// let search = client.search("Monsters And").await?;
     ///
     /// for webtoon in search {
     ///     println!("Webtoon: {}", webtoon.title());
@@ -364,22 +355,12 @@ impl Client {
     /// # }
     /// ```
     #[allow(clippy::too_many_lines)]
-    pub async fn search(&self, query: &str, language: Language) -> Result<Vec<Item>, SearchError> {
+    pub async fn search(&self, query: &str) -> Result<Vec<Item>, SearchError> {
         if query.is_empty() {
             return Ok(Vec::new());
         }
 
         let mut webtoons = Vec::with_capacity(100);
-
-        let language = match language {
-            Language::En => "ENGLISH",
-            Language::Zh => "TRADITIONAL_CHINESE",
-            Language::Th => "THAI",
-            Language::Id => "INDONESIAN",
-            Language::Es => "SPANISH",
-            Language::Fr => "FRENCH",
-            Language::De => "GERMAN",
-        };
 
         // Originals
         {
@@ -389,7 +370,7 @@ impl Client {
             // - CHALLENGE
             // - WEBTOON
             let url = format!(
-                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={language}&query={query}"
+                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language=ENGLISH&query={query}"
             );
 
             let response = self
@@ -433,7 +414,7 @@ impl Client {
             let mut next = originals.pagination.next;
             while let Some(ref cursor) = next {
                 let url = format!(
-                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language={language}&query={query}&cursor={cursor}"
+                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language=ENGLISH&query={query}&cursor={cursor}"
                 );
 
                 let response = self
@@ -481,7 +462,7 @@ impl Client {
         // Canvas
         {
             let url = format!(
-                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={language}&query={query}"
+                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language=ENGLISH&query={query}"
             );
 
             let response = self
@@ -525,7 +506,7 @@ impl Client {
             let mut next = canvas.pagination.next;
             while let Some(ref cursor) = next {
                 let url = format!(
-                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language={language}&query={query}&cursor={cursor}"
+                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language=ENGLISH&query={query}&cursor={cursor}"
                 );
 
                 let response = self
@@ -573,7 +554,7 @@ impl Client {
         Ok(webtoons)
     }
 
-    /// Retrieves a list of all `original` webtoons for the specified [`Language`] from `webtoons.com`.
+    /// Retrieves a list of all `original` webtoons from `webtoons.com`.
     ///
     /// This corresponds to all webtoons found at `https://www.webtoons.com/*/originals`.
     ///
@@ -586,23 +567,23 @@ impl Client {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, error::Error};
+    /// # use webtoon::platform::webtoons::{ Client, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let originals = client.originals(Language::En).await?;
+    /// let originals = client.originals().await?;
     ///
     /// println!("Found {} originals", originals.len());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub async fn originals(&self, language: Language) -> Result<Vec<Webtoon>, OriginalsError> {
-        originals::scrape(self, language).await
+    pub async fn originals(&self) -> Result<Vec<Webtoon>, OriginalsError> {
+        originals::scrape(self).await
     }
 
-    /// Retrieves a list of `canvas` webtoons for the specified [`Language`] from `webtoons.com`.
+    /// Retrieves a list of `canvas` webtoons from `webtoons.com`.
     ///
     /// This corresponds to all webtoons found at `https://www.webtoons.com/*/canvas`.
     ///
@@ -632,13 +613,13 @@ impl Client {
     /// # Example
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
+    /// # use webtoon::platform::webtoons::{ Client, error::Error, canvas::Sort};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
     /// let webtoons = client
-    ///     .canvas(Language::En, 1..=2, Sort::Popularity)
+    ///     .canvas(1..=2, Sort::Popularity)
     ///     .await?;
     ///
     /// for webtoon in webtoons {
@@ -650,11 +631,10 @@ impl Client {
     #[inline]
     pub async fn canvas(
         &self,
-        language: Language,
         pages: impl RangeBounds<u16> + Send,
         sort: Sort,
     ) -> Result<Vec<Webtoon>, CanvasError> {
-        canvas::scrape(self, language, pages, sort).await
+        canvas::scrape(self, pages, sort).await
     }
 
     /// Constructs a [`Webtoon`] from the given `id` and [`Type`].
@@ -834,22 +814,8 @@ impl Client {
 }
 
 impl Client {
-    pub(super) async fn originals_page(
-        &self,
-        language: Language,
-        day: &str,
-    ) -> Result<Html, RequestError> {
-        let language = match language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
-
-        let url = format!("https://www.webtoons.com/{language}/originals/{day}");
+    pub(super) async fn originals_page(&self, day: &str) -> Result<Html, RequestError> {
+        let url = format!("https://www.webtoons.com/en/originals/{day}");
 
         let document = self
             .http
@@ -867,24 +833,9 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn canvas_page(
-        &self,
-        language: Language,
-        page: u16,
-        sort: Sort,
-    ) -> Result<Html, RequestError> {
-        let language = match language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
-
+    pub(super) async fn canvas_page(&self, page: u16, sort: Sort) -> Result<Html, RequestError> {
         let url = format!(
-            "https://www.webtoons.com/{language}/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
+            "https://www.webtoons.com/en/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
         );
 
         let document = self
@@ -903,22 +854,8 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn creator_page(
-        &self,
-        language: Language,
-        profile: &str,
-    ) -> Result<Option<Html>, CreatorError> {
-        let language = match language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
-
-        let url = format!("https://www.webtoons.com/p/community/{language}/u/{profile}");
+    pub(super) async fn creator_page(&self, profile: &str) -> Result<Option<Html>, CreatorError> {
+        let url = format!("https://www.webtoons.com/p/community/en/u/{profile}");
 
         let response = self
             .http
@@ -944,20 +881,9 @@ impl Client {
     pub(super) async fn creator_webtoons(
         &self,
         profile: &str,
-        language: Language,
     ) -> Result<CreatorWebtoons, WebtoonError> {
-        let language = match language {
-            Language::En => "ENGLISH",
-            Language::Zh => "TRADITIONAL_CHINESE",
-            Language::Th => "THAI",
-            Language::Id => "INDONESIAN",
-            Language::Es => "SPANISH",
-            Language::Fr => "FRENCH",
-            Language::De => "GERMAN",
-        };
-
         let url = format!(
-            "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language={language}"
+            "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language=ENGLISH"
         );
 
         // TODO: return specific error if profile is not the correct profile to use.
@@ -982,24 +908,13 @@ impl Client {
         page: Option<u16>,
     ) -> Result<Html, RequestError> {
         let id = webtoon.id;
-        let language = match webtoon.language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
         let scope = webtoon.scope.as_slug();
         let slug = &webtoon.slug;
 
         let url = if let Some(page) = page {
-            format!(
-                "https://www.webtoons.com/{language}/{scope}/{slug}/list?title_no={id}&page={page}"
-            )
+            format!("https://www.webtoons.com/en/{scope}/{slug}/list?title_no={id}&page={page}")
         } else {
-            format!("https://www.webtoons.com/{language}/{scope}/{slug}/list?title_no={id}")
+            format!("https://www.webtoons.com/en/{scope}/{slug}/list?title_no={id}")
         };
 
         let response = self
@@ -1056,15 +971,6 @@ impl Client {
     pub(super) async fn stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, SessionError> {
         let session = self.session.validate(self).await?;
 
-        let language = match webtoon.language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
         // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
         let scope = match webtoon.scope {
             Scope::Canvas => "challenge",
@@ -1072,7 +978,7 @@ impl Client {
         };
         let id = webtoon.id;
 
-        let url = format!(r"https://www.webtoons.com/{language}/{scope}/titleStat?titleNo={id}");
+        let url = format!(r"https://www.webtoons.com/en/{scope}/titleStat?titleNo={id}");
 
         let response = self
             .http
@@ -1099,22 +1005,13 @@ impl Client {
         use std::str::FromStr;
 
         let id = webtoon.id;
-        let language = match webtoon.language {
-            Language::En => "en",
-            Language::Zh => "zh-hant",
-            Language::Th => "th",
-            Language::Id => "id",
-            Language::Es => "es",
-            Language::Fr => "fr",
-            Language::De => "de",
-        };
         let scope = match webtoon.scope {
             Scope::Original(genre) => genre.as_slug(),
             Scope::Canvas => "challenge",
         };
         let slug = &webtoon.slug;
 
-        let url = format!("https://www.webtoons.com/{language}/{scope}/{slug}/rss?title_no={id}");
+        let url = format!("https://www.webtoons.com/en/{scope}/{slug}/rss?title_no={id}");
 
         let response = self
             .http

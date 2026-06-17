@@ -14,7 +14,6 @@ async fn main() -> Result<(), Error> {
     println!("title: {}", webtoon.title().await?);
     println!("thumbnail: {:?}", webtoon.thumbnail().await?);
     println!("banner: {:?}", webtoon.banner().await?);
-    println!("language {:?}", webtoon.language());
     println!("creators: {:?}", webtoon.creators().await?);
     println!("genres: {:?}", webtoon.genres().await?);
     println!("schedule: {:?}", webtoon.schedule().await?);

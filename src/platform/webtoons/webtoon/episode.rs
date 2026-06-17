@@ -25,7 +25,7 @@ use url::Url;
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
+/// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
@@ -56,7 +56,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -81,7 +81,7 @@ impl Episodes {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Language, Type, error::Error};
+    /// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();

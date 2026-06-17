@@ -1,11 +1,11 @@
 use chrono::Duration;
-use webtoon::platform::webtoons::{Client, Language};
+use webtoon::platform::webtoons::Client;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let client = Client::new();
 
-    let webtoons = client.originals(Language::En).await?;
+    let webtoons = client.originals().await?;
 
     let thirty_days_ago = chrono::Utc::now() - Duration::days(30);
 

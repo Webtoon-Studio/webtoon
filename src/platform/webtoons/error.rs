@@ -16,6 +16,7 @@ pub use _inner::{
 #[error(transparent)]
 pub struct RequestError(#[from] pub(crate) reqwest::Error);
 
+// TODO: Create a `Url` in `webtoon::homepage` that validates the expected structure, i.e. "Parse, don't validate"
 /// Represents an invalid `webtoons.com` Webtoon homepage URL.
 ///
 /// Given how exact the format is, and the unlikely nature of something actionable
@@ -73,7 +74,10 @@ mod _inner {
             InvalidCreatorProfile,
         } || Base || ClientError
 
-        WebtoonError := Base || ClientError
+        WebtoonError := {
+            #[display("only english webtoons are supported")]
+            NotEnglish
+        } || Base || ClientError
 
         RssError :=  Base || ClientError
 

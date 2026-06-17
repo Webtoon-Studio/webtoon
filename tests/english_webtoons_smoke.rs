@@ -1,5 +1,5 @@
 #![allow(clippy::ignore_without_reason)]
-use webtoon::platform::webtoons::{Client, Language, canvas::Sort};
+use webtoon::platform::webtoons::{Client, canvas::Sort};
 
 #[tokio::test]
 #[ignore]
@@ -9,7 +9,7 @@ async fn canvas() {
     let page = fastrand::u16(1..=3000);
 
     let canvas = client
-        .canvas(Language::En, page..=page, Sort::Popularity)
+        .canvas(page..=page, Sort::Popularity)
         .await
         .unwrap_or_else(|err| panic!("failed on page {page}: {err}"));
 
@@ -49,9 +49,6 @@ async fn canvas() {
         let banner = webtoon.banner().await.unwrap();
         assert!(banner.is_none());
 
-        let language = webtoon.language();
-        assert_eq!(Language::En, language);
-
         let schedule = webtoon.schedule().await.unwrap();
         assert!(schedule.is_none());
 
@@ -83,7 +80,7 @@ async fn canvas() {
 async fn originals() {
     let client = Client::new();
 
-    let originals = client.originals(Language::En).await.unwrap();
+    let originals = client.originals().await.unwrap();
 
     assert!(!originals.is_empty());
 
@@ -121,9 +118,6 @@ async fn originals() {
 
         let banner = webtoon.banner().await.unwrap();
         assert!(banner.is_some());
-
-        let language = webtoon.language();
-        assert_eq!(Language::En, language);
 
         let schedule = webtoon.schedule().await.unwrap();
         assert!(schedule.is_some());

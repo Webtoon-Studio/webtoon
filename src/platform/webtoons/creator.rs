@@ -1,6 +1,6 @@
 //! Module containing things related to a creator on `webtoons.com`.
 
-use super::{Client, Language, Webtoon, error::CreatorError};
+use super::{Client, Webtoon, error::CreatorError};
 use crate::{
     platform::webtoons::error::WebtoonError,
     stdx::{
@@ -30,12 +30,12 @@ use scraper::{Html, Selector};
 /// # Example
 ///
 /// ```
-/// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+/// # use webtoon::platform::webtoons::{error::Error, Client};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(creator) = client.creator("s0s2", Language::En).await? else {
+/// let Some(creator) = client.creator("s0s2").await? else {
 ///     unreachable!("profile is known to exist");
 /// };
 ///
@@ -46,7 +46,6 @@ use scraper::{Html, Selector};
 #[derive(Clone)]
 pub struct Creator {
     pub(super) client: Client,
-    pub(super) language: Language,
     pub(super) username: String,
 
     // Originals authors might not have a profile:
@@ -62,7 +61,6 @@ impl Debug for Creator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self {
             client: _,
-            language,
             username,
             profile,
             homepage,
@@ -70,10 +68,7 @@ impl Debug for Creator {
 
         let mut debug = f.debug_struct("Creator");
 
-        debug
-            .field("profile", profile)
-            .field("username", username)
-            .field("language", language);
+        debug.field("profile", profile).field("username", username);
 
         if let Store::Value(Some(Homepage {
             followers,
@@ -106,12 +101,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("hanzaart", Language::En).await? else {
+    /// let Some(creator) = client.creator("hanzaart").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -134,12 +129,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("MaccusNormann", Language::En).await? else {
+    /// let Some(creator) = client.creator("MaccusNormann").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -162,12 +157,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("MaccusNormann", Language::En).await? else {
+    /// let Some(creator) = client.creator("MaccusNormann").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -183,8 +178,7 @@ impl Creator {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
-
-            let homepage = homepage(self.language, profile, &self.client).await?;
+            let homepage = homepage(profile, &self.client).await?;
             let id = homepage.as_ref().map(|homepage| homepage.id.clone());
 
             self.homepage.insert(homepage);
@@ -206,12 +200,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("g8dak", Language::En).await? else {
+    /// let Some(creator) = client.creator("g8dak").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -227,8 +221,7 @@ impl Creator {
             let Some(profile) = self.profile.as_deref() else {
                 return Ok(None);
             };
-
-            let homepage = homepage(self.language, profile, &self.client).await?;
+            let homepage = homepage(profile, &self.client).await?;
             let followers = homepage.as_ref().map(|page| page.followers);
 
             self.homepage.insert(homepage);
@@ -258,12 +251,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("jayessart", Language::En).await? else {
+    /// let Some(creator) = client.creator("jayessart").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -280,7 +273,15 @@ impl Creator {
             return Ok(None);
         };
 
-        let response = self.client.creator_webtoons(&id, self.language).await?;
+        let response = self
+            .client
+            .creator_webtoons(&id)
+            .await
+            .map_err(|err| match err {
+                WebtoonError::Internal(err) => CreatorError::from(err),
+                WebtoonError::RequestFailed(err) => CreatorError::from(err),
+                WebtoonError::NotEnglish => unreachable!(),
+            })?;
 
         let webtoons =
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
@@ -291,7 +292,11 @@ impl Creator {
                 };
 
                 Ok::<Webtoon, WebtoonError>(webtoon)
-            })).await?;
+            })).await.map_err(|err| match err {
+                WebtoonError::Internal(err) => CreatorError::from(err),
+                WebtoonError::RequestFailed(err) => CreatorError::from(err),
+                WebtoonError::NotEnglish => unreachable!(),
+            })?;
 
         Ok(Some(webtoons))
     }
@@ -310,12 +315,12 @@ impl Creator {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Language, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Client};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("u8ehb", Language::En).await? else {
+    /// let Some(creator) = client.creator("u8ehb").await? else {
     ///     unreachable!("profile is known to exist");
     /// };
     ///
@@ -332,7 +337,7 @@ impl Creator {
                 return Ok(None);
             };
 
-            let homepage = homepage(self.language, profile, &self.client).await?;
+            let homepage = homepage(profile, &self.client).await?;
             let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
 
             self.homepage.insert(homepage);
@@ -343,11 +348,10 @@ impl Creator {
 }
 
 pub(super) async fn homepage(
-    language: Language,
     profile: &str,
     client: &Client,
 ) -> Result<Option<Homepage>, CreatorError> {
-    let Some(html) = client.creator_page(language, profile).await? else {
+    let Some(html) = client.creator_page(profile).await? else {
         return Ok(None);
     };
 

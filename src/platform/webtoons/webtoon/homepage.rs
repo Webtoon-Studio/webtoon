@@ -1,11 +1,3 @@
-mod de;
-mod en;
-mod es;
-mod fr;
-mod id;
-mod th;
-// mod zh;
-
 use chrono::NaiveDate;
 use scraper::{ElementRef, Html, Selector};
 use std::{str::FromStr, time::Duration};
@@ -15,7 +7,7 @@ use crate::{
     platform::webtoons::{
         Client, Webtoon,
         creator::Creator,
-        meta::{Genre, Language, Scope},
+        meta::{Genre, Scope},
         originals::Schedule,
         webtoon::episode::{Published, PublishedStatus},
     },
@@ -59,9 +51,9 @@ impl Page {
                 creators: creators(html, &webtoon.client, webtoon)?,
                 genres: genres(html)?,
                 summary: summary(html)?,
-                views: views(html, webtoon)?,
-                subscribers: subscribers(html, webtoon)?,
-                schedule: Some(schedule(html, webtoon)?),
+                views: views(html)?,
+                subscribers: subscribers(html)?,
+                schedule: Some(schedule(html)?),
                 thumbnail: None,
                 banner: Some(banner(html)?),
                 pages: calculate_total_pages(html)?,
@@ -71,8 +63,8 @@ impl Page {
                 creators: creators(html, &webtoon.client, webtoon)?,
                 genres: genres(html)?,
                 summary: summary(html)?,
-                views: views(html, webtoon)?,
-                subscribers: subscribers(html, webtoon)?,
+                views: views(html)?,
+                subscribers: subscribers(html)?,
                 schedule: None,
                 thumbnail: Some(thumbnail(html)?),
                 banner: None,
@@ -242,7 +234,6 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
 
         let creator = Creator {
             client: client.clone(),
-            language: webtoon.language(),
             username: username.to_string(),
             profile: Some(profile.into()),
             homepage: Cache::empty(),
@@ -269,7 +260,6 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
                     client: client.clone(),
                     profile: None,
                     username,
-                    language: webtoon.language(),
                     homepage: Cache::empty(),
                 });
             }
@@ -326,7 +316,7 @@ fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
     }
 }
 
-fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
+fn views(html: &Html) -> Result<u64, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
         .assumption("`em.cnt` should be a valid selector")?;
 
@@ -342,20 +332,17 @@ fn views(html: &Html, webtoon: &Webtoon) -> Result<u64, WebtoonError> {
         "views element(`em.cnt`) on `webtoons.com` Webtoon homepage should never be empty"
     );
 
-    let views = match webtoon.language() {
-        Language::En => en::views(&views)?,
-        Language::Zh => todo!(),
-        Language::Th => th::views(&views)?,
-        Language::Id => id::views(&views)?,
-        Language::Es => es::views(&views)?,
-        Language::Fr => fr::views(&views)?,
-        Language::De => de::views(&views)?,
-    };
+    let views = match views {
+        billion if billion.ends_with('B') => count(&billion, Unit::Billion, Some('.'), Some('B')),
+        million if million.ends_with('M') => count(&million, Unit::Million, Some('.'), Some('M')),
+        thousand if thousand.contains(',') => count(&thousand, Unit::Thousand, Some(','), None),
+        hundred => count(&hundred, Unit::Hundred, None, None),
+    }?;
 
     Ok(views)
 }
 
-fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
+fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
         .assumption("`em.cnt` should be a valid selector")?;
 
@@ -371,20 +358,16 @@ fn subscribers(html: &Html, webtoon: &Webtoon) -> Result<u32, WebtoonError> {
         "subscriber element(`em.cnt`) on `webtoons.com` Webtoon homepage should never be empty"
     );
 
-    let subscribers = match webtoon.language() {
-        Language::En => en::subscribers(&subscribers)?,
-        Language::Zh => todo!(),
-        Language::Th => th::subscribers(&subscribers)?,
-        Language::Id => id::subscribers(&subscribers)?,
-        Language::Es => es::subscribers(&subscribers)?,
-        Language::Fr => fr::subscribers(&subscribers)?,
-        Language::De => de::subscribers(&subscribers)?,
-    };
+    let subscribers = match subscribers {
+        million if million.ends_with('M') => count(&million, Unit::Million, Some('.'), Some('M')),
+        thousand if thousand.contains(',') => count(&thousand, Unit::Thousand, Some(','), None),
+        hundred => count(&hundred, Unit::Hundred, None, None),
+    }?;
 
     Ok(subscribers as u32)
 }
 
-fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
+fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
     let selector = Selector::parse(r"p.day_info") //
         .assumption("`p.day_info` should be a valid selector")?;
 
@@ -400,14 +383,9 @@ fn schedule(html: &Html, webtoon: &Webtoon) -> Result<Schedule, WebtoonError> {
         .map(|text| text.trim())
         .find(|text| !text.is_empty())
         // Language specific cleaning so that only status or day/s are remaining.
-        .map(|text| match webtoon.language() {
-            Language::En => en::schedule(text),
-            Language::Zh => todo!(),
-            Language::Th => th::schedule(text),
-            Language::Id => id::schedule(text),
-            Language::Es => es::schedule(text),
-            Language::Fr => fr::schedule(text),
-            Language::De => de::schedule(text),
+        .map(|text| match text {
+            "EVERYDAY" => text,
+            _ => text.trim_start_matches("EVERY").trim_start(),
         })
         .assumption("`p.day_info`(schedule) should produce some form of non-empty text")?
         .split_whitespace()
@@ -537,7 +515,7 @@ fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Episode, Assum
         .parse::<u16>()
         .assumption_for(|err| format!("`data-episode-no` on `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}: {err}"))?;
 
-    let published = Published::from(date(element, webtoon)?);
+    let published = Published::from(date(element)?);
 
     assumption!(
         published.year() >= 2014,
@@ -719,7 +697,9 @@ pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, Webtoon
     Ok(episode(&element, webtoon)?)
 }
 
-fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assumption> {
+fn date(episode: &ElementRef<'_>) -> Result<NaiveDate, Assumption> {
+    const FMT: &str = "%b %e, %Y";
+
     let selector = Selector::parse("span.date") //
         .assumption("`span.date` should be a valid selector")?;
 
@@ -732,15 +712,11 @@ fn date(episode: &ElementRef<'_>, webtoon: &Webtoon) -> Result<NaiveDate, Assump
         .assumption("`span.date` on `webtoons.com` Webtoon homepage should have text inside it")?
         .trim();
 
-    let date = match webtoon.language() {
-        Language::En => en::date(text)?,
-        Language::Zh => todo!(),
-        Language::Th => th::date(text)?,
-        Language::Id => id::date(text)?,
-        Language::Es => es::date(text)?,
-        Language::Fr => fr::date(text)?,
-        Language::De => de::date(text)?,
-    };
+    let date =
+        NaiveDate::parse_from_str(text, FMT).assumption_for(|err| {
+            format!("failed to parse `webtoons.com` Webtoon homepage episode date `{text}` with `{FMT}`, got: {err}")
+        })
+    ?;
 
     Ok(date)
 }
@@ -814,8 +790,8 @@ enum Unit {
 fn count(
     input: &str,
     unit: Unit,
-    separator: Option<&str>,
-    suffix: Option<&str>,
+    separator: Option<char>,
+    suffix: Option<char>,
 ) -> Result<u64, Assumption> {
     fn parse(prefix: &str, remainder: &str) -> Result<(u64, u64), Assumption> {
         let left = prefix.parse::<u64>()
@@ -883,59 +859,43 @@ mod test {
         // --- Billions ---
         assert_eq!(
             1_300_000_000,
-            count("1.3B", Unit::Billion, Some("."), Some("B")).unwrap()
+            count("1.3B", Unit::Billion, Some('.'), Some('B')).unwrap()
         );
         assert_eq!(
             1_000_000_000,
-            count("1B", Unit::Billion, Some("."), Some("B")).unwrap()
+            count("1B", Unit::Billion, Some('.'), Some('B')).unwrap()
         );
         assert_eq!(
             10_500_000_000, // Multi-digit leading part
-            count("10.5B", Unit::Billion, Some("."), Some("B")).unwrap()
-        );
-        assert_eq!(
-            1_200_000_000,
-            count("1,2M", Unit::Billion, Some(","), Some("M")).unwrap()
+            count("10.5B", Unit::Billion, Some('.'), Some('B')).unwrap()
         );
 
         // --- Millions ---
         assert_eq!(
             1_300_000,
-            count("1.3M", Unit::Million, Some("."), Some("M")).unwrap()
+            count("1.3M", Unit::Million, Some('.'), Some('M')).unwrap()
         );
         assert_eq!(
             1_000_000,
-            count("1M", Unit::Million, Some("."), Some("M")).unwrap()
+            count("1M", Unit::Million, Some('.'), Some('M')).unwrap()
         );
         assert_eq!(
             1_000_000, // Explicit zero decimal
-            count("1.0M", Unit::Million, Some("."), Some("M")).unwrap()
-        );
-        assert_eq!(
-            4_900_000,
-            count("4,9M", Unit::Million, Some(","), Some("M")).unwrap()
-        );
-        assert_eq!(
-            1_200_000,
-            count("1,2JT", Unit::Million, Some(","), Some("JT")).unwrap()
+            count("1.0M", Unit::Million, Some('.'), Some('M')).unwrap()
         );
 
         // --- Thousands ---
         assert_eq!(
             112_362,
-            count("112,362", Unit::Thousand, Some(","), None).unwrap()
-        );
-        assert_eq!(
-            46_547,
-            count("46.547", Unit::Thousand, Some("."), None).unwrap()
+            count("112,362", Unit::Thousand, Some(','), None).unwrap()
         );
         assert_eq!(
             1_005, // Comma with zero-padding in remainder
-            count("1,005", Unit::Thousand, Some(","), None).unwrap()
+            count("1,005", Unit::Thousand, Some(','), None).unwrap()
         );
         assert_eq!(
             1_000, // Minimum thousand
-            count("1,000", Unit::Thousand, Some(","), None).unwrap()
+            count("1,000", Unit::Thousand, Some(','), None).unwrap()
         );
 
         // --- Hundreds ---
@@ -952,7 +912,7 @@ mod test {
         // (1 * 1B) + (55 * 100M) = 6.5B, which is wrong.
         //
         // This test ensures we know our current logic's limitations.
-        let result = count("1.55B", Unit::Billion, Some("."), Some("B")).unwrap();
+        let result = count("1.55B", Unit::Billion, Some('.'), Some('B')).unwrap();
         assert_eq!(1_550_000_000, result);
     }
 }

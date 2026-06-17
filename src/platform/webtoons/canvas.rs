@@ -3,13 +3,13 @@
 //! # Example
 //!
 //! ```rust
-//! # use webtoon::platform::webtoons::{ Client, Language, error::Error, canvas::Sort};
+//! # use webtoon::platform::webtoons::{ Client, error::Error, canvas::Sort};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Error> {
 //! let client = Client::new();
 //!
 //! let webtoons = client
-//!     .canvas(Language::En, 1..=3, Sort::Popularity)
+//!     .canvas(1..=3, Sort::Popularity)
 //!     .await?;
 //!
 //! for webtoon in webtoons {
@@ -19,7 +19,7 @@
 //! # }
 //! ```
 
-use super::{Client, Language, Webtoon};
+use super::{Client, Webtoon};
 use crate::{
     platform::webtoons::error::CanvasError,
     stdx::error::{Assume, assumption},
@@ -29,7 +29,6 @@ use std::{fmt::Display, ops::RangeBounds};
 
 pub(super) async fn scrape(
     client: &Client,
-    language: Language,
     pages: impl RangeBounds<u16>,
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
@@ -58,7 +57,7 @@ pub(super) async fn scrape(
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
-        let html = client.canvas_page(language, page, sort).await?;
+        let html = client.canvas_page(page, sort).await?;
 
         for card in html.select(&selector) {
             let href = card.attr("href").assumption(

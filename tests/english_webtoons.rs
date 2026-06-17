@@ -1,5 +1,5 @@
 use webtoon::platform::webtoons::{
-    Client, Language, Type,
+    Client, Type,
     canvas::Sort,
     error::CreatorError,
     meta::Genre,
@@ -21,18 +21,14 @@ async fn user_info_should_deserialize_even_with_invalid_session() {
 #[tokio::test]
 async fn english_search() {
     let client = Client::new();
-    let _search = client.search("Universe", Language::En).await.unwrap();
+    let _search = client.search("Universe").await.unwrap();
 }
 
 #[tokio::test]
 async fn english_creator() {
     let client = Client::new();
 
-    let creator = client
-        .creator("JennyToons", Language::En)
-        .await
-        .unwrap()
-        .unwrap();
+    let creator = client.creator("JennyToons").await.unwrap().unwrap();
 
     let username = creator.username();
     assert_eq!("Jenny-Toons", username);
@@ -59,13 +55,7 @@ async fn english_creator() {
 #[tokio::test]
 async fn english_originals_page() {
     let client = Client::new();
-    let _webtoons = client.originals(Language::En).await.unwrap();
-}
-
-#[tokio::test]
-async fn chinese_originals_page() {
-    let client = Client::new();
-    let _webtoons = client.originals(Language::Zh).await.unwrap();
+    let _webtoons = client.originals().await.unwrap();
 }
 
 #[tokio::test]
@@ -73,49 +63,17 @@ async fn english_canvas_page() {
     let client = Client::new();
 
     {
-        let webtoons = client
-            .canvas(Language::En, 1..2, Sort::Popularity)
-            .await
-            .unwrap();
+        let webtoons = client.canvas(1..2, Sort::Popularity).await.unwrap();
         for _webtoon in webtoons {}
     }
 
     {
-        let webtoons = client
-            .canvas(Language::En, 1..2, Sort::Likes)
-            .await
-            .unwrap();
+        let webtoons = client.canvas(1..2, Sort::Likes).await.unwrap();
         for _webtoon in webtoons {}
     }
 
     {
-        let webtoons = client.canvas(Language::En, 1..2, Sort::Date).await.unwrap();
-        for _webtoon in webtoons {}
-    }
-}
-
-#[tokio::test]
-async fn chinese_canvas_page() {
-    let client = Client::new();
-
-    {
-        let webtoons = client
-            .canvas(Language::Zh, 1..2, Sort::Popularity)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client
-            .canvas(Language::Zh, 1..2, Sort::Likes)
-            .await
-            .unwrap();
-        for _webtoon in webtoons {}
-    }
-
-    {
-        let webtoons = client.canvas(Language::Zh, 1..2, Sort::Date).await.unwrap();
+        let webtoons = client.canvas(1..2, Sort::Date).await.unwrap();
         for _webtoon in webtoons {}
     }
 }
@@ -171,9 +129,6 @@ async fn english_webtoon_canvas() {
     let banner = webtoon.banner().await.unwrap();
     assert_eq!(None, banner);
 
-    let language = webtoon.language();
-    assert_eq!(Language::En, language);
-
     let schedule = webtoon.schedule().await.unwrap();
     assert!(schedule.is_none());
 
@@ -211,9 +166,6 @@ async fn english_webtoon_original() {
         ),
         banner.as_deref()
     );
-
-    let language = webtoon.language();
-    assert_eq!(Language::En, language);
 
     let creators = webtoon.creators().await.unwrap();
     match creators.as_slice() {
@@ -645,7 +597,7 @@ async fn english_canvas_panel_image_with_multiple_dots_in_ext_is_ok() {
 #[tokio::test]
 async fn english_canvas_creator_invalid_creator_profile() {
     let client = Client::new();
-    let creator = client.creator("y87lz", Language::En).await;
+    let creator = client.creator("y87lz").await;
 
     match creator {
         Err(CreatorError::InvalidCreatorProfile) => {}
@@ -736,7 +688,7 @@ async fn english_canvas_invalid_creator_profile() {
     let client = Client::new();
 
     for profile in ["_91ms9c", "y87lz", "k7yid", "m8sw0"] {
-        match client.creator(profile, Language::En).await {
+        match client.creator(profile).await {
             Err(CreatorError::InvalidCreatorProfile) => {}
             creator => {
                 unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
@@ -750,7 +702,7 @@ async fn english_canvas_creator_page_is_disabled_for_community_policy_violation(
     let client = Client::new();
 
     for profile in ["_dcrhv7", "_pdi0q8", "_o2pgx6"] {
-        match client.creator(profile, Language::En).await {
+        match client.creator(profile).await {
             Ok(None) => {}
             _ => unreachable!("Creator profile page should be disabled for community violations"),
         }

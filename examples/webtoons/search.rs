@@ -1,4 +1,4 @@
-use webtoon::platform::webtoons::{Client, Language, error::Error};
+use webtoon::platform::webtoons::{Client, error::Error};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
@@ -8,7 +8,7 @@ async fn main() -> Result<(), Error> {
 
     let query = "Universe";
     println!("Searching: {query}");
-    let search = client.search(query, Language::En).await?;
+    let search = client.search(query).await?;
 
     println!(
         "Took: {}ms for `{}` results",
