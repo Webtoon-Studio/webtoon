@@ -15,14 +15,9 @@
 # Webtoon
 
 `webtoon` is an asynchronous Rust library for programmatically interacting with
-supported Webtoon platforms. It provides a strongly typed, idiomatic API for
+`webtoons.com` platforms. It provides a strongly typed, idiomatic API for
 retrieving metadata, episodes, and discussion data, while abstracting away
 platform-specific quirks.
-
-Supported:
-
-- [webtoons.com](https://www.webtoons.com/)
-- [comic.naver.com](https://comic.naver.com/)
 
 ## Design Philosophy: Read-Only
 
@@ -76,40 +71,16 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
-### `comic.naver.com`
-
-```rust
-use webtoon::platform::naver::{errors::Error, Client};
-
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    // Initialize the client
-    let client = Client::new();
-
-    // Fetch a webtoon by `id`
-    let webtoon = client
-        .webtoon(838432)
-        .await?
-        .expect("known webtoon with this id on `comic.naver.com`");
-
-    // Print title to stdout
-    println!("{}", webtoon.title());
-
-    Ok(())
-}
-```
-
 ## Features
 
 Some functionality is gated behind Cargo features to reduce compile times and
 dependency overhead:
 
 - `rss`: Enables the ability to get the RSS feed data for a `webtoons.com`.
-- `naver`: Enables the ability to interact with `comic.naver.com`.
 - `download`: Enables the ability to download episodes, either as a single image or as multiple images.
 
 ```toml
-webtoon = { version = "0.9.0", features = ["naver", "download"] }
+webtoon = { version = "0.9.0", features = ["rss", "download"] }
 ```
 
 ## Examples

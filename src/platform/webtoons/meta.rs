@@ -74,14 +74,6 @@ impl FromStr for Type {
     }
 }
 
-// TODO: Remove when refactoring `naver` platform.
-/// An Error that can occur when parsing a letter to a [`Type`].
-///
-/// Only `w` and `c` are valid.
-#[derive(Debug, Error)]
-#[error("`{0}` is an invalid letter, should only be `w` or `c`")]
-pub struct ParseLetterError(String);
-
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum Scope {
     Original(Genre),

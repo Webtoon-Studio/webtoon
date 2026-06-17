@@ -1,5 +1,5 @@
-//! Module representing the platforms that this crate supports.
+//! Represents platform support of `webtoon`.
+//!
+//! Currently only `webtoons.com` is supported.
 
-#[cfg(feature = "naver")]
-pub mod naver;
 pub mod webtoons;
