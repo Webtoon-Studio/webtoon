@@ -33,7 +33,7 @@ This makes it ideal for:
 
 ### Installation
 
-MSRV: `1.88.0`
+MSRV: `1.95.0`
 
 To use this library, add `webtoon` to your `Cargo.toml`:
 
