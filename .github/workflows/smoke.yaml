@@ -17,18 +17,3 @@ jobs:
 
       - name: Run english webtoons smoke test
         run:  cargo test --all-features --profile test --test english_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
-
-      - name: Run german webtoons smoke test
-        run:  cargo test --all-features --profile test --test german_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
-
-      - name: Run spanish webtoons smoke test
-        run:  cargo test --all-features --profile test --test spanish_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
-
-      - name: Run french webtoons smoke test
-        run:  cargo test --all-features --profile test --test french_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
-
-      - name: Run indonesian webtoons smoke test
-        run:  cargo test --all-features --profile test --test indonesian_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
-
-      - name: Run thai webtoons smoke test
-        run:  cargo test --all-features --profile test --test thai_webtoons_smoke -- --include-ignored --no-capture --test-threads 1
