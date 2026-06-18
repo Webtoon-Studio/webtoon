@@ -6,7 +6,9 @@ use url::Url;
 
 use crate::{
     platform::webtoons::{
-        Language, creator::Creator, error::RssError, webtoon::episode::Published,
+        creator::Creator,
+        error::{RssError, WebtoonError},
+        webtoon::episode::Published,
     },
     stdx::{
         cache::Cache,
@@ -79,7 +81,6 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
         let datetime = published(
             item.pub_date()
                 .assumption("publish date should always be present in `webtoons.com` rss feed, as this feed only shows published episodes")?,
-            webtoon.language(),
         )?;
 
         let number = episode(
@@ -127,35 +128,21 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
             .assumption("`webtoons.com` Webtoon rss feed should should have an `image`, represening the thumbnail of the Webtoon")?
             .url
             .clone(),
-        creators: webtoon.creators().await?,
+        creators: webtoon.creators().await.map_err(|err| match err {
+                WebtoonError::Internal(err) => RssError::from(err),
+                WebtoonError::RequestFailed(err) => RssError::from(err),
+                WebtoonError::NotEnglish => unreachable!(),
+            })?,
         summary: channel.description,
         episodes,
     })
 }
 
-fn published(date: &str, language: Language) -> Result<DateTime<Utc>, Assumption> {
+fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
     assumption!(
         date.ends_with("GMT"),
         "all known rss date formats end with `GMT`"
     );
-
-    #[allow(clippy::match_same_arms)]
-    let fmt = match language {
-        // Tuesday, 10 Sep 2024 16:40:23 GMT
-        Language::En => "%d %b %Y %T",
-        // 星期二, 17 9月 2024 13:01:22 GMT
-        Language::Zh => todo!(), //"%e %m月 %Y %T", NOTE: This works as far as I know but will just focus on English for now.
-        // วันอังคาร, 17 ก.ย. 2024 13:04:59 GMT
-        Language::Th => todo!(), // "%d %b %Y %T",
-        // Selasa, 17 Sep 2024 15:03:59 GMT
-        Language::Id => todo!(), //"%d %b %Y %T",
-        // miércoles, 18 sept. 2024 01:01:48 GMT
-        Language::Es => todo!(), // "%d %b. %Y %T",
-        // mercredi, 18 sept. 2024 14:01:48 GMT
-        Language::Fr => todo!(), //"%d %b. %Y %T",
-        // Mittwoch, 18 Sep. 2024 14:01:20 GMT
-        Language::De => todo!(), //"%d %b. %Y %T",
-    };
 
     let Some(date) = date
         .split_once(',')
@@ -179,11 +166,11 @@ fn published(date: &str, language: Language) -> Result<DateTime<Utc>, Assumption
         "`date` should not end with `GMT` after trimming"
     );
 
-    match NaiveDateTime::parse_from_str(date, fmt) {
+    match NaiveDateTime::parse_from_str(date, "%d %b %Y %T") {
         Ok(date) => Ok(date.and_utc()),
         Err(err) => {
             assumption!(
-                "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format: {err}\n\n`{fmt}`:`{date}`"
+                "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format: {err}\n\n: `{date}`"
             )
         }
     }
@@ -224,49 +211,7 @@ mod test {
 
     #[test]
     fn should_parse_en_rss_date() {
-        let date = published("Tuesday, 10 Sep 2024 16:40:23 GMT", Language::En).unwrap();
+        let date = published("Tuesday, 10 Sep 2024 16:40:23 GMT").unwrap();
         assert_eq!(1725986423, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_zh_rss_date() {
-        let date = published("星期二, 17 9月 2024 13:01:22 GMT", Language::Zh).unwrap();
-        assert_eq!(1726578082, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_th_rss_date() {
-        let date = published("วันอังคาร, 17 ก.ย. 2024 13:04:59 GMT", Language::Th).unwrap();
-        assert_eq!(0, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_id_rss_date() {
-        let date = published("Selasa, 17 Sep 2024 15:03:59 GMT", Language::Id).unwrap();
-        assert_eq!(1726585439, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_es_rss_date() {
-        let date = published("miércoles, 18 sept. 2024 01:01:48 GMT", Language::Es).unwrap();
-        assert_eq!(0, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_fr_rss_date() {
-        let date = published("mercredi, 18 sept. 2024 14:01:48 GMT", Language::Fr).unwrap();
-        assert_eq!(0, date.timestamp());
-    }
-
-    #[test]
-    #[ignore = "todo"]
-    fn should_parse_de_rss_date() {
-        let date = published("Mittwoch, 18 Sep. 2024 14:01:20 GMT", Language::De).unwrap();
-        assert_eq!(1726668080, date.timestamp());
     }
 }

@@ -2,17 +2,14 @@
 
 // mod genres;
 
-use super::{Client, Language, Webtoon, error::OriginalsError};
+use super::{Client, Webtoon, error::OriginalsError};
 use crate::stdx::error::{Assume, assumption};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
 
-pub(super) async fn scrape(
-    client: &Client,
-    language: Language,
-) -> Result<Vec<Webtoon>, OriginalsError> {
+pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsError> {
     // NOTE: Currently all languages follow this pattern.
     // TODO: Add tests for all languages.
     let selector = Selector::parse("ul.webtoon_list>li>a") //
@@ -30,9 +27,10 @@ pub(super) async fn scrape(
     ];
 
     // TODO: `Html` is not `Send`. Could add channels so that `scrape` becomes thread-safe.
-    let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|day| async {
-        Ok::<Html, OriginalsError>(client.originals_page(language, day).await?)
-    }))
+    let documents: Vec<Html> = futures::future::try_join_all(
+        days.iter()
+            .map(|day| async { Ok::<Html, OriginalsError>(client.originals_page(day).await?) }),
+    )
     .await?;
 
     let mut webtoons = Vec::with_capacity(2000);
