@@ -7,9 +7,10 @@ use thiserror::Error;
 pub use _inner::DownloadError;
 
 pub use _inner::{
-    CanvasError, ClientBuilderError, CreatorError, EpisodeError, EpisodesError, Error, LikesError,
-    OriginalsError, PostsError, RssError, SearchError, SessionError, SubscribersError,
-    UserInfoError, ViewsError, WebtoonError,
+    CanvasError, ClientBuilderError, ClientError, CreatorError, CreatorWebtoonsError, EpisodeError,
+    Error, OriginalsError, RssError, SearchError, SessionError, UserInfoError,
+    WebtoonEpisodesError, WebtoonError, WebtoonLikesError, WebtoonPostsError,
+    WebtoonSubscribersError, WebtoonViewsError,
 };
 
 #[derive(Debug, Error)]
@@ -54,59 +55,62 @@ mod _inner {
         || CreatorError
         || WebtoonError
         || EpisodeError
-        || ClientError
+        || RequestError
         || SessionError
-        || PostsError
+        || WebtoonPostsError
+        || ClientError
 
-        OriginalsError := Base || ClientError
+        OriginalsError := Base || RequestError
 
         CanvasError := {
             #[display("range `start` cannot be lower than `end`")]
             InvalidRange,
-        } || Base || ClientError
+        } || Base || RequestError
 
-        SearchError := Base || ClientError
+        SearchError := Base || RequestError
+
+        CreatorWebtoonsError := CreatorError || ClientError
 
         CreatorError := {
-            #[display("`webtoons.com` does not support creator profiles for this language")]
-            UnsupportedLanguage,
             #[display("invalid creator profile")]
             InvalidCreatorProfile,
-        } || Base || ClientError
+        } || Base || RequestError
 
-        WebtoonError := {
-            #[display("only english webtoons are supported")]
-            NotEnglish
-        } || Base || ClientError
+        WebtoonError := Base || RequestError
 
-        RssError :=  Base || ClientError
+        RssError :=  Base || RequestError
 
         EpisodeError := {
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
-        } || Base || ClientError
+        } || Base || RequestError
 
-        PostsError := Base || ClientError || InvalidSession
+        WebtoonPostsError := Base || RequestError || InvalidSession
 
-        LikesError := Base || ClientError
+        WebtoonLikesError := Base || RequestError
 
         // TODO: Need to add `InvalidPermissions` as session provided might be a
         // valid one, but not the one needed for the specific webtoon.
-        EpisodesError :=  Base || ClientError || InvalidSession
-        ViewsError := Base || ClientError || InvalidSession
-        SubscribersError := Base || ClientError || InvalidSession
+        WebtoonEpisodesError :=  Base || RequestError || InvalidSession
+        WebtoonViewsError := Base || RequestError
+        WebtoonSubscribersError := Base || RequestError
 
-        SessionError :=  Base || ClientError || NoSessionProvided || InvalidSession
+        SessionError :=  Base || RequestError || NoSessionProvided || InvalidSession
 
-        UserInfoError := Base || ClientError
+        UserInfoError := Base || RequestError
 
         ClientBuilderError := {
             BuildFailed,
         }
 
+        ClientError := {
+            #[display("only the english `webtoons.com` is supported")]
+            UnsupportedLanguage
+        } || Base || RequestError
+
         DownloadError := {
             IoError(std::io::Error),
-        } || Base || ClientError
+        } || Base || RequestError
 
         // --- Internal ---
 
@@ -125,12 +129,60 @@ mod _inner {
             InvalidPermissions,
         }
 
-        ClientError := {
+        RequestError := {
             RequestFailed(super::RequestError),
         }
 
         Base := {
             Internal(Assumption),
+        }
+    }
+
+    impl From<SessionError> for WebtoonViewsError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
+        }
+    }
+
+    impl From<SessionError> for WebtoonSubscribersError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
+        }
+    }
+
+    impl From<SessionError> for WebtoonEpisodesError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
         }
     }
 }

@@ -2,7 +2,7 @@
 
 use super::{Client, Webtoon, error::CreatorError};
 use crate::{
-    platform::webtoons::error::WebtoonError,
+    platform::webtoons::error::{ClientError, CreatorWebtoonsError},
     stdx::{
         cache::{Cache, Store},
         error::{Assume, AssumeFor, Assumption, assumption},
@@ -268,35 +268,24 @@ impl Creator {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
-        let Some(id) = self.id().await? else {
+    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorWebtoonsError> {
+        let creator = self;
+
+        let Some(id) = creator.id().await? else {
             return Ok(None);
         };
 
-        let response = self
-            .client
-            .creator_webtoons(&id)
-            .await
-            .map_err(|err| match err {
-                WebtoonError::Internal(err) => CreatorError::from(err),
-                WebtoonError::RequestFailed(err) => CreatorError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
-            })?;
+        let response = creator.client.fetch_creator_webtoons(&id).await?;
 
         let webtoons =
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
-                let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &self.client).await {
+                let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &creator.client).await {
                     Ok(Some(webtoon)) => webtoon,
                     Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
                     Err(err) => return Err(err),
                 };
-
-                Ok::<Webtoon, WebtoonError>(webtoon)
-            })).await.map_err(|err| match err {
-                WebtoonError::Internal(err) => CreatorError::from(err),
-                WebtoonError::RequestFailed(err) => CreatorError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
-            })?;
+                Ok::<Webtoon, ClientError>(webtoon)
+            })).await?;
 
         Ok(Some(webtoons))
     }

@@ -131,7 +131,6 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
         creators: webtoon.creators().await.map_err(|err| match err {
                 WebtoonError::Internal(err) => RssError::from(err),
                 WebtoonError::RequestFailed(err) => RssError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
             })?,
         summary: channel.description,
         episodes,

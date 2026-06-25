@@ -2,7 +2,7 @@
 
 use crate::{
     platform::webtoons::{
-        error::PostsError,
+        error::WebtoonPostsError,
         webtoon::{
             episode::Episode,
             post::{Body, Flare, Giphy, Post, Poster, Reaction, Sticker, id::Id},
@@ -259,7 +259,7 @@ pub struct CountResult {
 }
 
 impl TryFrom<(&Episode, RawPost)> for Post {
-    type Error = PostsError;
+    type Error = WebtoonPostsError;
 
     #[allow(clippy::too_many_lines)]
     fn try_from((episode, post): (&Episode, RawPost)) -> Result<Self, Self::Error> {

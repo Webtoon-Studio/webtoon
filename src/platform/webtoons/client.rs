@@ -9,8 +9,7 @@ use super::{
     Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
-    error::{CanvasError, CreatorError, OriginalsError, SearchError, WebtoonError},
-    meta::Scope,
+    error::{CanvasError, CreatorError, OriginalsError, SearchError},
     originals::{self},
     webtoon::{episode::Episode, post::Post},
 };
@@ -25,11 +24,14 @@ use crate::{
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
-            ClientBuilderError, EpisodeError, InvalidWebtoonUrl, LikesError, PostsError,
-            RequestError, SessionError, UserInfoError,
+            ClientBuilderError, ClientError, CreatorWebtoonsError, EpisodeError, InvalidWebtoonUrl,
+            RequestError, SessionError, UserInfoError, WebtoonLikesError, WebtoonPostsError,
         },
         search::Item,
-        webtoon::post::{PinRepresentation, id::Id},
+        webtoon::{
+            Scope,
+            post::{PinRepresentation, id::Id},
+        },
     },
     stdx::{
         cache::Cache,
@@ -306,7 +308,6 @@ impl Client {
     /// match client.creator("w7m5o").await {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
-    ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
     /// # Ok(())
@@ -650,16 +651,14 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(95, Type::Original).await?.expect("`95` exists");
     ///
     /// assert_eq!("Tower of God", webtoon.title().await?);
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, WebtoonError> {
+    pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, ClientError> {
         Webtoon::new_with_client(id, r#type, self).await
     }
 
@@ -878,10 +877,10 @@ impl Client {
         Ok(Some(html))
     }
 
-    pub(super) async fn creator_webtoons(
+    pub(super) async fn fetch_creator_webtoons(
         &self,
         profile: &str,
-    ) -> Result<CreatorWebtoons, WebtoonError> {
+    ) -> Result<CreatorWebtoons, CreatorWebtoonsError> {
         let url = format!(
             "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language=ENGLISH"
         );
@@ -902,7 +901,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn webtoon_page(
+    pub(super) async fn fetch_webtoon_homepage(
         &self,
         webtoon: &Webtoon,
         page: Option<u16>,
@@ -1064,7 +1063,7 @@ impl Client {
     pub(super) async fn episodes_likes(
         &self,
         episode: &Episode,
-    ) -> Result<RawLikesResponse, LikesError> {
+    ) -> Result<RawLikesResponse, WebtoonLikesError> {
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1101,7 +1100,7 @@ impl Client {
         cursor: Option<Id>,
         stride: u8,
         pin_representation: PinRepresentation,
-    ) -> Result<RawPostResponse, PostsError> {
+    ) -> Result<RawPostResponse, WebtoonPostsError> {
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1127,7 +1126,7 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::InvalidSession) => return Err(WebtoonPostsError::InvalidSession),
             Err(SessionError::Internal(err)) => return Err(err.into()),
             Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
@@ -1180,7 +1179,7 @@ impl Client {
     pub(super) async fn post_upvotes_and_downvotes(
         &self,
         post: &Post,
-    ) -> Result<Count, PostsError> {
+    ) -> Result<Count, WebtoonPostsError> {
         let scope = match post.episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1200,7 +1199,7 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::InvalidSession) => return Err(WebtoonPostsError::InvalidSession),
             Err(SessionError::Internal(err)) => return Err(err.into()),
             Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
@@ -1228,7 +1227,7 @@ impl Client {
         post: &Post,
         cursor: Option<Id>,
         stride: u8,
-    ) -> Result<RawPostResponse, PostsError> {
+    ) -> Result<RawPostResponse, WebtoonPostsError> {
         let id = post.id;
 
         let cursor = cursor.map_or_else(String::new, |id| id.to_string());
@@ -1243,7 +1242,7 @@ impl Client {
                 .get(&url)
                 .header("Cookie", format!("NEO_SES={session}")),
             Err(SessionError::NoSessionProvided) => self.http.get(&url),
-            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
+            Err(SessionError::InvalidSession) => return Err(WebtoonPostsError::InvalidSession),
             Err(SessionError::Internal(err)) => return Err(err.into()),
             Err(SessionError::RequestFailed(err)) => return Err(err.into()),
         };
@@ -1266,12 +1265,11 @@ impl Client {
         }
     }
 
-    pub(super) async fn user_info(
+    pub(super) async fn fetch_webtoon_user_info(
         &self,
+        session: ValidSession,
         webtoon: &Webtoon,
-    ) -> Result<WebtoonUserInfo, SessionError> {
-        let session = self.session.validate(self).await?;
-
+    ) -> Result<WebtoonUserInfo, UserInfoError> {
         let id = webtoon.id;
 
         let url = match webtoon.r#type() {

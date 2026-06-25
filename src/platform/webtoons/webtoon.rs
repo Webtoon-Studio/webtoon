@@ -1,5 +1,4 @@
-//! Represents an abstraction for a Webtoon on `webtoons.com`.
-
+//! A Webtoon on `webtoons.com` and its associated operations.
 mod homepage;
 
 pub mod episode;
@@ -11,27 +10,24 @@ pub mod rss;
 use crate::platform::webtoons::error::RssError;
 #[cfg(feature = "rss")]
 use rss::Rss;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
-use self::{
-    episode::{Episode, Episodes},
-    homepage::Page,
-};
-use super::Type;
+use self::{episode::Episode, homepage::Homepage};
 use super::error::WebtoonError;
-use super::meta::{Genre, Scope};
 use super::originals::Schedule;
 use super::{Client, creator::Creator};
 use crate::{
     platform::webtoons::{
         error::{
-            EpisodesError, InvalidWebtoonUrl, LikesError, PostsError, RequestError, SessionError,
-            SubscribersError, ViewsError,
+            ClientError, InvalidWebtoonUrl, RequestError, SessionError, WebtoonEpisodesError,
+            WebtoonLikesError, WebtoonPostsError, WebtoonSubscribersError, WebtoonViewsError,
         },
         webtoon::post::Comment,
     },
     stdx::{
         cache::{Cache, Store},
-        error::{Assume, AssumeFor, assumption},
+        error::Assume,
         http::IRetry,
     },
 };
@@ -39,14 +35,12 @@ use core::fmt::{self, Debug};
 use std::str::FromStr;
 use std::sync::Arc;
 
-/// Represents a Webtoon from `webtoons.com`.
+/// A Webtoon from `webtoons.com`.
 ///
-/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`].
+/// Obtained through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`];
+/// not constructed directly. Abstracts over both [`Type::Original`] and [`Type::Canvas`] webtoons.
 ///
-/// This abstracts over the sections a Webtoon may be in, such as the `originals` or `canvas` sections. Relevant capabilities
-/// are exposed, with methods taking missing features that may not exists across all sections into account.
-///
-/// Read the method documentation for more info.
+/// See the method documentation for available operations.
 #[derive(Clone)]
 pub struct Webtoon {
     pub(super) client: Client,
@@ -55,8 +49,8 @@ pub struct Webtoon {
     pub(super) scope: Scope,
     /// URL slug of the Webtoon name: Tower of God -> tower-of-god
     pub(super) slug: Arc<str>,
-    /// Cache for data on the Webtoon homepage: title, etc.
-    pub(super) page: Cache<Page>,
+    /// Cache for data on the Webtoon homepage: title, summary, etc.
+    pub(super) homepage: Cache<Homepage>,
 }
 
 impl Debug for Webtoon {
@@ -66,7 +60,7 @@ impl Debug for Webtoon {
             id,
             scope,
             slug,
-            page,
+            homepage: page,
         } = self;
 
         f.debug_struct("Webtoon")
@@ -78,20 +72,17 @@ impl Debug for Webtoon {
     }
 }
 
+impl Eq for Webtoon {}
 impl PartialEq for Webtoon {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for Webtoon {}
-
 impl Webtoon {
     /// Returns the id of this `Webtoon`.
     ///
-    /// This corresponds to the `title_no` query: `https://www.webtoons.com/en/fantasy/osora/list?title_no=6202`
-    ///
-    /// Most often this will be what was just passed in directly.
+    /// This corresponds to the `title_no` query parameter: `https://www.webtoons.com/en/fantasy/osora/list?title_no=6202`
     ///
     /// # Example
     ///
@@ -101,9 +92,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6202, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6202, Type::Original).await?.expect("`6202` exists");
     ///
     /// assert_eq!(6202, webtoon.id());
     /// # Ok(())
@@ -112,7 +101,8 @@ impl Webtoon {
     #[inline]
     #[must_use]
     pub fn id(&self) -> u32 {
-        self.id
+        let webtoon = self;
+        webtoon.id
     }
 
     /// Returns the type of this `Webtoon`: [`Original`](variant@Type::Original) or [`Canvas`](variant@Type::Canvas).
@@ -138,7 +128,8 @@ impl Webtoon {
     #[inline]
     #[must_use]
     pub fn r#type(&self) -> Type {
-        match self.scope {
+        let webtoon = self;
+        match webtoon.scope {
             Scope::Original(_) => Type::Original,
             Scope::Canvas => Type::Canvas,
         }
@@ -154,9 +145,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6880, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6880, Type::Original).await?.expect("`6880` exists");
     ///
     /// assert!(webtoon.is_original());
     /// # Ok(())
@@ -165,7 +154,8 @@ impl Webtoon {
     #[inline]
     #[must_use]
     pub fn is_original(&self) -> bool {
-        self.r#type() == Type::Original
+        let webtoon = self;
+        matches!(webtoon.r#type(), Type::Original)
     }
 
     /// Returns if `Webtoon` is a [`Canvas`](variant@Type::Canvas) type.
@@ -178,9 +168,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(991073, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(991073, Type::Canvas).await?.expect("`991073` exists");
     ///
     /// assert!(webtoon.is_canvas());
     /// # Ok(())
@@ -189,7 +177,8 @@ impl Webtoon {
     #[inline]
     #[must_use]
     pub fn is_canvas(&self) -> bool {
-        self.r#type() == Type::Canvas
+        let webtoon = self;
+        matches!(webtoon.r#type(), Type::Canvas)
     }
 
     /// Returns the title of this `Webtoon`.
@@ -202,93 +191,93 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6880, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6880, Type::Original).await?.expect("`6880` exists");
     ///
     /// assert_eq!("I Became a Level 999 Demon Queen", webtoon.title().await?);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn title(&self) -> Result<String, WebtoonError> {
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.title().to_string())
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let title = page.title().to_owned();
-            self.page.insert(page);
-
-            Ok(title)
+        let webtoon = self;
+        match webtoon.homepage.get() {
+            Store::Value(page) => Ok(page.title().to_owned()),
+            Store::Empty => {
+                let homepage = homepage::scrape(webtoon).await?;
+                let title = homepage.title().to_owned();
+                webtoon.homepage.insert(homepage);
+                Ok(title)
+            }
         }
     }
 
-    /// Returns a list of [`Creator`] for this `Webtoon`.
+    /// Returns the [`Creator`]'s' for this `Webtoon`.
+    ///
+    /// [`Canvas`] webtoon's always have exactly one creator.
     ///
     /// # Example
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(794611, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(794611, Type::Canvas).await?.expect("`794611` exists");
     ///
     /// let creators = webtoon.creators().await?;
     ///
-    /// assert!(creators.len() == 1);
-    /// assert_eq!("AlmightyConurbano", creators[0].username());
+    /// assert_matches!(creators.as_slice(), [creator] if creator.username() == "AlmightyConurbano");
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn creators(&self) -> Result<Vec<Creator>, WebtoonError> {
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.creators().to_vec())
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let creators = page.creators().to_vec();
-            self.page.insert(page);
-
-            Ok(creators)
+        let webtoon = self;
+        match webtoon.homepage.get() {
+            Store::Value(page) => Ok(page.creators().to_vec()),
+            Store::Empty => {
+                let page = homepage::scrape(webtoon).await?;
+                let creators = page.creators().to_vec();
+                webtoon.homepage.insert(page);
+                Ok(creators)
+            }
         }
     }
 
-    /// Returns a list of [`Genre`] for this `Webtoon`.
+    /// Returns the [`Genre`]'s for this [`Webtoon`].
+    ///
+    /// [`Original`](variant@Type::Original) webtoons have exactly one; [`Canvas`](variant@Type::Canvas) webtoons have one or two.
     ///
     /// # Example
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, meta::Genre, Client};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1039653, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1039653, Type::Canvas).await?.expect("`1039653` exists");
     ///
     /// let genres = webtoon.genres().await?;
     ///
-    /// assert!(genres.len() == 2);
-    /// assert_eq!(Genre::Action, genres[0]);
-    /// assert_eq!(Genre::Fantasy, genres[1]);
+    /// assert_matches!(genres.as_slice(), [action, fantasy] if action == &Genre::Action && fantasy == &Genre::Fantasy);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn genres(&self) -> Result<Vec<Genre>, WebtoonError> {
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.genres().to_vec())
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let genres = page.genres().to_vec();
-            self.page.insert(page);
-
-            Ok(genres)
+        let webtoon = self;
+        match webtoon.homepage.get() {
+            Store::Value(page) => Ok(page.genres().to_vec()),
+            Store::Empty => {
+                let page = homepage::scrape(webtoon).await?;
+                let genres = page.genres().to_vec();
+                webtoon.homepage.insert(page);
+                Ok(genres)
+            }
         }
     }
 
@@ -302,37 +291,31 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(95, Type::Original).await?.expect("`95` exists");
     ///
     /// assert_eq!("What do you desire? Money and wealth? Honor and pride? Authority and power? Revenge? Or something that transcends them all? Whatever you desire—it's here.", webtoon.summary().await?);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn summary(&self) -> Result<String, WebtoonError> {
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.summary().to_owned())
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let summary = page.summary().to_owned();
-            self.page.insert(page);
-
-            Ok(summary)
+        let webtoon = self;
+        match webtoon.homepage.get() {
+            Store::Value(page) => Ok(page.summary().to_owned()),
+            Store::Empty => {
+                let page = homepage::scrape(webtoon).await?;
+                let summary = page.summary().to_owned();
+                webtoon.homepage.insert(page);
+                Ok(summary)
+            }
         }
     }
 
-    /// Retrieves the total number of views for this `Webtoon`.
+    /// Returns the total number of views for this [`Webtoon`].
     ///
-    /// # Behavior
-    /// The method determines the total views based on whether the current session belongs to the creator of the Webtoon:
-    ///
-    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the view count from the Webtoon's main page. This value may be rounded (e.g., `3,800,000`).
-    /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method fetches more detailed episode-by-episode view counts and sums them to return a more accurate total view count (e.g., `3,804,237` instead of `3,800,000`).
-    ///
-    /// **ONLY ENGLISH DASHBOARD SUPPORTED**
-    /// - Even if valid session is provided for the Webtoon Creator, only the public data on the Webtoon's page will be gotten.
+    /// For [`Canvas`] webtoons where [`Client::with_session()`] was used and the session belongs
+    /// to the webtoon's creator, the total is summed from the analytics dashboard. Otherwise, the
+    /// value is scraped from the webtoon's homepage and may be truncated.
     ///
     /// # Example
     ///
@@ -342,73 +325,57 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1320, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1320, Type::Original).await?.expect("`1320` exists");
     ///
+    /// // `Original` webtoons always use the homepage value, which may be truncated.
     /// assert_eq!(1_400_000_000, webtoon.views().await?);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn views(&self) -> Result<u64, ViewsError> {
-        match self.client.user_info(self).await {
-            Ok(user) if user.is_webtoon_creator() => {
-                // TODO: When this also returns `InvalidPermissions`, then need to update docs to explain
-                // what happens when a session is valid, but the session is not connected to the webtoon.
-                let episodes = match super::dashboard::episodes::scrape(self).await {
-                    Ok(episodes) => episodes,
-                    Err(SessionError::Internal(err)) => return Err(err.into()),
-                    Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-                    Err(SessionError::InvalidSession) => return Err(ViewsError::InvalidSession),
-                    Err(SessionError::NoSessionProvided) => assumption!(
-                        "`user_info` should have taken the `Err(SessionError::NoSessionProvided)` branch already, never entering this `Ok` branch"
-                    ),
-                };
+    #[inline]
+    pub async fn views(&self) -> Result<u64, WebtoonViewsError> {
+        let webtoon = self;
+        let client = &self.client;
 
-                let views = episodes
-                    .iter()
-                    .filter_map(|episode| episode.views.map(u64::from))
-                    .sum::<u64>();
+        match webtoon.r#type() {
+            Type::Canvas
+                if let session = client.session.validate(client).await
+                    // A missing or invalid session falls back to the homepage scrape below.
+                    && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
+                    && let valid_session = session?
+                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && user.is_webtoon_creator() =>
+            {
+                // let episodes = dashboard::episodes::scrape(webtoon).await?;
 
-                return Ok(views);
+                // let views = episodes
+                //     .iter()
+                //     .filter_map(|episode| episode.views.map(u64::from))
+                //     .sum::<u64>();
+
+                // Ok(views)
+
+                todo!()
             }
-            // Fallback to public data
-            Ok(_) | Err(SessionError::NoSessionProvided) => {}
-            Err(SessionError::InvalidSession) => return Err(ViewsError::InvalidSession),
-            Err(SessionError::Internal(err)) => return Err(err.into()),
-            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.views())
-        } else {
-            let page = match homepage::scrape(self).await {
-                Ok(page) => page,
-                Err(WebtoonError::Internal(err)) => return Err(ViewsError::from(err)),
-                Err(WebtoonError::RequestFailed(err)) => return Err(ViewsError::from(err)),
-                Err(WebtoonError::NotEnglish) => unreachable!(),
-            };
-
-            let views = page.views();
-            self.page.insert(page);
-
-            Ok(views)
+            Type::Original | Type::Canvas => match webtoon.homepage.get() {
+                Store::Value(homepage) => Ok(homepage.views()),
+                Store::Empty => {
+                    let homepage = homepage::scrape(webtoon).await?;
+                    let views = homepage.views();
+                    webtoon.homepage.insert(homepage);
+                    Ok(views)
+                }
+            },
         }
     }
 
-    /// Retrieves the total number of subscribers for this `Webtoon`.
+    /// Returns the total number of subscribers for this [`Webtoon`].
     ///
+    /// For [`Canvas`] webtoons where [`Client::with_session()`] was used and the session belongs
+    /// to the webtoon's creator, the count is retrieved from the creator's stats dashboard.
+    /// Otherwise, the value is scraped from the webtoon's homepage and may be rounded.
     ///
-    /// # Behavior
-    /// The method determines the subscriber count based on whether the current session belongs to the creator of the webtoon:
-    ///
-    /// - **Without Creator Session**: If the current session does not belong to the webtoon creator, or if no session is available, this method returns the subscriber count from the webtoon's main page. This count may be less precise, as it can be a rounded number.
-    /// - **With Creator Session**: If the session belongs to the creator of the webtoon, this method retrieves subscriber statistics directly from the creator's stats dashboard, providing a more accurate and up-to-date count of subscribers.
-    ///
-    /// **ONLY ENGLISH DASHBOARDS SUPPORTED**
-    /// - If you use with a non-english webtoon, even with a valid session provided that is of the owner of the webtoon it will get the public facing page data.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
@@ -416,155 +383,124 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1436, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1436, Type::Original).await?.expect("`1436` exists");
     ///
+    /// // `Original` webtoons always use the homepage value, which may be truncated.
     /// assert_eq!(7_500_000, webtoon.subscribers().await?);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn subscribers(&self) -> Result<u32, SubscribersError> {
-        match self.client.user_info(self).await {
-            Ok(user) if user.is_webtoon_creator() => {
-                // TODO: Need to do the same for this as views, as a session could be valid, but not for this Webtoon.
-                let stats = match super::dashboard::statistics::scrape(self).await {
-                    Ok(stats) => stats,
-                    Err(SessionError::Internal(err)) => return Err(err.into()),
-                    Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-                    Err(SessionError::InvalidSession) => {
-                        return Err(SubscribersError::InvalidSession);
-                    }
-                    Err(SessionError::NoSessionProvided) => assumption!(
-                        "`user_info` should have taken the `Err(SessionError::NoSessionProvided)` branch already, never entering this `Ok` branch"
-                    ),
-                };
+    #[inline]
+    pub async fn subscribers(&self) -> Result<u32, WebtoonSubscribersError> {
+        let webtoon = self;
+        let client = &self.client;
 
-                let subscribers = stats.subscribers;
-
-                return Ok(subscribers);
+        match webtoon.r#type() {
+            Type::Canvas
+                if let session = client.session.validate(client).await
+                    // A missing or invalid session falls back to the homepage scrape below.
+                    && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
+                    && let valid_session = session?
+                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && user.is_webtoon_creator() =>
+            {
+                todo!()
             }
-            // Fallback to public data
-            Ok(_) | Err(SessionError::NoSessionProvided) => {}
-            Err(SessionError::InvalidSession) => return Err(SubscribersError::InvalidSession),
-            Err(SessionError::Internal(err)) => return Err(err.into()),
-            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.subscribers())
-        } else {
-            let page = match homepage::scrape(self).await {
-                Ok(page) => page,
-                Err(WebtoonError::Internal(err)) => return Err(SubscribersError::from(err)),
-                Err(WebtoonError::RequestFailed(err)) => return Err(SubscribersError::from(err)),
-                Err(WebtoonError::NotEnglish) => unreachable!(),
-            };
-
-            let subscribers = page.subscribers();
-            self.page.insert(page);
-
-            Ok(subscribers)
+            Type::Original | Type::Canvas => match webtoon.homepage.get() {
+                Store::Value(homepage) => Ok(homepage.subscribers()),
+                Store::Empty => {
+                    let homepage = homepage::scrape(webtoon).await?;
+                    let subscribers = homepage.subscribers();
+                    webtoon.homepage.insert(homepage);
+                    Ok(subscribers)
+                }
+            },
         }
     }
 
-    /// Returns the thumbnail `url` for this `Webtoon`.
+    /// Returns the thumbnail URL for this [`Webtoon`], if any.
     ///
-    /// If `Webtoon` is an [`Original`](variant@Type::Original), this will return `None`.
+    /// [`Original`](variant@Type::Original) webtoons always return `None`, as `webtoons.com`
+    /// no longer exposes thumbnails for them.
     ///
     /// # Example
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(19985, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(19985, Type::Canvas).await?.expect("`19985` exists");
+    /// assert_matches!(webtoon.thumbnail().await?, Some(url) if url.starts_with("https://swebtoon-phinf.pstatic.net"));
     ///
-    /// if let Some(thumbnail) = webtoon.thumbnail().await? {
-    ///     println!("thumbnail for {} can be found here {thumbnail}", webtoon.title().await?);
-    ///     # return Ok(());
-    /// }
-    ///
-    /// # unreachable!("should have entered the thumbail block");
+    /// let webtoon = client.webtoon(4937, Type::Original).await?.expect("`4937` exists");
+    /// assert_matches!(webtoon.thumbnail().await?, None);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn thumbnail(&self) -> Result<Option<String>, WebtoonError> {
-        if self.is_original() {
-            return Ok(None);
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.thumbnail().map(|thumbnail| thumbnail.to_string()))
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let thumbnail = page.thumbnail().map(|thumbnail| thumbnail.to_string());
-            self.page.insert(page);
-
-            Ok(thumbnail)
+        let webtoon = self;
+        match webtoon.r#type() {
+            // WHY: `webtoons.com` removed Originals' thumbnails on their homepages.
+            Type::Original => Ok(None),
+            Type::Canvas => match webtoon.homepage.get() {
+                Store::Value(homepage) => Ok(homepage.thumbnail().map(ToOwned::to_owned)),
+                Store::Empty => {
+                    let homepage = homepage::scrape(webtoon).await?;
+                    let thumbnail = homepage.thumbnail().map(ToOwned::to_owned);
+                    webtoon.homepage.insert(homepage);
+                    Ok(thumbnail)
+                }
+            },
         }
     }
 
-    /// Retrieves the release schedule for this `Webtoon`.
+    /// Returns the release schedule for this [`Webtoon`], if any.
     ///
-    /// # Behavior
-    ///
-    /// - **Original Webtoons**: If the webtoon is an Original series, this method fetches the release schedule and returns it as a `Some(Schedule)`. The release schedule contains information about upcoming or regular episode drops.
-    /// - **Canvas Webtoons**: If the webtoon is part of the Canvas section, there is no official release schedule, and this method will return `None` and cannot fail.
+    /// [`Canvas`] webtoons have no release schedule and always return `None`. [`Original`]
+    /// webtoons return `Some(Schedule)` with the episode drop cadence.
     ///
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Type, originals::Schedule, error::Error};
+    /// # use webtoon::platform::webtoons::{Client, Type, originals::{Schedule, Weekday}, error::Error};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(843910, Type::Canvas).await?.expect("`843910` exists");
+    /// assert_matches!(webtoon.schedule().await?, None);
     ///
-    /// match webtoon.schedule().await? {
-    ///     Some(Schedule::Weekday(weekday)) => println!("Webtoon releases on `{weekday:?}`"),
-    ///     Some(Schedule::Daily) => println!("Webtoon releases daily"),
-    ///     Some(Schedule::Completed) => println!("Webtoon is completed"),
-    ///     Some(Schedule::Weekdays(weekdays)) => {
-    ///        print!("Webtoon releases on ");
-    ///        for day in weekdays {
-    ///            print!("{day:?}");
-    ///        }
-    ///        println!();
-    ///     }
-    ///     None => println!("This webtoon does not have a release schedule (Canvas)."),
-    /// }
+    /// let webtoon = client.webtoon(10201, Type::Original).await?.expect("`10201` exists");
+    /// assert_matches!(webtoon.schedule().await?, Some(Schedule::Weekday(Weekday::Thursday)));
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn schedule(&self) -> Result<Option<Schedule>, WebtoonError> {
-        if self.is_canvas() {
-            return Ok(None);
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.schedule().cloned())
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let release = page.schedule().cloned();
-            self.page.insert(page);
-
-            Ok(release)
+        let webtoon = self;
+        match webtoon.r#type() {
+            // WHY: Canvas Webtoons do not have any schedule section on their homepages.
+            Type::Canvas => Ok(None),
+            Type::Original => match webtoon.homepage.get() {
+                Store::Value(page) => Ok(page.schedule().cloned()),
+                Store::Empty => {
+                    let page = homepage::scrape(webtoon).await?;
+                    let release = page.schedule().cloned();
+                    webtoon.homepage.insert(page);
+                    Ok(release)
+                }
+            },
         }
     }
 
-    /// Returns if `Webtoon` is completed.
+    /// Returns `true` if this [`Webtoon`] has completed its run.
     ///
-    /// Canvas stories always return `false` and cannot fail.
+    /// [`Canvas`] webtoons have no completion state and always return `false` without failing.
     ///
     /// # Example
     ///
@@ -574,99 +510,84 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(93, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
+    /// let webtoon = client.webtoon(93, Type::Original).await?.expect("`95` exists");
     /// assert!(webtoon.is_completed().await?);
+    ///
+    /// let webtoon = client.webtoon(1132214, Type::Canvas).await?.expect("`1132214` exists");
+    /// assert!(!webtoon.is_completed().await.expect("call cannot fail for Canvas Webtoons"));
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn is_completed(&self) -> Result<bool, WebtoonError> {
-        if self.is_canvas() {
-            return Ok(false);
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.schedule() == Some(&Schedule::Completed))
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let is_completed = page
-                .schedule()
-                .is_some_and(|schedule| *schedule == Schedule::Completed);
-
-            self.page.insert(page);
-
-            Ok(is_completed)
+        let webtoon = self;
+        match webtoon.r#type() {
+            // WHY: Canvas stories don't have the ability to indicate whether they are completed or not.
+            Type::Canvas => Ok(false),
+            Type::Original => match webtoon.homepage.get() {
+                Store::Value(homepage) => {
+                    Ok(matches!(homepage.schedule(), Some(Schedule::Completed)))
+                }
+                Store::Empty => {
+                    let homepage = homepage::scrape(webtoon).await?;
+                    let is_completed = matches!(homepage.schedule(), Some(Schedule::Completed));
+                    webtoon.homepage.insert(homepage);
+                    Ok(is_completed)
+                }
+            },
         }
     }
 
-    /// Retrieves the banner image URL for this `Webtoon`.
+    /// Returns the banner image URL for this [`Webtoon`], if any.
     ///
-    /// # Behavior
-    ///
-    /// - **Original Webtoons**: If the webtoon is an Original series, this method returns the URL of the banner image, which is typically displayed at the top of the webtoon's main page.
-    /// - **Canvas Webtoons**: Canvas webtoons do not have banner images, so the method will return `None` if the webtoon is in the Canvas section and cannot fail.
+    /// [`Canvas`] webtoons have no banner image and always return `None` without failing.
     ///
     /// # Example
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(3349, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(3349, Type::Original).await?.expect("`3349` exists");
+    /// assert_matches!(webtoon.banner().await?, Some(url) if url.starts_with("https://swebtoon-phinf.pstatic.net"));
     ///
-    /// println!("banner for {} can be found here {:?}", webtoon.title().await?, webtoon.banner().await?);
+    /// let webtoon = client.webtoon(1064573, Type::Canvas).await?.expect("`1064573` exists");
+    /// assert_matches!(webtoon.banner().await.expect("call cannot fail for Canvas Webtoons"), None);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn banner(&self) -> Result<Option<String>, WebtoonError> {
-        if self.is_canvas() {
-            return Ok(None);
-        }
-
-        if let Store::Value(page) = self.page.get() {
-            Ok(page.banner().map(|banner| banner.to_owned()))
-        } else {
-            let page = homepage::scrape(self).await?;
-
-            let release = page.banner().map(|release| release.to_owned());
-            self.page.insert(page);
-
-            Ok(release)
+        let webtoon = self;
+        match webtoon.r#type() {
+            // WHY: Canvas Webtoons do not have any Banner available to them.
+            Type::Canvas => Ok(None),
+            Type::Original => match webtoon.homepage.get() {
+                Store::Value(homepage) => Ok(homepage.banner().map(ToOwned::to_owned)),
+                Store::Empty => {
+                    let homepage = homepage::scrape(webtoon).await?;
+                    let release = homepage.banner().map(ToOwned::to_owned);
+                    webtoon.homepage.insert(homepage);
+                    Ok(release)
+                }
+            },
         }
     }
 
-    /// Retrieves all episodes for the current `Webtoon`.
+    // TODO: Docs still need some work as exact semantics are worked out.
+    /// Returns all episodes for this [`Webtoon`].
     ///
-    /// The method's behavior depends on whether the user (of the session) is the creator of the webtoon or a regular
-    /// viewer (i.e., a session is provided or not, and if the session user is a creator for the webtoon).
+    /// There is no guarantee to order.
     ///
-    /// **ONLY ENGLISH DASHBOARD SUPPORTED**
-    /// - Even if valid session is provided for the webtoon creator, only the public data will be gotten.
+    /// If [`Client::with_session()`] was used and the session belongs to the webtoon's creator,
+    /// episodes are scraped from the dashboard and include drafts, paywalled episodes, view counts
+    /// via [`Episode::views()`], and exact publication timestamps via [`Episode::published()`].
     ///
-    /// The episodes are returned in descending order.
-    ///
-    /// # Behavior
-    ///
-    /// - **For Creators**:
-    ///     - If the session belongs to the creator of the webtoon, the method will scrape the episode dashboard. This includes:
-    ///         - All episodes, including drafts.
-    ///         - Episodes behind fast-pass or ad walls.
-    ///         - Access to additional episode metadata, such as view counts (`Episode::views()` will return `Some(u32)` for episodes retrieved via the dashboard).
-    ///         - Fully accurate publication times (`Episode::published()` will return the exact timestamp of the episode's release).
-    ///
-    /// - **For Regular Users**:
-    ///     - If the session is not provided or the user is not the creator of the webtoon, the method will scrape the publicly available episodes:
-    ///         - Only episodes that are publicly visible on the webtoon's main page will be retrieved.
-    ///         - Episodes behind fast-pass or ad walls will not be included.
-    ///         - View counts (`Episode::views()`) will return `None` for episodes retrieved from the main page as the information is unavailable.
-    ///         - The publication time (`Episode::published()`) will return `Some(i64)` but the time will always be set to `2:00 AM UTC` on the episode's published date.
+    /// Otherwise, only publicly visible episodes are returned and [`Episode::views()`] will return
+    /// `None`.
     ///
     /// # Example
     ///
@@ -676,122 +597,66 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1018, Type::Original).await?.expect("`1018` exists");
     ///
     /// let episodes = webtoon.episodes().await?;
     ///
-    /// assert_eq!(25, episodes.count());
-    ///
-    /// for episode in episodes {
-    ///     println!("title: {}", episode.title().await?);
-    /// }
+    /// assert_eq!(25, episodes.len());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn episodes(&self) -> Result<Episodes, EpisodesError> {
-        let episodes = match self.client.user_info(self).await {
-            Ok(user) if user.is_webtoon_creator() => {
-                // TODO: Same as for views and subscribes, a session could be valid, but they are not the
-                // creator of this specific Webtoon. Need to add an `InvalidPermissions` error variant.
-                match super::dashboard::episodes::scrape(self).await {
-                    Ok(episodes) => episodes,
-                    Err(SessionError::InvalidSession) => return Err(EpisodesError::InvalidSession),
-                    Err(SessionError::RequestFailed(err)) => {
-                        return Err(EpisodesError::RequestFailed(err));
-                    }
-                    Err(SessionError::Internal(err)) => return Err(EpisodesError::Internal(err)),
-                    Err(SessionError::NoSessionProvided) => assumption!(
-                        "if there is no session, `user_info` should enter the Err(SessionError::NoSessionProvided) branch"
-                    ),
-                }
-            }
-            // Fallback to public data
-            Ok(_) | Err(SessionError::NoSessionProvided) => match homepage::episodes(self).await {
-                Ok(episodes) => episodes,
-                Err(WebtoonError::Internal(err)) => return Err(EpisodesError::from(err)),
-                Err(WebtoonError::RequestFailed(err)) => return Err(EpisodesError::from(err)),
-                Err(WebtoonError::NotEnglish) => unreachable!(),
-            },
-            Err(SessionError::InvalidSession) => return Err(EpisodesError::InvalidSession),
-            Err(SessionError::RequestFailed(err)) => {
-                return Err(EpisodesError::RequestFailed(err));
-            }
-            Err(SessionError::Internal(err)) => return Err(EpisodesError::Internal(err)),
-        };
+    #[inline]
+    pub async fn episodes(&self) -> Result<Vec<Episode>, WebtoonEpisodesError> {
+        let webtoon = self;
+        let client = &self.client;
 
-        let count = u16::try_from(episodes.len())
-            .assumption("all webtoons on `webtoons.com` should never have more than 65,535 episodes; this post-condition should have been caught before this point!")?;
-
-        Ok(Episodes { count, episodes })
+        match webtoon.r#type() {
+            Type::Canvas
+                if let session = client.session.validate(client).await
+                    // A missing or invalid session falls back to the homepage scrape below.
+                    && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
+                    && let valid_session = session?
+                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && user.is_webtoon_creator() =>
+            {
+                todo!()
+            }
+            Type::Original | Type::Canvas => Ok(homepage::episodes(webtoon).await?),
+        }
     }
 
-    /// Constructs an `Episode` if it exists.
+    // TODO: Docs will need refinement once semantics are nailed down.
+    /// Returns the [`Episode`] at `number` for this [`Webtoon`], if it exists.
     ///
-    /// However, there are important caveats to be aware of when using this method instead of `episodes`.
+    /// Unlike [`Webtoon::episodes()`], this includes episodes that are unpublished, paywalled,
+    /// or no longer publicly visible. [`Episode::views()`] and [`Episode::published()`] will
+    /// always return `None`; use [`Webtoon::episodes()`] if you need that data.
     ///
-    /// # Caveats
-    ///
-    /// - **No View or Publish Data**:
-    ///     - `Episode::views()` will always return `None`. This method does not provide view counts; you must use `episodes()` to retrieve views.
-    ///     - `Episode::published()` will always return `None`. To get publication dates, you must use `episodes()`. This is a limitation as currently there is no known way to get the published date with just the episode value alone.
-    ///
-    /// - **Episode Existence vs. Public Display**:
-    ///     - This method includes episodes that are unpublished, behind ads or fast-pass, or even "deleted" (i.e., episodes that no longer appear on the main page but are still accessible through their episode number).
-    ///     - It does not rely solely on public episodes, meaning it will count and retrieve episodes that a regular user would not normally see without having access to a creator's dashboard or matching creator-webtoon session.
-    ///     - The numbering (`#NUMBER`) of episodes retrieved by this method may differ from public episode lists due to the inclusion of hidden or removed episodes. You can see the matching episode with the `episode_no=` query in the URL.
-    ///
-    /// # Use Cases
-    ///
-    /// - Accessing hidden episodes, such as those unpublished, behind fast-pass, ad-walled, or deleted, without requiring a matching creator session.
-    /// - Useful for situations where the complete set of episodes is necessary, including drafts or episodes not currently visible to the public.
-    ///
-    /// # Example
-    ///
-    /// ## Viewable Episode
+    /// # Examples
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
+    /// # use webtoon::platform::webtoons::{Client, Type, error::{Error, EpisodeError}};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(95, Type::Original).await?.expect("`95` exists");
     ///
-    /// if let Some(episode) = webtoon.episode(222).await? {
-    ///     assert_eq!("[Season 2] Ep. 141", episode.title().await?);
-    /// }
+    /// // Viewable episode.
+    /// assert_matches!(webtoon.episode(222).await?, Some(episode) if matches!(episode.title().await?.as_str(), "[Season 2] Ep. 141"));
+    ///
+    /// // Known hidden episode: exists but is not viewable.
+    /// let episode = webtoon.episode(221).await?.expect("`221` exists");
+    /// assert_matches!(episode.title().await, Err(EpisodeError::NotViewable));
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ## Hidden Episode
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Type, error::{Error, EpisodeError}};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// // Known hidden episode.
-    /// if let Some(episode) = webtoon.episode(221).await? {
-    ///     match episode.title().await {
-    ///         Err(EpisodeError::NotViewable) => assert!(true),
-    ///         _ => unreachable!("episode is known non-viewable"),
-    ///     }
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
+    #[inline]
     pub async fn episode(&self, number: u16) -> Result<Option<Episode>, WebtoonError> {
-        let episode = Episode::new(self, number);
+        let webtoon = self;
+
+        let episode = Episode::new(webtoon, number);
 
         if !episode.exists().await? {
             return Ok(None);
@@ -800,14 +665,10 @@ impl Webtoon {
         Ok(Some(episode))
     }
 
-    /// A specialization for quickly getting the first publicly published episode.
+    /// Returns the first publicly published [`Episode`] of this [`Webtoon`].
     ///
-    /// - Differing from `episodes` in that it doesn't traverse other pages to get the episodes.
-    /// - Differing from `episode` this gets episode data like the published date.
-    ///
-    /// This is most useful for trying to see when a Webtoon started publishing, for example,
-    /// to get all Originals who are "new", which is any Webtoon with a first episode published
-    /// in the last 30 days.
+    /// Unlike [`Webtoon::episodes()`], this does not traverse additional pages, and unlike
+    /// [`Webtoon::episode()`], it includes episode metadata such as the publication date.
     ///
     /// # Example
     ///
@@ -817,9 +678,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(4176, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(4176, Type::Original).await?.expect("`4176` exists");
     ///
     /// let episode = webtoon.first_episode().await?;
     ///
@@ -827,17 +686,16 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn first_episode(&self) -> Result<Episode, WebtoonError> {
-        homepage::first_episode(self).await
+        let webtoon = self;
+        homepage::first_episode(webtoon).await
     }
 
-    /// A specialization for quickly getting a random publicly published episode.
+    /// Returns a random publicly published [`Episode`] of this [`Webtoon`].
     ///
-    /// - Differing from `episodes` in that it doesn't traverse other pages to get the episode.
-    /// - Differing from `episode` this gets episode data like the published date.
-    ///
-    /// This is most useful for trying to get random samples for a Webtoon, either for statistical
-    /// use or for testing.
+    /// Unlike [`Webtoon::episodes()`], this does not traverse additional pages, and unlike
+    /// [`Webtoon::episode()`], it includes episode metadata such as the publication date.
     ///
     /// # Example
     ///
@@ -847,31 +705,24 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(487522, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(487522, Type::Canvas).await?.expect("`487522` exists");
     ///
     /// let episode = webtoon.random_episode().await?;
     ///
-    /// assert!(!episode.title().await?.is_empty());
+    /// assert!(episode.number() > 0);
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub async fn random_episode(&self) -> Result<Episode, WebtoonError> {
-        homepage::random_episode(self).await
+        let webtoon = self;
+        homepage::random_episode(webtoon).await
     }
 
-    /// Retrieves the total number of likes for all episodes of the current `Webtoon`.
+    /// Returns the total number of likes across all episodes of this [`Webtoon`].
     ///
-    /// # Behavior
-    ///
-    /// This includes episodes behind ads, fast-pass, or are even deleted. This can lead to a discrepancy between the publicly displayed episodes and the actual total likes, as it accounts for episodes that are normally hidden or restricted from public view.
-    ///
-    /// - This method sums the likes across all episodes, regardless of whether the episodes are:
-    ///   - **Publicly available**: It includes public episodes that any user can see.
-    ///   - **Hidden**: Episodes behind fast-pass or ad walls.
-    ///   - **Deleted**: Episodes that no longer appear on the public main page but still exist in the system.
-    ///   - **Unpublished**: Drafts or episodes not yet publicly released.
+    /// Includes all episodes regardless of visibility — public, paywalled, deleted, or
+    /// unpublished — which may cause this total to differ from what is publicly displayed.
     ///
     /// # Example
     ///
@@ -881,39 +732,35 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(7666, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(7666, Type::Original).await?.expect("`7666` exists");
     ///
-    /// println!("{} has {} total likes!", webtoon.title().await?, webtoon.likes().await?);
+    /// let likes = webtoon.likes().await?;
+    ///
+    /// assert!(likes > 0);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, LikesError> {
+    pub async fn likes(&self) -> Result<u32, WebtoonLikesError> {
+        let webtoon = self;
+
+        let mut episodes = 1..;
+
         let mut likes = 0;
-        for number in 1.. {
-            if let Some(episode) = self.episode(number).await.map_err(|err| match err {
-                WebtoonError::Internal(err) => LikesError::from(err),
-                WebtoonError::RequestFailed(err) => LikesError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
-            })? {
-                likes += episode.likes().await?;
-            } else {
-                break;
-            }
+
+        while let Some(number) = episodes.next()
+            && let Some(episode) = webtoon.episode(number).await?
+        {
+            likes += episode.likes().await?;
         }
 
         Ok(likes)
     }
 
     // TODO: Turn into interator
-    /// Retrieves all comments (top-level posts) for every episode of the current `Webtoon`.
+    /// Returns all top-level comments across every episode of this [`Webtoon`].
     ///
-    /// Comments that have been deleted, but have replies, will still be included. Comments deleted without any replies will not be included.
-    ///
-    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
-    /// for the poster, which can be used for determining if, for example, a post was left by session user.
-    ///
+    /// Deleted comments that still have replies are included; deleted comments
+    /// without replies are not.
     ///
     /// # Example
     ///
@@ -923,9 +770,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(886472, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(886472, Type::Canvas).await?.expect("`886472` exists");
     ///
     /// for post in webtoon.posts().await? {
     ///    println!("{} left a post on {}!", post.poster().username(), webtoon.title().await?);
@@ -934,40 +779,26 @@ impl Webtoon {
     /// # unreachable!("should have entered the episode block and returned");
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Vec<Comment>, PostsError> {
+    pub async fn posts(&self) -> Result<Vec<Comment>, WebtoonPostsError> {
+        let webtoon = self;
+
+        let mut episodes = 1..;
+
         let mut posts = Vec::with_capacity(100);
 
-        for number in 1.. {
-            match self.episode(number).await {
-                Ok(Some(episode)) => {
-                    let mut comments = episode.posts();
-
-                    while let Some(comment) = comments.next().await? {
-                        posts.push(comment);
-                    }
-                }
-                Ok(None) => break,
-                Err(err) => match err {
-                    WebtoonError::Internal(err) => return Err(PostsError::from(err)),
-                    WebtoonError::RequestFailed(err) => return Err(PostsError::from(err)),
-                    WebtoonError::NotEnglish => unreachable!(),
-                },
+        while let Some(number) = episodes.next()
+            && let Some(episode) = webtoon.episode(number).await?
+        {
+            let mut comments = episode.posts();
+            while let Some(comment) = comments.next().await? {
+                posts.push(comment);
             }
         }
 
         Ok(posts)
     }
 
-    /// Retrieves the RSS feed information for the current `Webtoon`.
-    ///
-    /// This includes data for recently published episodes, but excludes episodes that are behind fast-pass or ad walls.
-    ///
-    /// **CURRENTLY ONLY ENGLISH IS SUPPORTED**
-    ///
-    /// # Behavior
-    ///
-    /// - **Episode Data**: The feed includes only episodes that are publicly and freely available, without fast-pass or ad restrictions.
-    /// - **Thumbnails**: Instead of including the links to the first two panels of the episode as Webtoons.com provides, this method returns a list of `Episode`s where `Episode::thumbnail` can be used, for example. This design choice aligns more closely with user expectations for an RSS feed, making the implementation more intuitive for feed readers.
+    /// Returns the RSS feed for this [`Webtoon`].
     ///
     /// # Example
     ///
@@ -977,9 +808,7 @@ impl Webtoon {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(7666, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(7666, Type::Original).await?.expect("`7666` exists");
     ///
     /// let rss = webtoon.rss().await?;
     ///
@@ -987,18 +816,21 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     #[cfg(feature = "rss")]
     pub async fn rss(&self) -> Result<Rss, RssError> {
-        rss::feed(self).await
+        let webtoon = self;
+        rss::feed(webtoon).await
     }
 }
 
 impl Webtoon {
+    #[inline]
     pub(super) async fn new_with_client(
         id: u32,
         r#type: Type,
         client: &Client,
-    ) -> Result<Option<Self>, WebtoonError> {
+    ) -> Result<Option<Self>, ClientError> {
         let url = format!(
             "https://www.webtoons.com/*/{}/*/list?title_no={id}",
             match r#type {
@@ -1022,44 +854,22 @@ impl Webtoon {
 
         let url = response.url();
 
-        let mut segments = url.path_segments().with_assumption( ||
-            format!("the returned url from `webtoons.com` should have path segments (`/`); this url did not: `{url}`"),
-        )?;
-
-        match segments.next() {
-            Some("en") => {}
-            Some(_) => return Err(WebtoonError::NotEnglish),
-            None => assumption!(
-                "`webtoons.com` returned url has path segments, but for some reason failed to extract the first segment, which should be a language: e.g `en`"
-            ),
-        };
-
-        let scope = segments
-            .next()
-            .assumption("`webtoons.com` returned url didn't have a second segment, representing the scope of the Webtoon")?;
-
-        let scope = Scope::from_str(scope).assumption_for(|err| {
-            format!(
-                "`webtoons.com` returned url's third segment provided an unexpected scope: {err}"
-            )
+        let (scope, slug, _) = parse_url(url).with_assumption(|| {
+            format!("`webtoons.com` returned an unexpected url format: `{url}`")
         })?;
-
-        let slug = segments
-            .next()
-            .assumption("`webtoons.com` returned url didn't have a third segment, representing the slug name of the Webtoon")?
-            .to_string();
 
         let webtoon = Self {
             client: client.clone(),
             id,
             scope,
             slug: Arc::from(slug),
-            page: Cache::empty(),
+            homepage: Cache::empty(),
         };
 
         Ok(Some(webtoon))
     }
 
+    #[inline]
     pub(super) fn from_url_with_client(
         url: &str,
         client: &Client,
@@ -1070,82 +880,281 @@ impl Webtoon {
             ));
         };
 
-        let mut segments = url
-            .path_segments() //
-            .ok_or_else(|| InvalidWebtoonUrl::new("a `webtoons.com` Webtoon homepage url should have segments (`/`); this url did not"))?;
-
-        match segments.next() {
-            Some("en") => {}
-            Some(_) => {
-                return Err(InvalidWebtoonUrl::new(
-                    "found an unexpected language in provided `webtoons.com` url",
-                ));
-            }
-            None => {
-                return Err(InvalidWebtoonUrl::new(
-                    "url has path segments, but for some reason failed to extract the first segment, which for a valid `webtoons.com` Webtoon homepage url, should be a language: e.g `en`",
-                ));
-            }
-        };
-
-        let segment = segments
-            .next() //
-            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a second segment, representing the scope of a Webtoon in a valid `webtoons.com` homepage url, eg. `canvas`, `fantasy`, etc."))?;
-
-        let scope = match Scope::from_str(segment) {
-            Ok(scope) => scope,
-            Err(err) => {
-                return Err(InvalidWebtoonUrl::new(format!(
-                    "found an unexpected scope in provided `webtoons.com` url: {err}"
-                )));
-            }
-        };
-
-        let slug = segments
-            .next()
-            .ok_or_else( || InvalidWebtoonUrl::new( "provided url didn't have a third segment, representing the slug name of a Webtoon in a valid `webtoons.com` homepage url, eg. `tower-of-god`"))?;
-
-        let query = url
-            .query()
-            .ok_or_else(|| InvalidWebtoonUrl::new("a valid `webtoons.com` Webtoon homepage url should have a `title_no` query, but provided url didn't have any queries at all"))?;
-
-        let id = match query.split_once('=') {
-            Some(("title_no", "")) => {
-                return Err(InvalidWebtoonUrl::new(
-                    "provided url had a `title_no` query, but nothing was after the `=`",
-                ));
-            }
-
-            // TODO: When if-let arm guards(https://github.com/rust-lang/rust/issues/51114) becomes stable might be able
-            // clean this up more.
-            Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => id
-                .parse::<u32>()
-                .map_err(|_err | InvalidWebtoonUrl::new("provided `weboons.com` Webtoon homepage url had a valid `title_no=N` query, but the value was too large to fit in a `u32`"))?,
-
-            Some(("title_no", _)) => return Err(InvalidWebtoonUrl::new("provided url had a `title_no` query, but the value was not a valid digit")),
-
-            Some(_) => {
-                return Err(InvalidWebtoonUrl::new(
-                    "provided `webtoons.com` Webtoon homepage url did not have a `title_no` query",
-                ));
-            }
-
-            None => {
-                return Err(InvalidWebtoonUrl::new(
-                    "`title_no` should always have a `=` separator",
-                ));
-            }
-        };
+        let (scope, slug, id) = parse_url(&url)?;
 
         let webtoon = Self {
             client: client.clone(),
             scope,
             slug: slug.into(),
             id,
-            page: Cache::empty(),
+            homepage: Cache::empty(),
         };
 
         Ok(webtoon)
+    }
+}
+
+#[inline]
+fn parse_url(url: &url::Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
+    let mut segments = url.path_segments().ok_or_else(|| {
+        InvalidWebtoonUrl::new(format!(
+            "a `webtoons.com` Webtoon url should have path segments (`/`); this url ({url}) did not"
+        ))
+    })?;
+
+    match segments.next() {
+        Some("en") => {}
+        Some(lang) => {
+            return Err(InvalidWebtoonUrl::new(format!(
+                "found an unexpected language ({lang}) in provided `webtoons.com` url"
+            )));
+        }
+        None => {
+            return Err(InvalidWebtoonUrl::new(
+                "url has path segments but failed to extract the first segment, which should be a language: e.g. `en`",
+            ));
+        }
+    }
+
+    let scope = segments
+            .next()
+            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a second segment representing the scope, e.g. `canvas`, `fantasy`"))?;
+
+    let scope = Scope::from_str(scope).map_err(|err| {
+        InvalidWebtoonUrl::new(format!(
+            "found an unexpected scope in provided `webtoons.com` url: {err}"
+        ))
+    })?;
+
+    let slug = segments
+            .next()
+            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a third segment representing the slug, e.g. `tower-of-god`"))?
+            .to_string();
+
+    let id = url.query().ok_or_else(|| {
+        InvalidWebtoonUrl::new(
+            "a valid `webtoons.com` Webtoon url should have a `title_no` query, but none was found",
+        )
+    })?;
+
+    let id = match id.split_once('=') {
+        Some(("title_no", "")) => {
+            return Err(InvalidWebtoonUrl::new(
+                "provided url had a `title_no` query but nothing after the `=`",
+            ));
+        }
+        Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => {
+            id.parse::<u32>().map_err(|_err| {
+                InvalidWebtoonUrl::new("the `title_no` value was too large to fit in a `u32`")
+            })?
+        }
+        Some(("title_no", _)) => {
+            return Err(InvalidWebtoonUrl::new(
+                "provided url had a `title_no` query but the value was not a valid digit",
+            ));
+        }
+        Some(_) => {
+            return Err(InvalidWebtoonUrl::new(
+                "provided url did not have a `title_no` query",
+            ));
+        }
+        None => {
+            return Err(InvalidWebtoonUrl::new(
+                "`title_no` should always have a `=` separator",
+            ));
+        }
+    };
+
+    Ok((scope, slug, id))
+}
+
+/// Represents the type a Webtoon can be on `webtoons.com`.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Type {
+    /// An Original Webtoon.
+    #[serde(alias = "WEBTOON")]
+    Original,
+    /// A Canvas Webtoon.
+    #[serde(alias = "CHALLENGE")]
+    Canvas,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum Scope {
+    Original(Genre),
+    Canvas,
+}
+
+impl Scope {
+    pub(super) fn as_slug(&self) -> &str {
+        match self {
+            Self::Canvas => "canvas",
+            Self::Original(genre) => genre.as_slug(),
+        }
+    }
+}
+
+impl FromStr for Scope {
+    type Err = ParseGenreError;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        let scope = match s {
+            "canvas" => Self::Canvas,
+            slug => Self::Original(Genre::from_str(slug)?),
+        };
+
+        Ok(scope)
+    }
+}
+
+/// Represents a genre on `webtoons.com`.
+#[allow(missing_docs)]
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
+pub enum Genre {
+    Comedy,
+    Fantasy,
+    Romance,
+    SliceOfLife,
+    SciFi,
+    Drama,
+    ShortStory,
+    Action,
+    Superhero,
+    Heartwarming,
+    Thriller,
+    Horror,
+    PostApocalyptic,
+    Zombies,
+    School,
+    Supernatural,
+    Animals,
+    Mystery,
+    Historical,
+    /// Tiptoon
+    Informative,
+    Sports,
+    Inspirational,
+    AllAges,
+    LGBTQ,
+    RomanticFantasy,
+    MartialArts,
+    WesternPalace,
+    EasternPalace,
+    MatureRomance,
+    /// Reincarnation/Time-travel
+    TimeSlip,
+    Local,
+    /// Modern/Workplace
+    CityOffice,
+    Adaptation,
+    Shonen,
+    WebNovel,
+    GraphicNovel,
+}
+
+impl Genre {
+    /// Converts a [`Genre`] into a URL safe slug.
+    ///
+    /// Example:
+    /// - `Genre::Action => "action"`,
+    /// - `Genre::AllAges => "all-ages"`,
+    #[inline]
+    #[must_use]
+    pub const fn as_slug(&self) -> &'static str {
+        match self {
+            Self::Action => "action",
+            Self::AllAges => "all-ages",
+            Self::Animals => "animals",
+            Self::Comedy => "comedy",
+            Self::Drama => "drama",
+            Self::Fantasy => "fantasy",
+            Self::Heartwarming => "heartwarming",
+            Self::Historical => "historical",
+            Self::Horror => "horror",
+            Self::Informative => "tiptoon",
+            Self::Inspirational => "inspirational",
+            Self::Mystery => "mystery",
+            Self::PostApocalyptic => "post-apocalyptic",
+            Self::Romance => "romance",
+            Self::School => "school",
+            Self::SciFi => "sf",
+            Self::ShortStory => "short-story",
+            Self::SliceOfLife => "slice-of-life",
+            Self::Sports => "sports",
+            Self::Superhero => "super-hero",
+            Self::Supernatural => "supernatural",
+            Self::Thriller => "thriller",
+            Self::Zombies => "zombies",
+            Self::LGBTQ => "bl-gl",
+            Self::RomanticFantasy => "romantic-fantasy",
+            Self::MartialArts => "martial-arts",
+            Self::WesternPalace => "western-palace",
+            Self::EasternPalace => "eastern-palace",
+            Self::MatureRomance => "romance-m",
+            Self::TimeSlip => "time-slip",
+            Self::Local => "local",
+            Self::CityOffice => "city-office",
+            Self::Adaptation => "adaptation",
+            Self::Shonen => "shonen",
+            Self::WebNovel => "web-novel",
+            Self::GraphicNovel => "graphic-novel",
+        }
+    }
+}
+
+/// An error that can happen when parsing a string into a [`Genre`].
+#[derive(Debug, Error)]
+#[error("failed to parse `{0}` into a known genre")]
+pub struct ParseGenreError(String);
+
+impl FromStr for Genre {
+    type Err = ParseGenreError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "COMEDY" | "Comedy" | "comedy" => Ok(Self::Comedy),
+            "FANTASY" | "Fantasy" | "fantasy" => Ok(Self::Fantasy),
+            "ROMANCE" | "Romance" | "romance" => Ok(Self::Romance),
+            "SLICE OF LIFE" | "Slice of life" | "slice-of-life" => Ok(Self::SliceOfLife),
+            "SCI-FI" | "Sci-fi" | "Sci-Fi" | "sf" | "SF" => Ok(Self::SciFi),
+            "DRAMA" | "Drama" | "drama" => Ok(Self::Drama),
+            "SHORT STORY" | "Short story" => Ok(Self::ShortStory),
+            "ACTION" | "Action" | "action" => Ok(Self::Action),
+            "ALL AGES" | "All Ages" => Ok(Self::AllAges),
+            "SUPERHERO" | "Superhero" | "super-hero" | "superhero" => Ok(Self::Superhero),
+            "HEARTWARMING" | "Heartwarming" | "heartwarming" => Ok(Self::Heartwarming),
+            "THRILLER" | "Thriller" | "thriller" => Ok(Self::Thriller),
+            "HORROR" | "Horror" | "horror" => Ok(Self::Horror),
+            "POST APOCALYPTIC" | "Post apocalyptic" | "Post-apocalyptic" => {
+                Ok(Self::PostApocalyptic)
+            }
+            "ZOMBIES" | "Zombies" | "zombies" => Ok(Self::Zombies),
+            "SCHOOL" | "School" | "school" => Ok(Self::School),
+            "SUPERNATURAL" | "Supernatural" | "supernatural" => Ok(Self::Supernatural),
+            "ANIMALS" | "Animals" | "animals" => Ok(Self::Animals),
+            "CRIME/MYSTERY" | "Crime/Mystery" | "Mystery" | "mystery" => Ok(Self::Mystery),
+            "HISTORICAL" | "Historical" | "historical" => Ok(Self::Historical),
+            "INFORMATIVE" | "Informative" | "informative" | "tiptoon" => Ok(Self::Informative),
+            "SPORTS" | "Sports" | "sports" => Ok(Self::Sports),
+            "INSPIRATIONAL" | "Inspirational" | "inspirational" => Ok(Self::Inspirational),
+            "LGBTQ+ / Y" | "LGBTQ+" | "bl-gl" | "LGBTQI+" => Ok(Self::LGBTQ),
+            "romantic-fantasy" | "Romance Fantasy" | "ROMANTIC_FANTASY" => {
+                Ok(Self::RomanticFantasy)
+            }
+            "martial-arts" => Ok(Self::MartialArts),
+            "western-palace" => Ok(Self::WesternPalace),
+            "eastern-palace" => Ok(Self::EasternPalace),
+            "romance-m" => Ok(Self::MatureRomance),
+            "time-slip" => Ok(Self::TimeSlip),
+            "local" | "LOCAL" => Ok(Self::Local),
+            "city-office" => Ok(Self::CityOffice),
+            "adaptation" => Ok(Self::Adaptation),
+            "shonen" => Ok(Self::Shonen),
+            "web-novel" | "WEBNOVEL" => Ok(Self::WebNovel),
+            "graphic-novel" | "GRAPHIC_NOVEL" | "Graphic Novel" => Ok(Self::GraphicNovel),
+            _ => Err(ParseGenreError(s.to_owned())),
+        }
     }
 }
 
@@ -1168,5 +1177,12 @@ mod tests {
         assert_eq!(webtoon.scope, Scope::Original(Genre::Fantasy));
         assert_eq!(webtoon.slug.as_ref(), "tower-of-god");
         assert_eq!(webtoon.id, 95);
+    }
+
+    #[test]
+    fn should_parse_genres_from_str() -> Result<(), Box<dyn std::error::Error>> {
+        let genre = Genre::from_str("Slice of life")?;
+        assert_eq!(Genre::SliceOfLife, genre);
+        Ok(())
     }
 }

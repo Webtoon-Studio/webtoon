@@ -2,8 +2,8 @@ use webtoon::platform::webtoons::{
     Client, Type,
     canvas::Sort,
     error::CreatorError,
-    meta::Genre,
     originals::{Schedule, Weekday},
+    webtoon::Genre,
 };
 
 #[tokio::test]

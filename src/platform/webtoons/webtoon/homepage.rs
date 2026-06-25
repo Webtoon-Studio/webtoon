@@ -7,9 +7,11 @@ use crate::{
     platform::webtoons::{
         Client, Webtoon,
         creator::Creator,
-        meta::{Genre, Scope},
         originals::Schedule,
-        webtoon::episode::{Published, PublishedStatus},
+        webtoon::{
+            Genre, Scope,
+            episode::{Published, PublishedStatus},
+        },
     },
     stdx::{
         cache::Cache,
@@ -21,15 +23,15 @@ use crate::{
 use super::{WebtoonError, episode::Episode};
 
 #[inline]
-pub async fn scrape(webtoon: &Webtoon) -> Result<Page, WebtoonError> {
-    let html = webtoon.client.webtoon_page(webtoon, None).await?;
-    let page = Page::parse(&html, webtoon)?;
+pub async fn scrape(webtoon: &Webtoon) -> Result<Homepage, WebtoonError> {
+    let html = webtoon.client.fetch_webtoon_homepage(webtoon, None).await?;
+    let page = Homepage::parse(&html, webtoon)?;
     Ok(page)
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct Page {
+pub struct Homepage {
     title: String,
     creators: Vec<Creator>,
     genres: Vec<Genre>,
@@ -42,7 +44,7 @@ pub struct Page {
     pages: u16,
 }
 
-impl Page {
+impl Homepage {
     #[inline]
     fn parse(html: &Html, webtoon: &Webtoon) -> Result<Self, WebtoonError> {
         let page = match webtoon.scope {
@@ -609,7 +611,6 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
 
 pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonError> {
     let page = scrape(webtoon).await?;
-
     let pages = page.pages;
 
     // NOTE: currently all languages use this for the list element; this could change.
@@ -619,7 +620,10 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
     let mut episodes = Vec::with_capacity(pages as usize * 10);
 
     for page in 1..=pages {
-        let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
+        let html = webtoon
+            .client
+            .fetch_webtoon_homepage(webtoon, Some(page))
+            .await?;
 
         for element in html.select(&selector) {
             episodes.push(episode(&element, webtoon)?);
@@ -644,9 +648,6 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         }
     }
 
-    // NOTE: Consistently return by episode order
-    episodes.sort_unstable_by_key(|a| a.number);
-
     Ok(episodes)
 }
 
@@ -657,7 +658,10 @@ pub(super) async fn first_episode(webtoon: &Webtoon) -> Result<Episode, WebtoonE
     let selector = Selector::parse("li._episodeItem") //
         .assumption("`li._episodeItem` should be a valid selector")?;
 
-    let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
+    let html = webtoon
+        .client
+        .fetch_webtoon_homepage(webtoon, Some(page))
+        .await?;
 
     let first = html
         .select(&selector)
@@ -682,7 +686,10 @@ pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, Webtoon
     let selector = Selector::parse("li._episodeItem") //
         .assumption("`li._episodeItem` should be a valid selector")?;
 
-    let html = webtoon.client.webtoon_page(webtoon, Some(page)).await?;
+    let html = webtoon
+        .client
+        .fetch_webtoon_homepage(webtoon, Some(page))
+        .await?;
 
     let elements: Vec<ElementRef<'_>> = html.select(&selector).collect();
 

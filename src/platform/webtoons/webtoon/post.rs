@@ -2,7 +2,7 @@
 
 use super::Episode;
 use crate::{
-    platform::webtoons::{Webtoon, error::PostsError, webtoon::post::id::Id},
+    platform::webtoons::{Webtoon, error::WebtoonPostsError, webtoon::post::id::Id},
     stdx::{
         cache::{Cache, Store},
         error::assumption,
@@ -257,7 +257,7 @@ impl Comment {
     /// # unreachable!("should have entered the post block and returned");
     /// # }
     /// ```
-    pub async fn replies(&self) -> Result<Vec<Reply>, PostsError> {
+    pub async fn replies(&self) -> Result<Vec<Reply>, WebtoonPostsError> {
         self.0.replies().await
     }
 
@@ -440,7 +440,7 @@ impl From<Post> for Comment {
 pub use iter::Comments;
 
 mod iter {
-    use super::{Comment, Episode, Id, Post, PostsError};
+    use super::{Comment, Episode, Id, Post, WebtoonPostsError};
     use crate::{platform::webtoons::webtoon::post::PinRepresentation, stdx::error::assumption};
 
     /// Internal state machine for the [`Comments`] iterator.
@@ -530,7 +530,7 @@ mod iter {
         /// - `Ok(Some(Comment))` when a comment is available.
         /// - `Ok(None)` when all comments have been exhausted.
         /// - `Err(PostsError)` if a network or parsing error occurs.
-        pub async fn next(&mut self) -> Result<Option<Comment>, PostsError> {
+        pub async fn next(&mut self) -> Result<Option<Comment>, WebtoonPostsError> {
             match self.state {
                 State::Start => {
                     // Cache top posts.
@@ -614,7 +614,7 @@ mod iter {
         /// - `Ok(Some(Comment))` if at least one comment exists.
         /// - `Ok(None)` if the episode has no comments.
         /// - `Err(PostsError)` if an error occurs during iteration.
-        pub async fn last(mut self) -> Result<Option<Comment>, PostsError> {
+        pub async fn last(mut self) -> Result<Option<Comment>, WebtoonPostsError> {
             let mut last = None;
 
             while let Some(comment) = self.next().await? {
@@ -1071,7 +1071,7 @@ impl Post {
     }
 
     #[allow(dead_code)]
-    pub async fn is_top(&self) -> Result<bool, PostsError> {
+    pub async fn is_top(&self) -> Result<bool, WebtoonPostsError> {
         if let Store::Value(top_comments) = self.episode.top_comments.get() {
             Ok(top_comments
                 .into_iter()
@@ -1130,7 +1130,7 @@ impl Post {
         dead_code,
         reason = "directly gets a posts upvotes and downvotes via a request and so far we just use the data initially gotten"
     )]
-    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostsError> {
+    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), WebtoonPostsError> {
         let response = self
             .episode
             .webtoon
@@ -1158,7 +1158,7 @@ impl Post {
         Ok((upvotes, downvotes))
     }
 
-    pub async fn replies(&self) -> Result<Vec<Reply>, PostsError> {
+    pub async fn replies(&self) -> Result<Vec<Reply>, WebtoonPostsError> {
         // No need to make a network request when there are
         // no replies to fetch.
         //

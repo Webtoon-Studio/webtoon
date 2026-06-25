@@ -7,7 +7,7 @@ use crate::stdx::error::{Assume, Assumption, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
-        error::{EpisodeError, LikesError, PostsError, RequestError},
+        error::{EpisodeError, RequestError, WebtoonLikesError, WebtoonPostsError},
     },
     stdx::time::DateOrDateTime,
 };
@@ -16,121 +16,6 @@ use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use std::hash::Hash;
 use url::Url;
-
-// TODO: Remove and just use `Vec<Episode>`. Doing sop means some rework about how episodes are retrieved.
-/// Represents a collection of episodes.
-///
-/// This type is not constructed directly, but via [`Webtoon::episodes()`].
-///
-/// # Example
-///
-/// ```
-/// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
-/// # #[tokio::main]
-/// # async fn main() -> Result<(), Error> {
-/// let client = Client::new();
-///
-/// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
-///     unreachable!("webtoon is known to exist");
-/// };
-///
-/// let episodes = webtoon.episodes().await?;
-///
-/// assert_eq!(25, episodes.count());
-///
-/// for episode in episodes {
-///     println!("title: {}", episode.title().await?);
-/// }
-/// # Ok(())
-/// # }
-/// ```
-#[derive(Debug)]
-pub struct Episodes {
-    pub(crate) count: u16,
-    pub(crate) episodes: Vec<Episode>,
-}
-
-impl Episodes {
-    /// Returns the count of the episodes retrieved.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(1018, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// let episodes = webtoon.episodes().await?;
-    ///
-    /// assert_eq!(25, episodes.count());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn count(&self) -> u16 {
-        self.count
-    }
-
-    /// Gets the episode from passed in value if it exists.
-    /// # Example
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{ Client, Type, error::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    ///
-    /// let Some(webtoon) = client.webtoon(4470, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
-    ///
-    /// let episodes = webtoon.episodes().await?;
-    ///
-    /// assert_eq!(Some(1), episodes.episode(1).map(|episode| episode.number()));
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn episode(&self, episode: u16) -> Option<&Episode> {
-        // PERF: If in the process of making the Vec we can insert into the index
-        // that the number is, then we can use `get(episode)` instead. As of now,
-        // the episodes can be in any order, so we have to search through and find
-        // the wanted one
-
-        self.episodes
-            .iter()
-            .find(|__episode| __episode.number == episode)
-    }
-}
-
-impl TryFrom<Vec<Episode>> for Episodes {
-    type Error = Assumption;
-
-    fn try_from(value: Vec<Episode>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            count: u16::try_from(value.len())
-                .assumption("largest episode number on `webtoons.com` should fit within `u16`")?,
-            episodes: value,
-        })
-    }
-}
-
-impl IntoIterator for Episodes {
-    type Item = Episode;
-
-    type IntoIter = <Vec<Episode> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.episodes.into_iter()
-    }
-}
 
 /// Represents an episode on `webtoons.com`.
 ///
@@ -449,9 +334,11 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// let mut episodes = webtoon.episodes().await?.into_iter();
+    /// let mut episodes = webtoon.episodes().await?;
     ///
-    /// if let Some(episode) = episodes.next()
+    /// episodes.sort_unstable_by_key(|episode| episode.number());
+    ///
+    /// if let Some(episode) = episodes.first()
     /// && let Some(published) = episode.published()  {
     ///     assert_eq!(29, published.day());
     ///     assert_eq!(4, published.month());
@@ -532,7 +419,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, LikesError> {
+    pub async fn likes(&self) -> Result<u32, WebtoonLikesError> {
         let response = self.webtoon.client.episodes_likes(self).await?;
 
         let contents = response
@@ -579,7 +466,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostsError> {
+    pub async fn comments_and_replies(&self) -> Result<(u32, u32), WebtoonPostsError> {
         let response = self
             .webtoon
             .client
@@ -731,9 +618,11 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// let episodes = webtoon.episodes().await?;
+    /// let mut episodes = webtoon.episodes().await?;
     ///
-    /// if let Some(episode) = episodes.episode(1) {
+    /// episodes.sort_unstable_by_key(|episode| episode.number());
+    ///
+    /// if let Some(episode) = episodes.first() {
     ///     match episode.published_status() {
     ///             Some(PublishedStatus::Published) => println!("Episode is published."),
     ///             Some(PublishedStatus::Draft) => println!("Episode is still a draft."),
@@ -783,9 +672,11 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// let episodes = webtoon.episodes().await?;
+    /// let mut episodes = webtoon.episodes().await?;
     ///
-    /// if let Some(episode) = episodes.episode(1) {
+    /// episodes.sort_unstable_by_key(|episode| episode.number());
+    ///
+    /// if let Some(episode) = episodes.first() {
     ///     match episode.ad_status() {
     ///             Some(AdStatus::Yes) => println!("Episode is behind an ad."),
     ///             Some(AdStatus::No) => println!("Episode is no longer behind an ad."),
@@ -821,9 +712,11 @@ impl Episode {
     ///     unreachable!("webtoon is known to exist");
     /// };
     ///
-    /// let episodes = webtoon.episodes().await?;
+    /// let mut episodes = webtoon.episodes().await?;
     ///
-    /// if let Some(episode) = episodes.episode(1) {
+    /// episodes.sort_unstable_by_key(|episode| episode.number());
+    ///
+    /// if let Some(episode) = episodes.first() {
     ///     assert!(episode.is_published());
     ///     # return Ok(());
     /// }
