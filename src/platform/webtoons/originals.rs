@@ -125,92 +125,13 @@ impl FromStr for Weekday {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "MONDAY"
-            | "MON"
-            | "MONTAG"
-            | "MO"
-            | "LUNDIS"
-            | "LUN"
-            | "LUNS"
-            | "LUNES"
-            | "SENIN"
-            | "SEN"
-            | "วันจันทร์"
-            | "จันทร์"
-            | "週一" => Ok(Self::Monday),
-            "TUESDAY"
-            | "TUE"
-            | "DIENSTAG"
-            | "DI"
-            | "MARDIS"
-            | "MAR"
-            | "MARS"
-            | "MARTES"
-            | "SELASA"
-            | "SEL"
-            | "วันอังคาร"
-            | "อังคาร"
-            | "週二" => Ok(Self::Tuesday),
-            "WEDNESDAY" | "WED" | "MITTWOCH" | "MI" | "MERCREDIS" | "MER" | "MERS"
-            | "MIÉRCOLES" | "MIÉ" | "RABU" | "RAB" | "วันพุธ" | "พุธ" | "週三" => {
-                Ok(Self::Wednesday)
-            }
-            "THURSDAY"
-            | "THU"
-            | "DONNERSTAG"
-            | "DO"
-            | "JEUDIS"
-            | "JEU"
-            | "JEUS"
-            | "JUEVES"
-            | "JUE"
-            | "KAMIS"
-            | "KAM"
-            | "วันพฤหัสบดี"
-            | "พฤหัสบดี"
-            | "週四" => Ok(Self::Thursday),
-            "FRIDAY"
-            | "FRI"
-            | "FREITAG"
-            | "FR"
-            | "VENDREDIS"
-            | "VEN"
-            | "VENS"
-            | "VIERNES"
-            | "VIE"
-            | "JUMAT"
-            | "JUM"
-            | "วันศุกร์"
-            | "ศุกร์"
-            | "週五" => Ok(Self::Friday),
-            "SATURDAY"
-            | "SAT"
-            | "SAMSTAG"
-            | "SA"
-            | "SAMEDIS"
-            | "SAM"
-            | "SAMS"
-            | "SÁBADOS"
-            | "SÁB"
-            | "SABTU"
-            | "SAB"
-            | "วันเสาร์"
-            | "เสาร์"
-            | "週六" => Ok(Self::Saturday),
-            "SUNDAY"
-            | "SUN"
-            | "SONNTAG"
-            | "SO"
-            | "DIMANCHES"
-            | "DIM"
-            | "DIMS"
-            | "DOMINGOS"
-            | "DOM"
-            | "MINGGU"
-            | "MIN"
-            | "วันอาทิตย์"
-            | "อาทิตย์"
-            | "週日" => Ok(Self::Sunday),
+            "MONDAY" | "MON" => Ok(Self::Monday),
+            "TUESDAY" | "TUE" => Ok(Self::Tuesday),
+            "WEDNESDAY" | "WED" => Ok(Self::Wednesday),
+            "THURSDAY" | "THU" => Ok(Self::Thursday),
+            "FRIDAY" | "FRI" => Ok(Self::Friday),
+            "SATURDAY" | "SAT" => Ok(Self::Saturday),
+            "SUNDAY" | "SUN" => Ok(Self::Sunday),
             _ => Err(ParseScheduleError(s.to_owned())),
         }
     }
@@ -221,16 +142,8 @@ impl FromStr for Schedule {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "DAILY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" | "hari" => {
-                Ok(Self::Daily)
-            }
-            "COMPLETED"
-            | "COM"
-            | "ABGESCHLOSSEN"
-            | "TERMINÉ"
-            | "FINALIZADAS"
-            | "ฟรีทุกวัน"
-            | "完結" => Ok(Self::Completed),
+            "DAILY" => Ok(Self::Daily),
+            "COMPLETED" => Ok(Self::Completed),
             _ => Err(ParseScheduleError(s.to_owned())),
         }
     }
@@ -239,18 +152,14 @@ impl FromStr for Schedule {
 // TODO: use `Schedule::from_str` for below parsing, as this is just duplicating logic.
 fn try_parse_completed(release: &str) -> Result<Schedule, &str> {
     match release.trim() {
-        "COMPLETED" | "COM" | "ABGESCHLOSSEN" | "TERMINÉ" | "FINALIZADAS" | "ฟรีทุกวัน" | "完結" => {
-            Ok(Schedule::Completed)
-        }
+        "COMPLETED" => Ok(Schedule::Completed),
         release => Err(release),
     }
 }
 
 fn try_parse_daily(release: &str) -> Result<Schedule, &str> {
     match release.trim() {
-        "DAILY" | "EVERYDAY" | "TÄGLICH" | "JOURS" | "ทุกวัน" | "每日" | "Hari" | "hari" => {
-            Ok(Schedule::Daily)
-        }
+        "DAILY" | "EVERYDAY" => Ok(Schedule::Daily),
         release => Err(release),
     }
 }
