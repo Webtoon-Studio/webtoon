@@ -34,7 +34,7 @@ impl InvalidWebtoonUrl {
 }
 
 mod _inner {
-    use crate::{platform::webtoons::webtoon::post::id::ParseIdError, stdx::error::Assumption};
+    use crate::{platform::webtoons::webtoon::post::id::ParsePostIdError, stdx::error::Assumption};
     use error_set::error_set;
 
     error_set! {
@@ -46,7 +46,7 @@ mod _inner {
             InvalidWebtoonUrl(super::InvalidWebtoonUrl),
             #[cfg(feature = "download")]
             IoError(std::io::Error),
-            ParseIdError(ParseIdError),
+            ParseIdError(ParsePostIdError),
         }
         || Base
         || OriginalsError

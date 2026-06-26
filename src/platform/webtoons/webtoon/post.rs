@@ -16,7 +16,7 @@ use thiserror::Error;
 /// A single top-level comment left on an [`Episode`].
 ///
 /// A `Comment` always refers to a **top-level** episode post. Replies to a
-/// comment are represented separately as [`Reply`] values and can be accessed
+/// comment are represented separately as [`Reply`]'s, and can be accessed
 /// via [`Comment::replies`].
 ///
 /// # Examples
@@ -29,8 +29,7 @@ use thiserror::Error;
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let webtoon = client.webtoon(9116, Type::Original).await?
-///     .expect("webtoon exists");
+/// let webtoon = client.webtoon(9116, Type::Original).await?.expect("`9116` exists");
 ///
 /// if let Some(episode) = webtoon.episode(11).await? {
 ///     let mut comments = episode.posts();
@@ -46,7 +45,7 @@ use thiserror::Error;
 pub struct Comment(pub(crate) Post);
 
 impl Comment {
-    /// Returns the episode number the comment was left on.
+    /// Returns the episode number this [`Comment`] was left on.
     ///
     /// # Example
     ///
@@ -56,8 +55,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -73,10 +71,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn episode(&self) -> u16 {
-        self.0.episode()
+        let comment = &self.0;
+        comment.episode()
     }
 
-    /// Returns the unique [`Id`] for the comment.
+    /// Returns the [`Id`] of this [`Comment`].
     ///
     /// # Example
     ///
@@ -86,8 +85,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(70).await? {
     ///     let mut comments = episode.posts();
@@ -103,12 +101,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn id(&self) -> Id {
-        self.0.id()
+        let comment = &self.0;
+        comment.id()
     }
 
-    /// Returns a reference to the [`Body`] of the comment.
-    ///
-    /// The body contains the actual text of the post along with a flag indicating if it is marked as a spoiler.
+    /// Returns the [`Body`] of this [`Comment`], containing its text and spoiler flag
     ///
     /// # Example
     ///
@@ -118,8 +115,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(60).await? {
     ///     let mut comments = episode.posts();
@@ -135,10 +131,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn body(&self) -> &Body {
-        self.0.body()
+        let comment = &self.0;
+        comment.body()
     }
 
-    /// Returns how many upvotes the comment has.
+    /// Returns the number of upvotes on this [`Comment`].
     ///
     /// # Example
     ///
@@ -148,8 +145,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
@@ -165,10 +161,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn upvotes(&self) -> u32 {
-        self.0.upvotes()
+        let comment = &self.0;
+        comment.upvotes()
     }
 
-    /// Returns how many downvotes the comment has.
+    /// Returns the number of downvotes on this [`Comment`].
     ///
     /// # Example
     ///
@@ -178,8 +175,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
@@ -195,12 +191,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn downvotes(&self) -> u32 {
-        self.0.downvotes()
+        let comment = &self.0;
+        comment.downvotes()
     }
 
-    /// Returns the upvote and downvote count for the comment.
-    ///
-    /// A tuple of `(upvotes, downvotes)`
+    /// Returns the upvote and downvote counts for this [`Comment`] as `(upvotes, downvotes)`.
     ///
     /// # Example
     ///
@@ -210,8 +205,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -228,10 +222,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn upvotes_and_downvotes(&self) -> (u32, u32) {
-        (self.upvotes(), self.downvotes())
+        let comment = &self.0;
+        (comment.upvotes(), comment.downvotes())
     }
 
-    /// Returns the replies on the current post.
+    /// Returns the replies on this [`Comment`].
     ///
     /// # Example
     ///
@@ -241,8 +236,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(4425, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(4425, Type::Original).await?.expect("`4425` exists");
     ///
     /// if let Some(episode) = webtoon.episode(87).await? {
     ///     let mut comments = episode.posts();
@@ -258,10 +252,11 @@ impl Comment {
     /// # }
     /// ```
     pub async fn replies(&self) -> Result<Vec<Reply>, WebtoonPostsError> {
-        self.0.replies().await
+        let comment = &self.0;
+        comment.replies().await
     }
 
-    /// Returns the reply count for the current post.
+    /// Returns the number of replies on this [`Comment`].
     ///
     /// # Example
     ///
@@ -271,8 +266,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(4425, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(4425, Type::Original).await?.expect("`4425` exists");
     ///
     /// if let Some(episode) = webtoon.episode(87).await? {
     ///     let mut comments = episode.posts();
@@ -288,12 +282,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn reply_count(&self) -> u32 {
-        self.0.reply_count()
+        let comment = &self.0;
+        comment.reply_count()
     }
 
-    // only has to happen once, and all other posts can just `top.any()` and
-    // check.
-    /// Returns whether this post is a `TOP` comment, one of the top three pinned comments on the episode.
+    /// Returns `true` if this [`Comment`] is one of the three pinned top comments on the episode.
     ///
     /// # Example
     ///
@@ -303,8 +296,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(10).await? {
     ///     let mut comments = episode.posts();
@@ -320,21 +312,21 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn is_top(&self) -> bool {
-        if let Store::Value(top_comments) = self.0.episode.top_comments.get() {
-            top_comments
-                .into_iter()
-                .any(|comment| comment.is_some_and(|top| top.id() == self.id()))
-        } else {
+        let comment = &self.0;
+
+        let Store::Value(top_comments) = comment.episode.top_comments.get() else {
             unreachable!("`top_comments` should be cached from the initial posts request");
-        }
+        };
+
+        top_comments
+            .into_iter()
+            .any(|top| top.is_some_and(|top| top.id() == comment.id()))
     }
 
-    /// Returns whether this reply was deleted.
+    /// Returns `true` if this [`Comment`] has been deleted.
     ///
-    /// One thing to keep in mind is that if a comment was deleted and no replies were left,
-    /// or if all replies were themselves deleted, it won't be returned in the [`Episode::posts()`](super::Episode::posts()) response.
-    ///
-    /// This will only return `true` if there is a comment that has replies on it. Otherwise, will return `false`.
+    /// A deleted comment is only returned by [`Episode::posts()`] if it still has replies;
+    /// deleted comments with no remaining replies are omitted entirely.
     ///
     /// # Example
     ///
@@ -344,8 +336,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let mut comments = episode.posts();
@@ -361,10 +352,11 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn is_deleted(&self) -> bool {
-        self.0.is_deleted()
+        let comment = &self.0;
+        comment.is_deleted()
     }
 
-    /// Returns the comments published date in UNIX millisecond timestamp format.
+    /// Returns the Unix timestamp in milliseconds of when this [`Comment`] was posted.
     ///
     /// # Example
     ///
@@ -374,8 +366,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -391,14 +382,14 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn posted(&self) -> i64 {
-        self.0.posted()
+        let comment = &self.0;
+        comment.posted()
     }
 
-    /// Returns the [`Poster`] of comment.
+    /// Returns the [`Poster`] of this [`Comment`].
     ///
-    /// If a valid session is passed to the client, this will contain some extra
-    /// metadata, which can be used for determining if, for example, the comment
-    /// was left by the current session user.
+    /// With a session, the [`Poster`] includes additional metadata such as whether
+    /// the comment was left by the session user.
     ///
     /// # Example
     ///
@@ -408,8 +399,7 @@ impl Comment {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(70).await? {
     ///     let mut comments = episode.posts();
@@ -426,7 +416,8 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn poster(&self) -> &Poster {
-        self.0.poster()
+        let comment = &self.0;
+        comment.poster()
     }
 }
 
@@ -454,22 +445,20 @@ mod iter {
         Finished,
     }
 
-    /// Asynchronous iterator over the comments for a single [`Episode`].
+    /// An asynchronous iterator over the top-level comments for an [`Episode`].
     ///
-    /// `Comments` lazily fetches comment pages from the Webtoon API and yields
-    /// individual [`Comment`] values in chronological order.
+    /// Lazily fetches pages from the API and yields [`Comment`] values newest-first.
+    /// Obtain one via [`Episode::posts()`].
     ///
     /// # Examples
-    ///
-    /// Iterating over comments:
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{Client, Type, error::Error};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    /// .expect("webtoon exists");
+    ///
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(45).await? {
     ///     let mut comments = episode.posts();
@@ -480,26 +469,6 @@ mod iter {
     /// }
     /// # Ok(())
     /// # }
-    /// ```
-    ///
-    /// Fetch the oldest comment:
-    ///
-    /// ```
-    /// # use webtoon::platform::webtoons::{Client, Type, error::Error};
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error> {
-    /// let client = Client::new();
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    /// .expect("webtoon exists");
-    ///
-    /// if let Some(episode) = webtoon.episode(21).await? {
-    ///     let mut comments = episode.posts();
-    ///
-    ///     if let Some(comment) = comments.next().await? {
-    ///         println!("comment id: {}", comment.id());
-    ///     }
-    /// }
-    /// # Ok(()) }
     /// ```
     pub struct Comments<'e> {
         episode: &'e Episode,
@@ -605,15 +574,9 @@ mod iter {
             Ok(self.buf.pop().map(Comment))
         }
 
-        /// Consumes the iterator and returns the final [`Comment`], if any.
+        /// Consumes the iterator and returns the oldest visible [`Comment`] on the episode, if any.
         ///
-        /// This corresponds to the oldest comment left on the episode, that is
-        /// still visible. Most commonly, this will be the first comment.
-        ///
-        /// # Returns
-        /// - `Ok(Some(Comment))` if at least one comment exists.
-        /// - `Ok(None)` if the episode has no comments.
-        /// - `Err(PostsError)` if an error occurs during iteration.
+        /// Returns `Err` if an error occurs during iteration.
         pub async fn last(mut self) -> Result<Option<Comment>, WebtoonPostsError> {
             let mut last = None;
 
@@ -626,20 +589,10 @@ mod iter {
     }
 }
 
-/// A reply left on a [`Comment`] within an [`Episode`].
+/// A reply to a [`Comment`] on an [`Episode`].
 ///
-/// A `Reply` represents a **second-level** post in the episode discussion
-/// hierarchy. Unlike [`Comment`], replies are always associated with a parent
-/// comment and cannot exist independently.
-///
-/// Replies are retrieved through [`Comment::replies`] and are never returned
-/// directly by [`Episode::posts`](super::Episode::posts).
-///
-/// # Relationship to `Comment`
-///
-/// - A [`Comment`] is a top-level post on an episode.
-/// - A `Reply` is always a response to a specific comment.
-/// - Each reply exposes its parent comment identifier via [`Reply::parent_id`].
+/// Replies are second-level posts always associated with a parent comment, and are
+/// retrieved via [`Comment::replies()`].
 ///
 /// # Examples
 ///
@@ -651,8 +604,7 @@ mod iter {
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let webtoon = client.webtoon(6054, Type::Original).await?
-///     .expect("webtoon exists");
+/// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
 ///
 /// if let Some(episode) = webtoon.episode(17).await? {
 ///     let mut comments = episode.posts();
@@ -674,7 +626,7 @@ mod iter {
 pub struct Reply(pub(crate) Post);
 
 impl Reply {
-    /// Returns the episode number the reply was left on.
+    /// Returns the episode number this [`Reply`] was left on.
     ///
     /// # Example
     ///
@@ -684,8 +636,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -703,10 +654,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn episode(&self) -> u16 {
-        self.0.episode()
+        let reply = &self.0;
+        reply.episode()
     }
 
-    /// Returns the unique [`Id`] for the reply.
+    /// Returns the [`Id`] of this [`Reply`].
     ///
     /// # Example
     ///
@@ -716,8 +668,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
@@ -735,12 +686,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn id(&self) -> Id {
-        self.0.id()
+        let reply = &self.0;
+        reply.id()
     }
 
-    /// Returns the parent [`Id`] of the reply.
-    ///
-    /// This `id` represents the current replies' parent [`Comment`].
+    /// Returns the [`Id`] of the parent [`Comment`] this [`Reply`] belongs to.
     ///
     /// # Example
     ///
@@ -750,8 +700,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(50).await? {
     ///     let mut comments = episode.posts();
@@ -769,12 +718,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn parent_id(&self) -> Id {
-        self.0.parent_id()
+        let reply = &self.0;
+        reply.parent_id()
     }
 
-    /// Returns a reference to the [`Body`] of the reply.
-    ///
-    /// The body contains the actual text of the post along with a flag indicating if it is marked as a spoiler.
+    /// Returns the [`Body`] of this [`Reply`], containing its text and spoiler flag.
     ///
     /// # Example
     ///
@@ -784,8 +732,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(60).await? {
     ///     let mut comments = episode.posts();
@@ -803,10 +750,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn body(&self) -> &Body {
-        self.0.body()
+        let reply = &self.0;
+        reply.body()
     }
 
-    /// Returns how many upvotes the reply has.
+    /// Returns the number of upvotes on this [`Reply`].
     ///
     /// # Example
     ///
@@ -816,8 +764,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
@@ -836,10 +783,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn upvotes(&self) -> u32 {
-        self.0.upvotes()
+        let reply = &self.0;
+        reply.upvotes()
     }
 
-    /// Returns how many downvotes the reply has.
+    /// Returns the number of downvotes on this [`Reply`].
     ///
     /// # Example
     ///
@@ -849,9 +797,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
-    ///
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(30).await? {
     ///     let mut comments = episode.posts();
@@ -870,12 +816,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn downvotes(&self) -> u32 {
-        self.0.downvotes()
+        let reply = &self.0;
+        reply.downvotes()
     }
 
-    /// Returns the upvote and downvote count for the reply.
-    ///
-    /// A tuple of `(upvotes, downvotes)`
+    /// Returns the upvote and downvote counts for this [`Reply`] as `(upvotes, downvotes)`.
     ///
     /// # Example
     ///
@@ -885,8 +830,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -905,10 +849,11 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn upvotes_and_downvotes(&self) -> (u32, u32) {
-        (self.upvotes(), self.downvotes())
+        let reply = &self.0;
+        (reply.upvotes(), reply.downvotes())
     }
 
-    /// Returns the reply's published date in UNIX millisecond timestamp format.
+    /// Returns the Unix timestamp in milliseconds of when this [`Reply`] was posted.
     ///
     /// # Example
     ///
@@ -918,9 +863,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
-    ///
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -938,14 +881,14 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn posted(&self) -> i64 {
-        self.0.posted()
+        let reply = &self.0;
+        reply.posted()
     }
 
-    /// Returns the [`Poster`] of reply.
+    /// Returns the [`Poster`] of this [`Reply`].
     ///
-    /// If a valid session is passed to the client, this will contain some extra
-    /// metadata, which can be used for determining if, for example, the reply
-    /// was left by the current session user.
+    /// With a session, the [`Poster`] includes additional metadata such as whether
+    /// the reply was left by the session user.
     ///
     /// # Example
     ///
@@ -955,8 +898,7 @@ impl Reply {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let mut comments = episode.posts();
@@ -974,7 +916,8 @@ impl Reply {
     #[inline]
     #[must_use]
     pub fn poster(&self) -> &Poster {
-        self.0.poster()
+        let reply = &self.0;
+        reply.poster()
     }
 }
 
@@ -985,10 +928,7 @@ impl From<Post> for Reply {
     }
 }
 
-/// Represents a post on `webtoons.com`, either a reply or a top-level comment.
-///
-/// This type is not constructed directly but gotten via [`Webtoon::posts()`] or [`Episode::posts()`] and iterated through,
-/// or with [`Episode::posts_for_each()`].
+/// A post on `webtoons.com` - either a top-level comment or a reply.
 #[derive(Clone)]
 pub(crate) struct Post {
     pub(crate) episode: Episode,
@@ -1070,7 +1010,7 @@ impl Post {
         self.downvotes
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub async fn is_top(&self) -> Result<bool, WebtoonPostsError> {
         if let Store::Value(top_comments) = self.episode.top_comments.get() {
             Ok(top_comments
@@ -1094,7 +1034,7 @@ impl Post {
 
             for (idx, comment) in response.result.tops.into_iter().enumerate() {
                 if let Some(top) = top_comments.get_mut(idx) {
-                    *top = Some(Comment(Post::try_from((&self.episode, comment))?));
+                    *top = Some(Comment(Self::try_from((&self.episode, comment))?));
                 }
             }
 
@@ -1159,12 +1099,8 @@ impl Post {
     }
 
     pub async fn replies(&self) -> Result<Vec<Reply>, WebtoonPostsError> {
-        // No need to make a network request when there are
-        // no replies to fetch.
-        //
-        // FIX: Might make this always fetch replies?
-        // I know this was put in to optimize a use case, but the reply count getting
-        // out-of-date is an issue.
+        // PERF:
+        // No need to make a network request when there are no replies to fetch.
         if self.replies == 0 {
             return Ok(Vec::new());
         }
@@ -1181,7 +1117,7 @@ impl Post {
 
         // Add first replies
         for reply in response.result.posts {
-            replies.insert(Post::try_from((&self.episode, reply))?);
+            replies.insert(Self::try_from((&self.episode, reply))?);
         }
 
         // Get rest if any
@@ -1194,7 +1130,7 @@ impl Post {
                 .await?;
 
             for reply in response.result.posts {
-                replies.replace(Post::try_from((&self.episode, reply))?);
+                replies.replace(Self::try_from((&self.episode, reply))?);
             }
 
             next = response.result.pagination.next;
@@ -1216,9 +1152,7 @@ impl Post {
     }
 }
 
-/// Represents the body of a post, including its content and whether it is marked as a spoiler.
-///
-/// The body contains the text content of the post, and a flag indicating whether the post contains spoilers.
+/// The text content of a post, along with its spoiler flag and optional flair.
 #[derive(Debug, Clone)]
 pub struct Body {
     pub(crate) contents: Arc<str>,
@@ -1227,11 +1161,12 @@ pub struct Body {
 }
 
 impl Body {
-    /// Returns contents of the post body.
+    /// Returns the text contents of this [`Body`].
     #[inline]
     #[must_use]
     pub fn contents(&self) -> &str {
-        &self.contents
+        let body = self;
+        &body.contents
     }
 
     /// Returns the optional [`Flare`] a post can have.
@@ -1240,31 +1175,31 @@ impl Body {
     #[inline]
     #[must_use]
     pub fn flare(&self) -> Option<&Flare> {
-        self.flare.as_ref()
+        let body = self;
+        body.flare.as_ref()
     }
 
-    /// Returns whether this post was marked as a spoiler.
+    /// Returns `true` if this [`Body`] is marked as a spoiler.
     #[inline]
     #[must_use]
     pub fn is_spoiler(&self) -> bool {
-        self.is_spoiler
+        let body = self;
+        body.is_spoiler
     }
 }
 
-/// Represents extra flare that can be added to a post.
-///
-/// This can be a list of Webtoons, a single sticker, or a single giphy gif.
+/// Extra media attached to a post: a GIF, a sticker, or a list of webtoons.
 #[derive(Debug, Clone)]
 pub enum Flare {
     /// A GIF in a post.
     Giphy(Giphy),
-    /// A list of Webtoons in a post.
+    /// A list of webtoons in a post.
     Webtoons(Vec<Webtoon>),
     /// A sticker in a post.
     Sticker(Sticker),
 }
 
-/// Represents a sticker in a post.
+/// A sticker attached to a post.
 #[derive(Debug, Clone)]
 pub struct Sticker {
     pack: String,
@@ -1274,18 +1209,14 @@ pub struct Sticker {
 }
 
 impl Sticker {
-    /// Returns the sticker's pack id as a String.
-    ///
-    /// Example: "`wt_001`"
+    /// Returns the pack id of this [`Sticker`], e.g. `wt_001`.
     #[inline]
     #[must_use]
     pub fn pack_id(&self) -> String {
         format!("{}_{:03}", self.pack, self.pack_number)
     }
 
-    /// Returns the sticker's id as a String.
-    ///
-    /// Example: "`wt_001-v2-1`" (version is optional: "`wt_001-1`")
+    /// Returns the full id of this [`Sticker`], e.g. `wt_001-v2-1` or `wt_001-1` if unversioned.
     #[inline]
     #[must_use]
     pub fn id(&self) -> String {
@@ -1344,6 +1275,7 @@ impl FromStr for Sticker {
         };
 
         let mut version: Option<u16> = None;
+        let input = id;
         let mut id = 0;
 
         if let Some(part) = parts.next() {
@@ -1352,7 +1284,7 @@ impl FromStr for Sticker {
                     Ok(ok) => Some(ok),
                     Err(err) => {
                         return Err(ParseStickerError(
-                            id.to_string(),
+                            input.to_string(),
                             format!(
                                 "Sticker version couldn't be parsed into a number: {err} `{part}`"
                             ),
@@ -1364,7 +1296,7 @@ impl FromStr for Sticker {
                     Ok(ok) => ok,
                     Err(err) => {
                         return Err(ParseStickerError(
-                            id.to_string(),
+                            input.to_string(),
                             format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
                         ));
                     }
@@ -1377,7 +1309,7 @@ impl FromStr for Sticker {
                 Ok(ok) => ok,
                 Err(err) => {
                     return Err(ParseStickerError(
-                        id.to_string(),
+                        input.to_string(),
                         format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
                     ));
                 }
@@ -1395,35 +1327,35 @@ impl FromStr for Sticker {
     }
 }
 
-/// Represents a [GIPHY](https://giphy.com) GIF.
+/// A [GIPHY](https://giphy.com) GIF attached to a post.
 #[derive(Debug, Clone)]
 pub struct Giphy {
     id: String,
 }
 
 impl Giphy {
-    /// Make a new Giphy from a Giphy id.
+    /// Creates a new [`Giphy`] from a GIPHY id.
     #[inline]
     #[must_use]
     pub fn new(id: String) -> Self {
         Self { id }
     }
 
-    /// Returns the Giphy id.
+    /// Returns the GIPHY id.
     #[inline]
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
-    /// Returns a thumbnail quality URL for the GIF.
+    /// Returns a thumbnail-quality URL for this GIF.
     #[inline]
     #[must_use]
     pub fn thumbnail(&self) -> String {
         format!("https://media2.giphy.com/media/{}/giphy_s.gif", self.id)
     }
 
-    /// Returns a render quality URL for the GIF.
+    /// Returns a full-quality URL for this GIF.
     #[inline]
     #[must_use]
     pub fn render(&self) -> String {
@@ -1431,7 +1363,7 @@ impl Giphy {
     }
 }
 
-/// Represents information about the poster of a [`Comment`] or [`Reply`].
+/// The author of a [`Comment`] or [`Reply`].
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Poster {
@@ -1480,27 +1412,25 @@ impl Debug for Poster {
     }
 }
 
-// TODO: Can probaly do better her with what is returned when some info is not known.
+// TODO: Can probably do better here with what is returned when some info is not known.
 impl Poster {
-    /// Returns the posters `CUID`.
-    ///
-    /// Not to be confused with a `UUID`: [cuid2](https://github.com/paralleldrive/cuid2).
+    /// Returns the poster's [CUID](https://github.com/paralleldrive/cuid2).
     #[inline]
     #[must_use]
     pub fn cuid(&self) -> &str {
-        &self.cuid
+        let poster = self;
+        &poster.cuid
     }
 
-    // TODO: Need to see what this returns on other languages, as not all languages
-    // have profile pages, but maybe still have "profiles"?
-    /// Returns the profile segment for poster in `webtoons.com/*/creator/{profile}`.
+    /// Returns the profile segment for poster in `webtoons.com/en/creator/{profile}`.
     #[inline]
     #[must_use]
     pub fn profile(&self) -> &str {
-        &self.profile
+        let poster = self;
+        &poster.profile
     }
 
-    /// Returns poster username.
+    /// Returns the username of this [`Poster`].
     ///
     /// # Example
     ///
@@ -1510,8 +1440,7 @@ impl Poster {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(6054, Type::Original).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(6054, Type::Original).await?.expect("`6054` exists");
     ///
     /// if let Some(episode) = webtoon.episode(11).await? {
     ///     let mut comments = episode.posts();
@@ -1527,66 +1456,66 @@ impl Poster {
     #[inline]
     #[must_use]
     pub fn username(&self) -> &str {
-        &self.username
+        let poster = self;
+        &poster.username
     }
 
-    /// Returns if the session user reacted to post.
-    ///
-    /// Returns `true` if the user reacted, `false` if not or if no session was provided.
+    /// Returns `true` if the session user reacted to this post; `false` if not or if no session was provided.
     #[inline]
     #[must_use]
     pub fn reacted(&self) -> bool {
+        let poster = self;
         matches!(
-            self.reaction.get().or_default(),
+            poster.reaction.get().or_default(),
             Reaction::Upvote | Reaction::Downvote
         )
     }
 
-    /// Returns if current session user is creator of post.
+    /// Returns `true` if this [`Poster`] is the current session user.
     ///
-    /// If there is no session provided, this is always `false`.
+    /// Always `false` if no session was provided.
     #[inline]
     #[must_use]
     pub fn is_current_session_user(&self) -> bool {
-        self.is_current_session_user
+        let poster = self;
+        poster.is_current_session_user
     }
 
-    /// Returns if poster is a creator on the Webtoons platform.
+    /// Returns `true` if this [`Poster`] is a creator on the platform.
     ///
-    /// # Note
-    ///
-    /// This doesn't mean they are the creator of the current Webtoon, just that they are a creator. Though it could be of the current Webtoon.
+    /// This does not imply they are the creator of the current [`Webtoon`].
     #[inline]
     #[must_use]
     pub fn is_creator(&self) -> bool {
-        self.is_creator
+        let poster = self;
+        poster.is_creator
     }
 
     // TODO: This should really be if the poster is the creator of the current webtoon
     // not that the session user is the current webtoon creator. Need to check what this is
     // checking.
-    /// Returns if the session user is the creator of the current webtoon.
+    /// Returns `true` if the session user is the creator of the current [`Webtoon`].
     #[inline]
     #[must_use]
     pub fn is_current_webtoon_creator(&self) -> bool {
-        self.is_current_webtoon_creator
+        let poster = self;
+        poster.is_current_webtoon_creator
     }
 
-    /// Returns if the poster left a super like for the posts' episode.
+    /// Returns `true` if this [`Poster`] left a super like on the episode.
     #[inline]
     #[must_use]
     pub fn did_super_like_episode(&self) -> bool {
-        self.super_like.is_some()
+        let poster = self;
+        poster.super_like.is_some()
     }
 
-    /// Returns the amount the poster super liked the posts' episode.
-    ///
-    /// Will return `None` if the poster didn't super like the episode, otherwise
-    /// returns `Some` with the amount they did.
+    /// Returns the super like amount this [`Poster`] gave to the episode, if any.
     #[inline]
     #[must_use]
     pub fn super_like(&self) -> Option<u32> {
-        self.super_like
+        let poster = self;
+        poster.super_like
     }
 }
 
@@ -1604,20 +1533,14 @@ impl PartialEq for Post {
 
 impl Eq for Post {}
 
-/// Represents a reaction for a post.
-///
-/// <div class="warning">
-///
-/// **These are mutually exclusive**
-///
-/// </div>
+/// The session user's reaction to a post.
 #[derive(Clone, Debug, Copy, Default)]
 pub enum Reaction {
-    /// User has upvoted
+    /// The user upvoted the post.
     Upvote,
-    /// User has downvoted
+    /// The user downvoted the post.
     Downvote,
-    /// User has not voted
+    /// The user has not reacted.
     #[default]
     None,
 }
@@ -1641,63 +1564,42 @@ pub mod id {
     use thiserror::Error;
 
     // TODO: Make just a tuple struct that takes a `String`.
-    /// Represents possible errors when parsing a posts id.
-    #[allow(missing_docs)]
+    /// Error parsing a post [`Id`].
     #[derive(Error, Debug)]
-    pub enum ParseIdError {
-        /// Error for an invalid id format.
+    pub enum ParsePostIdError {
+        /// The id string did not match the expected format.
         #[error("failed to parse `{id}` into `Id`: {context}")]
-        InvalidFormat { id: String, context: String },
+        InvalidFormat {
+            /// The original id string that failed to parse.
+            id: String,
+            /// A description of why parsing failed.
+            context: String,
+        },
+        /// A numeric component of the id could not be parsed.
         #[error("failed to parse `{id}` into `Id`: {error}")]
-        ParseNumber { id: String, error: ParseIntError },
+        ParseNumber {
+            /// The original id string that failed to parse.
+            id: String,
+            /// The underlying parse error.
+            error: ParseIntError,
+        },
     }
 
-    /// Represents a unique identifier for a post or comment on a Webtoon episode.
+    /// A unique identifier for a post or reply on a [`Webtoon`] episode.
     ///
-    /// The format contains multiple components, representing a different aspect of the Webtoon, episode,
-    /// post, and any potential reply. It also provides information about the chronological order of the comments.
+    /// IDs follow the format `GW-epicom:0-w_95_1-1d-z`, where the components encode
+    /// the webtoon type, webtoon id, episode number, post position (Base36), and
+    /// optionally a reply position (Base36). IDs with lower post/reply values were
+    /// posted earlier.
     ///
-    /// ### Structure:
-    ///
-    /// The format of the ID follows this pattern:
-    /// `GW-epicom:0-w_95_1-1d-z`
-    ///
-    /// - **`GW-epicom`**:
-    ///   This prefix can be ignored and seems to serve as a namespace. `epicom` stands for "episode comment."
-    ///
-    /// - **`0`**:
-    ///   This is an unknown tag. Its purpose remains unclear, but it is preserved in the ID structure for compatibility.
-    ///
-    /// - **`w` / `c`**:
-    ///   This denotes whether the Webtoon is an **Original** (`w`) or **Canvas** (`c`).
-    ///
-    /// - **`95`**:
-    ///   Represents the Webtoon ID. This value is unique to the Webtoon series.
-    ///
-    /// - **`1`**:
-    ///   Represents the episode number within the Webtoon series.
-    ///
-    /// - **`1d`**:
-    ///   A unique identifier for the specific post. It is encoded in **Base36** (using characters `0-9` and `a-z`).
-    ///   This value indicates the chronological order of the post within the episode's comments section. Posts and replies cannot have a value of `0`.
-    ///
-    /// - **`z`**:
-    ///   Represents a reply to a post. If this component is missing, the ID refers to a top-level post. If present, it indicates the reply to a specific post, also encoded in **Base36**.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
-    /// # use webtoon::platform::webtoons::webtoon::post::id::{Id, ParseIdError};
+    /// # use webtoon::platform::webtoons::webtoon::post::id::{Id, ParsePostIdError};
     /// # use std::str::FromStr;
     /// let id = Id::from_str("GW-epicom:0-w_95_1-1d-z")?;
-    /// # Ok::<(), ParseIdError>(())
+    /// # Ok::<(), ParsePostIdError>(())
     /// ```
-    ///
-    /// ### Notes:
-    ///
-    /// - The ID structure provides an implicit chronological order, meaning that IDs with lower values (in the `post` or `reply` fields)
-    ///   were posted earlier than those with higher values.
-    /// - The ID must have non-zero values for both the post and reply components, ensuring that each comment and reply is uniquely identifiable.
     #[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
     #[serde(try_from = "String")]
     #[serde(into = "String")]
@@ -1711,7 +1613,7 @@ pub mod id {
     }
 
     impl FromStr for Id {
-        type Err = ParseIdError;
+        type Err = ParsePostIdError;
 
         #[allow(clippy::too_many_lines)]
         fn from_str(str: &str) -> Result<Self, Self::Err> {
@@ -1721,7 +1623,7 @@ pub mod id {
             //
             // NOTE: Its still unknown what this prefix means.
             let g = str.chars().position(|ch| ch == 'G').ok_or_else(|| {
-                ParseIdError::InvalidFormat {
+                ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context:
                         "a `G` should always exist within a posts id, even if it just that it starts with `GW`"
@@ -1733,7 +1635,7 @@ pub mod id {
             let mut halves = str
                 // In slice so that we always start with `GW-epicom`.
                 .get(g..)
-                .ok_or_else(|| ParseIdError::InvalidFormat {
+                .ok_or_else(|| ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: "`G` in `GW-epicom` index was out of bounds, when it should never be"
                         .to_string(),
@@ -1744,7 +1646,7 @@ pub mod id {
             if let Some(prefix) = halves.next()
                 && prefix != "GW-epicom"
             {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: format!(
                         "splitting on `:` for an id should have a prefix of `GW-epicom` but had, `{prefix}`",
@@ -1753,13 +1655,15 @@ pub mod id {
             }
 
             // get `0-w_95_1-1d-z`
-            let id = halves.next().ok_or_else(|| ParseIdError::InvalidFormat {
-                id: str.to_owned(),
-                context: "there was no right-hand part after splitting on `:`".to_string(),
-            })?;
+            let id = halves
+                .next()
+                .ok_or_else(|| ParsePostIdError::InvalidFormat {
+                    id: str.to_owned(),
+                    context: "there was no right-hand part after splitting on `:`".to_string(),
+                })?;
 
             if id.is_empty() {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: "split on `:` resulted in expected `GW-epicom` prefix, but there was nothing to the right of it, resulting in an empty id".to_string(),
                 });
@@ -1769,19 +1673,19 @@ pub mod id {
             let mut parts = id.split('-');
 
             let Some(first) = parts.next() else {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: "splitting on `-` should yield at least 3 parts, but trying to get the first(tag) element resulted on `None`".to_string(),
                 });
             };
 
-            let tag: u32 = first.parse().map_err(|err| ParseIdError::ParseNumber {
+            let tag: u32 = first.parse().map_err(|err| ParsePostIdError::ParseNumber {
                 id: str.to_owned(),
                 error: err,
             })?;
 
             let Some(page_id) = parts.next() else {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: "splitting on `-` should yield at least 3 parts, but trying to get the second(page id) element resulted on `None`".to_string(),
                 });
@@ -1794,7 +1698,7 @@ pub mod id {
                 Some("w") => Scope::W,
                 Some("c") => Scope::C,
                 Some(s) => {
-                    return Err(ParseIdError::InvalidFormat {
+                    return Err(ParsePostIdError::InvalidFormat {
                         id: str.to_owned(),
                         context: format!(
                             r"page id should only have a scope of either `w` or `c`, but found: {s}",
@@ -1802,7 +1706,7 @@ pub mod id {
                     });
                 }
                 None => {
-                    return Err(ParseIdError::InvalidFormat {
+                    return Err(ParsePostIdError::InvalidFormat {
                         id: str.to_owned(),
                         context: format!(
                             r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a scope as the first element",
@@ -1816,13 +1720,13 @@ pub mod id {
                 Some(webtoon) => {
                     webtoon
                         .parse::<u32>()
-                        .map_err(|err| ParseIdError::ParseNumber {
+                        .map_err(|err| ParsePostIdError::ParseNumber {
                             id: str.to_owned(),
                             error: err,
                         })?
                 }
                 None => {
-                    return Err(ParseIdError::InvalidFormat {
+                    return Err(ParsePostIdError::InvalidFormat {
                         id: str.to_owned(),
                         context: format!(
                             r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a webtoon id as the second element",
@@ -1831,19 +1735,18 @@ pub mod id {
                 }
             };
 
-            // TODO: Check that is `NonZero`
             // parse `1` to u16
             let episode = match page_id_parts.next() {
                 Some(episode) => {
                     episode
                         .parse::<u16>()
-                        .map_err(|err| ParseIdError::ParseNumber {
+                        .map_err(|err| ParsePostIdError::ParseNumber {
                             id: str.to_owned(),
                             error: err,
                         })?
                 }
                 None => {
-                    return Err(ParseIdError::InvalidFormat {
+                    return Err(ParsePostIdError::InvalidFormat {
                         id: str.to_owned(),
                         context: format!(
                             r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a episode number as the third element",
@@ -1853,7 +1756,7 @@ pub mod id {
             };
 
             if let Some(unknown) = page_id_parts.next() {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: format!(
                         r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but found `{unknown}` as part of `{page_id}`, after the expected end",
@@ -1862,36 +1765,32 @@ pub mod id {
             }
 
             let Some(second) = parts.next() else {
-                return Err(ParseIdError::InvalidFormat {
+                return Err(ParsePostIdError::InvalidFormat {
                     id: str.to_owned(),
                     context: "splitting on `-` should yield at least 3 parts, but trying to get the second(post number) element resulted on `None`".to_string(),
                 });
             };
 
-            // TODO: Check that is `NonZero`
             // parse `1d` to `Base36`
             let post = second
                 .parse::<Base36>()
-                .map_err(|err| ParseIdError::ParseNumber {
+                .map_err(|err| ParsePostIdError::ParseNumber {
                     id: str.to_owned(),
                     error: err,
                 })?;
 
-            // TODO: Check that is `NonZero`
             // if exists parse `z` to `Base36`
-            let reply = match parts.next() {
-                Some(reply) => {
-                    Some(
-                        reply
-                            .parse::<Base36>()
-                            .map_err(|err| ParseIdError::ParseNumber {
-                                id: str.to_owned(),
-                                error: err,
-                            })?,
-                    )
-                }
-                None => None,
-            };
+            let reply = parts
+                .next()
+                .map(|reply| {
+                    reply
+                        .parse::<Base36>()
+                        .map_err(|err| ParsePostIdError::ParseNumber {
+                            id: str.to_owned(),
+                            error: err,
+                        })
+                })
+                .transpose()?;
 
             let id = Self {
                 tag,
@@ -1923,7 +1822,7 @@ pub mod id {
                     "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}-{reply}"
                 )
             } else {
-                write!(f, "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}",)
+                write!(f, "GW-epicom:{tag}-{scope}_{webtoon}_{episode}-{post}")
             }
         }
     }
@@ -1936,39 +1835,32 @@ pub mod id {
 
     impl<'a> PartialEq<&'a str> for Id {
         fn eq(&self, other: &&'a str) -> bool {
-            Self::from_str(other).map(|id| *self == id).unwrap_or(false)
+            Self::from_str(other).is_ok_and(|id| *self == id)
         }
     }
 
     impl PartialEq<String> for Id {
         fn eq(&self, other: &String) -> bool {
-            Self::from_str(other).map(|id| *self == id).unwrap_or(false)
+            Self::from_str(other).is_ok_and(|id| *self == id)
         }
     }
 
     impl Ord for Id {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
             match self.post.cmp(&other.post) {
-                Ordering::Less => Ordering::Less,
-                Ordering::Greater => Ordering::Greater,
                 Ordering::Equal => {
                     match (self.reply, other.reply) {
-                        // Both are replies to the same direct post so a direct compare is easy
+                        // Both are replies to the same post.
                         (Some(reply), Some(other)) => reply.cmp(&other),
-
-                        // If there is no reply number for the first one, it must be a direct post. If there is any
-                        // id that has a reply with a matching post number, it must always be `Greater`, and therefore
-                        // `self` must be `Less` than the reply.
+                        // A direct post is always less than a reply to it.
                         (None, Some(_)) => Ordering::Less,
-
-                        // Inverse of the above: If there is a reply for the first one, and the `Rhs` is None(a direct post)
-                        // it must always be greater than the direct post.
+                        // A reply is always greater than the direct post.
                         (Some(_), None) => Ordering::Greater,
-
                         // Same direct post
                         (None, None) => Ordering::Equal,
                     }
                 }
+                ord => ord,
             }
         }
     }
@@ -2010,7 +1902,7 @@ pub mod id {
     }
 
     impl TryFrom<String> for Id {
-        type Error = ParseIdError;
+        type Error = ParsePostIdError;
 
         fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
             Self::from_str(&value)
@@ -2039,6 +1931,7 @@ pub mod id {
         #![allow(clippy::unwrap_used)]
 
         use super::*;
+        use pretty_assertions::{assert_eq, assert_ne};
 
         #[test]
         fn should_be_equal_str() {
@@ -2061,8 +1954,8 @@ pub mod id {
             };
 
             // 1d == 49
-            pretty_assertions::assert_eq!(id, "GW-epicom:0-w_95_1-1d");
-            pretty_assertions::assert_eq!(id_with_reply, "GW-epicom:0-w_95_1-1d-1");
+            assert_eq!(id, "GW-epicom:0-w_95_1-1d");
+            assert_eq!(id_with_reply, "GW-epicom:0-w_95_1-1d-1");
         }
 
         #[test]
@@ -2076,8 +1969,8 @@ pub mod id {
                 reply: None,
             };
 
-            pretty_assertions::assert_ne!(id, "GW-epicom:0-w_95_2-1d");
-            pretty_assertions::assert_ne!(id, "GW-epicom:0-w_95_1-1d-1");
+            assert_ne!(id, "GW-epicom:0-w_95_2-1d");
+            assert_ne!(id, "GW-epicom:0-w_95_1-1d-1");
         }
 
         #[test]
@@ -2157,11 +2050,11 @@ pub mod id {
         fn should_parse_post_id() {
             let id = Id::from_str("GW-epicom:0-w_95_1-1d").unwrap();
 
-            pretty_assertions::assert_eq!(id.scope, Scope::W);
-            pretty_assertions::assert_eq!(id.webtoon, 95);
-            pretty_assertions::assert_eq!(id.episode, 1);
-            pretty_assertions::assert_eq!(id.post, 49);
-            pretty_assertions::assert_eq!(id.reply, None);
+            assert_eq!(id.scope, Scope::W);
+            assert_eq!(id.webtoon, 95);
+            assert_eq!(id.episode, 1);
+            assert_eq!(id.post, 49);
+            assert_eq!(id.reply, None);
         }
 
         #[test]
@@ -2169,20 +2062,20 @@ pub mod id {
             {
                 let id = Id::from_str("GW-epicom:0-w_95_1-1d-z").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, Scope::W);
-                pretty_assertions::assert_eq!(id.webtoon, 95);
-                pretty_assertions::assert_eq!(id.episode, 1);
-                pretty_assertions::assert_eq!(id.post, 49);
-                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(35)));
+                assert_eq!(id.scope, Scope::W);
+                assert_eq!(id.webtoon, 95);
+                assert_eq!(id.episode, 1);
+                assert_eq!(id.post, 49);
+                assert_eq!(id.reply, Some(Base36::new(35)));
             }
             {
                 let id = Id::from_str("GW-epicom:0-c_656579_161-13-1").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, Scope::C);
-                pretty_assertions::assert_eq!(id.webtoon, 656_579);
-                pretty_assertions::assert_eq!(id.episode, 161);
-                pretty_assertions::assert_eq!(id.post, 39);
-                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(1)));
+                assert_eq!(id.scope, Scope::C);
+                assert_eq!(id.webtoon, 656_579);
+                assert_eq!(id.episode, 161);
+                assert_eq!(id.post, 39);
+                assert_eq!(id.reply, Some(Base36::new(1)));
             }
         }
 
@@ -2191,127 +2084,21 @@ pub mod id {
             {
                 let id = Id::from_str("`1:1300:GW-epicom:0-w_95_1-1d-z").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, Scope::W);
-                pretty_assertions::assert_eq!(id.webtoon, 95);
-                pretty_assertions::assert_eq!(id.episode, 1);
-                pretty_assertions::assert_eq!(id.post, 49);
-                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(35)));
+                assert_eq!(id.scope, Scope::W);
+                assert_eq!(id.webtoon, 95);
+                assert_eq!(id.episode, 1);
+                assert_eq!(id.post, 49);
+                assert_eq!(id.reply, Some(Base36::new(35)));
             }
             {
                 let id = Id::from_str("10:1:GW-epicom:0-c_656579_161-13-1").unwrap();
 
-                pretty_assertions::assert_eq!(id.scope, Scope::C);
-                pretty_assertions::assert_eq!(id.webtoon, 656_579);
-                pretty_assertions::assert_eq!(id.episode, 161);
-                pretty_assertions::assert_eq!(id.post, 39);
-                pretty_assertions::assert_eq!(id.reply, Some(Base36::new(1)));
+                assert_eq!(id.scope, Scope::C);
+                assert_eq!(id.webtoon, 656_579);
+                assert_eq!(id.episode, 161);
+                assert_eq!(id.post, 39);
+                assert_eq!(id.reply, Some(Base36::new(1)));
             }
         }
     }
 }
-
-//Stickers for all stickers https://www.webtoons.com/p/api/community/v1/sticker/pack/wt_001 Needs Service-Ticket-Id: epicom
-
-// GIF search
-// https://www.webtoons.com/p/api/community/v1/gifs/search?q=happy&offset=0&limit=10
-
-// POST GIF comment
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "GIF Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "GIPHY",
-//         "data": {
-//           "giphyId": "fUQ4rhUZJYiQsas6WD"
-//         }
-//       }
-//     ]
-//   }
-// }
-
-// POST for comment with sticker
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Sticker Comment 2",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "STICKER",
-//         "data": {
-//           "stickerPackId": "wt_001",
-//           "stickerId": "wt_001-v2-1"
-//         }
-//       }
-//     ]
-//   }
-// }
-
-// POST webtoon comment
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Webtoon Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "95"
-//         }
-//       }
-//     ]
-//   }
-// }
-// Multiple webtoons(only one that can be multiple)
-// {
-//   "pageId": "c_843910_1",
-//   "settings": {
-//     "reply": "ON",
-//     "reaction": "ON",
-//     "spoilerFilter": "OFF"
-//   },
-//   "title": "",
-//   "body": "Multiple Webtoon Comment",
-//   "sectionGroup": {
-//     "sections": [
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "5557"
-//         }
-//       },
-//       {
-//         "sectionType": "CONTENT_META",
-//         "data": {
-//           "contentType": "TITLE",
-//           "contentSubType": "WEBTOON",
-//           "contentId": "95"
-//         }
-//       }
-//     ]
-//   }
-// }
-// contentSubType can also be "CHALLENGE"

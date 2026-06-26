@@ -253,7 +253,7 @@ impl Webtoon {
     /// # Example
     ///
     /// ```
-    /// # use webtoon::platform::webtoons::{error::Error, Type, meta::Genre, Client};
+    /// # use webtoon::platform::webtoons::{error::Error, Type, webtoon::Genre, Client};
     /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -721,8 +721,8 @@ impl Webtoon {
 
     /// Returns the total number of likes across all episodes of this [`Webtoon`].
     ///
-    /// Includes all episodes regardless of visibility — public, paywalled, deleted, or
-    /// unpublished — which may cause this total to differ from what is publicly displayed.
+    /// Includes all episodes regardless of visibility - public, paywalled, deleted, or
+    /// unpublished - which may cause this total to differ from what is publicly displayed.
     ///
     /// # Example
     ///
