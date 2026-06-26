@@ -21,9 +21,9 @@ use super::{
     episode::{Episode, PublishedStatus},
 };
 
-/// Represents the RSS data from the webtoons.com RSS feed for the Webtoon.
+/// RSS feed data for a [`Webtoon`].
 ///
-/// This is not a spec-compliant representation, but rather one that would make sense from a `webtoons.com` perspective.
+/// Not a spec-compliant RSS representation; shaped around what `webtoons.com` exposes.
 #[derive(Debug)]
 pub struct Rss {
     pub(super) url: String,
@@ -145,8 +145,7 @@ fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
 
     let Some(date) = date
         .split_once(',')
-        .map(|(_, date)| date.trim_end_matches("GMT"))
-        .map(|date| date.trim())
+        .map(|(_, date)| date.trim_end_matches("GMT").trim())
     else {
         assumption!(
             "incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got: `{date}`"
@@ -183,16 +182,15 @@ fn episode(url: &str) -> Result<u16, Assumption> {
         ),
     };
 
-    let Some((key, value)) = url.query_pairs().nth(1) else {
+    let Some(value) = url
+        .query_pairs()
+        .find(|(key, _)| key == "episode_no")
+        .map(|(_, v)| v)
+    else {
         assumption!(
-            "`webtoons.com` Webtoon rss url should always 2 queries, one for the Webtoon id, `title_no`, and one for the episode number, `episode_no`: `{url}`"
+            "`webtoons.com` Webtoon rss url should always have an `episode_no` query: `{url}`"
         )
     };
-
-    assumption!(
-        key == "episode_no",
-        "second url query in `webtoons.com` Webtoon rss feed url was not `episode_no`: {url}"
-    );
 
     match u16::from_str(&value) {
         Ok(episode) => Ok(episode),
@@ -203,7 +201,7 @@ fn episode(url: &str) -> Result<u16, Assumption> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
