@@ -263,6 +263,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
 
     #[allow(clippy::too_many_lines)]
     fn try_from((episode, post): (&Episode, RawPost)) -> Result<Self, Self::Error> {
+        let client = &episode.webtoon.client;
+
         let emotions = post
             .reactions
             .first()
@@ -302,7 +304,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         };
 
         let posted = DateTime::from_timestamp_millis(post.created_at)
-            .with_assumption(|| format!("timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`", post.created_at) )? ;
+            .with_assumption(|| format!("timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`", post.created_at))? ;
 
         let mut webtoons = Vec::new();
         let mut super_like: Option<u32> = None;
@@ -342,9 +344,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         .join(path)
                         .with_assumption(|| format!("`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url `{path}`"))?;
 
-                    let webtoon =  episode
-                        .webtoon
-                        .client
+                    let webtoon = client
                         .webtoon_from_url(url.as_str())
                         .with_assumption(|| format!("url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url `{url}`"))?;
 

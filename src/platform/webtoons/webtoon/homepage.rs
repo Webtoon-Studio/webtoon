@@ -842,7 +842,7 @@ fn count(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
