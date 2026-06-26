@@ -36,7 +36,7 @@
     clippy::useless_let_if_seq,
     clippy::match_like_matches_macro,
     clippy::manual_non_exhaustive,
-    clippy::todo,
+    // clippy::todo,
     clippy::unimplemented,
     clippy::manual_ok_or,
     clippy::manual_unwrap_or,

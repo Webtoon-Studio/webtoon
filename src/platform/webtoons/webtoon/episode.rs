@@ -454,7 +454,6 @@ impl Episode {
     /// # }
     /// ```
     #[inline]
-    #[must_use]
     pub fn posts(&self) -> Comments<'_> {
         Comments::new(self)
     }
