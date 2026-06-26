@@ -4,7 +4,7 @@
 use thiserror::Error;
 
 #[cfg(feature = "download")]
-pub use _inner::DownloadError;
+pub use _inner::SavePanelError;
 
 pub use _inner::{
     CanvasError, ClientBuilderError, ClientError, CreatorError, CreatorWebtoonsError, EpisodeError,
@@ -108,7 +108,7 @@ mod _inner {
             UnsupportedLanguage
         } || Base || RequestError
 
-        DownloadError := {
+        SavePanelError := {
             IoError(std::io::Error),
         } || Base || RequestError
 

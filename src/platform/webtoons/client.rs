@@ -1060,7 +1060,7 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn episodes_likes(
+    pub(super) async fn fetch_episodes_likes(
         &self,
         episode: &Episode,
     ) -> Result<RawLikesResponse, WebtoonLikesError> {

@@ -3,7 +3,7 @@
 use super::{Webtoon, post::PinRepresentation};
 use crate::platform::webtoons::webtoon::post::{Comment, Comments};
 use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{Assume, Assumption, assumption};
+use crate::stdx::error::{Assume, AssumeFor, Assumption, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
@@ -17,13 +17,11 @@ use scraper::{ElementRef, Html, Selector};
 use std::hash::Hash;
 use url::Url;
 
-/// Represents an episode on `webtoons.com`.
+/// An episode on `webtoons.com`.
 ///
-/// This type is not constructed directly, but gotten via [`Webtoon::episodes()`] or [`Webtoon::episode()`]
+/// Obtained via [`Webtoon::episodes()`] or [`Webtoon::episode()`]; not constructed directly.
 ///
-/// # Validity
-///
-/// An instance of an `Episode` should always be considered to exist and be a valid episode on the platform.
+/// Any `Episode` instance is guaranteed to exist on the platform.
 ///
 /// # Example
 ///
@@ -33,9 +31,7 @@ use url::Url;
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(webtoon) = client.webtoon(2960, Type::Original).await? else {
-///     unreachable!("webtoon is known to exist");
-/// };
+/// let webtoon = client.webtoon(2960, Type::Original).await?.expect("`2960` exists");
 ///
 /// if let Some(episode) = webtoon.episode(187).await? {
 ///     assert_eq!("(S2) Ep. 187 - Gods Plan", episode.title().await?);
@@ -95,12 +91,12 @@ impl std::fmt::Debug for Episode {
 }
 
 impl Episode {
-    /// Returns the episode number.
+    /// Returns the number of this [`Episode`].
     ///
     /// This matches up with the `episode_no=` URL query: [`episode_no=25`]
     ///
-    /// Distinctly, this could be different from expectations just basing off of the shown episode numbers, as there could
-    /// have been episodes deleted that would shift the numbers; this does not necessarily match up with the `#NUMBER` on the episode list.
+    /// This may differ from the displayed `#NUMBER` on the episode list if any episodes have
+    /// been deleted, shifting the visible numbering.
     ///
     /// # Example
     ///
@@ -110,9 +106,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(7370, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(7370, Type::Original).await?.expect("`7370` exists");
     ///
     /// if let Some(episode) = webtoon.episode(25).await? {
     ///     assert_eq!(25, episode.number());
@@ -127,14 +121,14 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn number(&self) -> u16 {
-        self.number
+        let episode = self;
+        episode.number
     }
 
-    /// Returns the title of the episode.
+    /// Returns the title of this [`Episode`].
     ///
-    /// If the episode was gotten via [`Webtoon::episode()`](crate::platform::webtoons::webtoon::Webtoon::episode), this can
-    /// potentially return a `EpisodeError::NotViewable`, as it could reference a hidden or deleted episode who's title is
-    /// impossible to get.
+    /// Returns `EpisodeError::NotViewable` if the episode is hidden or deleted, which can
+    /// occur when the episode was obtained via [`Webtoon::episode()`].
     ///
     /// # Example
     ///
@@ -144,9 +138,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6532, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6532, Type::Original).await?.expect("`6532` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     assert_eq!("Ep. 1 - Prologue", episode.title().await?);
@@ -157,32 +149,26 @@ impl Episode {
     /// # }
     /// ```
     pub async fn title(&self) -> Result<String, EpisodeError> {
-        if let Store::Value(title) = self.title.get() {
-            Ok(title)
-        } else {
-            self.scrape().await?;
-
-            match self.title.get() {
-                Store::Value(title) => Ok(title),
-                Store::Empty => assumption!(
-                    "`webtoons.com` episode `title` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                ),
+        let episode = self;
+        match episode.title.get() {
+            Store::Value(title) => Ok(title),
+            Store::Empty => {
+                episode.scrape().await?;
+                match episode.title.get() {
+                    Store::Value(title) => Ok(title),
+                    Store::Empty => assumption!(
+                        "`webtoons.com` episode `title` should have been populated with `episode.scrape()`; this should never be `Empty`"
+                    ),
+                }
             }
         }
     }
 
-    /// Returns the season number if a pattern is detected in the episode's title.
+    /// Returns the season number for this [`Episode`], if any.
     ///
-    /// The method attempts to extract the season number by searching for specific patterns within the episode's title.
-    ///
-    /// The supported patterns are:
-    /// - `[Season \d+]`
-    /// - `(Season \d+)`
-    /// - `[S\d+]`
-    /// - `(S\d+)`
-    ///
-    /// If no season pattern is found, the method will return `None`. If the episode is not viewable, for example if the
-    /// episode is only viewable on the app, this will return `Err(EpisodeError::NotViewable)`
+    /// Inferred from the episode title by matching patterns like `[Season 2]`, `(Season 2)`,
+    /// `[S2]`, or `(S2)`. Returns `None` if no pattern is found, or
+    /// `EpisodeError::NotViewable` if the episode is hidden or deleted.
     ///
     /// # Example
     ///
@@ -192,9 +178,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(95, Type::Original).await?.expect("`95` exists");
     ///
     /// if let Some(episode) = webtoon.episode(652).await? {
     ///     assert_eq!(Some(3), episode.season().await?);
@@ -205,13 +189,12 @@ impl Episode {
     /// # }
     /// ```
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
-        let title = self.title().await?;
-        Ok(self::season(&title)?)
+        let episode = self;
+        let title = episode.title().await?;
+        Ok(season(&title)?)
     }
 
-    /// Returns the creator note for episode.
-    ///
-    /// If there is no note found, `None` is returned.
+    /// Returns the creator's note for this [`Episode`], if any.
     ///
     /// # Example
     ///
@@ -221,40 +204,37 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(261984, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(261984, Type::Canvas).await?.expect("`261984` exists");
     ///
-    /// if let Some(episode) = webtoon.episode(1).await? {
-    ///     if let Some(note) = episode.note().await? {
+    /// if let Some(episode) = webtoon.episode(1).await?
+    ///     && let Some(note) = episode.note().await? {
     ///         assert!(note.starts_with("Find me as Jayessart"));
     ///         # return Ok(());
-    ///     }
     /// }
     /// # unreachable!("should have entered the episode block and returned");
     /// # Ok(())
     /// # }
     /// ```
     pub async fn note(&self) -> Result<Option<String>, EpisodeError> {
-        if let Store::Value(note) = self.note.get() {
-            Ok(note)
-        } else {
-            self.scrape().await?;
-
-            match self.note.get() {
-                Store::Value(note) => Ok(note),
-                Store::Empty => assumption!(
-                    "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                ),
+        let episode = self;
+        match episode.note.get() {
+            Store::Value(note) => Ok(note),
+            Store::Empty => {
+                episode.scrape().await?;
+                match episode.note.get() {
+                    Store::Value(note) => Ok(note),
+                    Store::Empty => assumption!(
+                        "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                    ),
+                }
             }
         }
     }
 
-    /// Returns the sum of the vertical length in pixels.
+    /// Returns the total vertical length of this [`Episode`] in pixels, if any.
     ///
-    /// If the page cannot be viewed publicly, for example its behind fast-pass or only available on the app, it will
-    /// return `Err(EpisodeError::NotViewable)`. It can return `None` for some episodes that have audio or GIFs, as this
-    /// viewer is unsupported.
+    /// Returns `None` for episodes with audio or GIFs, as that viewer is unsupported.
+    /// Returns `Err(EpisodeError::NotViewable)` for paywalled or app-only episodes.
     ///
     /// # Example
     ///
@@ -264,9 +244,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     assert_eq!(Some(89600), episode.length().await?);
@@ -277,50 +255,27 @@ impl Episode {
     /// # }
     /// ```
     pub async fn length(&self) -> Result<Option<u32>, EpisodeError> {
-        if let Store::Value(length) = self.length.get() {
-            Ok(length)
-        } else {
-            self.scrape().await?;
-
-            match self.length.get() {
-                Store::Value(length) => Ok(length),
-                Store::Empty => assumption!(
-                    "`webtoons.com` episode `length` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                ),
+        let episode = self;
+        match episode.length.get() {
+            Store::Value(length) => Ok(length),
+            Store::Empty => {
+                episode.scrape().await?;
+                match episode.length.get() {
+                    Store::Value(length) => Ok(length),
+                    Store::Empty => assumption!(
+                        "`webtoons.com` episode `length` should have been populated with `episode.scrape`, and thus should never be `Empty`"
+                    ),
+                }
             }
         }
     }
 
-    /// Returns the [`Published`] information for this episode.
+    /// Returns the [`Published`] date or datetime for this [`Episode`], if any.
     ///
-    /// This method returns:
-    /// - `Some(Published)` if the episode is publicly available or has a known publish date.
-    /// - `None` if the episode is unpublished.
+    /// Only populated when the episode was obtained via [`Webtoon::episodes()`] or
+    /// [`Webtoon::rss()`]; always `None` for episodes from [`Webtoon::episode()`].
     ///
-    /// # Behavior
-    ///
-    /// ## Original series
-    /// For episodes from an Original series, this method always returns `Some` for free episodes.
-    /// However, [`Published`] will only include date information (`day`, `month`, `year`) because
-    /// full time precision is not provided.
-    ///
-    /// ## Canvas series
-    /// *Without a session:*
-    /// Publicly available Canvas episodes also return `Some`, with the same limited
-    /// date-only (`day`, `month`, `year`) information.
-    ///
-    /// *With a valid creator session:*
-    /// - Returns `None` for unpublished (draft) episodes.
-    /// - Returns full `Published` data, including time-of-day, for published episodes.
-    ///
-    /// # Notes
-    ///
-    /// This method **only returns values** when the episode is obtained via:
-    /// - [`Webtoon::episodes()`], which can load all episodes when used with a session, or
-    /// - [`Webtoon::rss()`], which includes full publish timestamps for recent episodes.
-    ///
-    /// When an episode is retrieved using [`Webtoon::episode()`], this method will always return
-    /// `None`, even if the episode is published. This behavior may change in the future.
+    /// For [`Canvas`] episodes fetched with a creator session, draft episodes return `None`.
     ///
     /// # Example
     ///
@@ -330,19 +285,17 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
     /// let mut episodes = webtoon.episodes().await?;
     ///
     /// episodes.sort_unstable_by_key(|episode| episode.number());
     ///
     /// if let Some(episode) = episodes.first()
-    /// && let Some(published) = episode.published()  {
-    ///     assert_eq!(29, published.day());
-    ///     assert_eq!(4, published.month());
-    ///     assert_eq!(2025, published.year());
+    ///    && let Some(published) = episode.published()  {
+    ///      assert_eq!(29, published.day());
+    ///      assert_eq!(4, published.month());
+    ///      assert_eq!(2025, published.year());
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -352,22 +305,15 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn published(&self) -> Option<Published> {
-        self.published
+        let episode = self;
+        episode.published
     }
 
-    /// Returns the view count for the episode.
+    /// Returns the view count for this [`Episode`], if available.
     ///
-    /// It will return as `Some` if available, or `None` if the view count is not accessible.
-    ///
-    /// # Behavior
-    ///
-    /// - **Original vs. Canvas Episodes**:
-    ///   - **Original Webtoons**: For episodes from an Original series will always return `None`.
-    ///   - **Canvas Webtoons (No Session)**: Will always return `None`.
-    ///   - **Canvas Webtoons (With Session)**: If a valid creator session is provided, the method will include views for all episodes, including those behind fast-pass, ad walls, or even unpublished episodes, provided the episode is retrieved using [`Webtoon::episodes()`].
-    ///
-    /// - **Important Caveat**:
-    ///   - **Views will always return `None`** when using the [`Webtoon::episode()`] method to retrieve a single episode. To get the view count, you **must use** [`Webtoon::episodes()`], which fetches all episodes in bulk and provides view count data when available.
+    /// Only populated for [`Canvas`] episodes obtained via [`Webtoon::episodes()`] with a
+    /// creator session. All other cases - [`Original`](variant@Type::Original) webtoons, no
+    /// session, or episodes from [`Webtoon::episode()`] - always return `None`.
     ///
     /// # Example
     ///
@@ -377,13 +323,11 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("my-session");
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
-    /// let mut episodes = webtoon.episodes().await?.into_iter();
+    /// let episodes = webtoon.episodes().await?;
     ///
-    /// if let Some(episode) = episodes.next() {
+    /// if let Some(episode) = episodes.first() {
     ///     println!("episode {} has {:?} views", episode.number(), episode.views());
     ///     # return Ok(());
     /// }
@@ -394,10 +338,11 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn views(&self) -> Option<u32> {
-        self.views
+        let episode = self;
+        episode.views
     }
 
-    /// Returns the like count for the episode.
+    /// Returns the like count for this [`Episode`].
     ///
     /// # Example
     ///
@@ -407,9 +352,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("episode {} has {} likes", episode.number(), episode.likes().await?);
@@ -420,7 +363,10 @@ impl Episode {
     /// # }
     /// ```
     pub async fn likes(&self) -> Result<u32, WebtoonLikesError> {
-        let response = self.webtoon.client.episodes_likes(self).await?;
+        let episode = self;
+        let client = &self.webtoon.client;
+
+        let response = client.fetch_episodes_likes(episode).await?;
 
         let contents = response
             .result
@@ -432,18 +378,17 @@ impl Episode {
             .reactions
             .first()
             .map(|likes| likes.count)
-            // NOTE: A like count starts at zero. Given that an `Episode` must
-            // be gotten, we know the episode is a valid episode, and thus if
-            // the reactions count is empty, we can safely assume that the there
-            // is no likes yet, and thus should just default to `0`.
+            // NOTE: A like count starts at zero.
+            //
+            // Given that we have an `Episode` we know the episode is valid, and
+            // thus, if the reactions count is empty, we can safely assume that
+            // the there are no likes yet, and should just default to `0`.
             .unwrap_or_default();
 
         Ok(likes)
     }
 
-    /// Returns the comment and reply count for the episode.
-    ///
-    /// Tuple is returned as `(comments, replies)`.
+    /// Returns the comment and reply counts for this [`Episode`] as `(comments, replies)`.
     ///
     /// # Example
     ///
@@ -453,9 +398,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(1046567, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let (comments, replies) = episode.comments_and_replies().await?;
@@ -467,10 +410,11 @@ impl Episode {
     /// # }
     /// ```
     pub async fn comments_and_replies(&self) -> Result<(u32, u32), WebtoonPostsError> {
-        let response = self
-            .webtoon
-            .client
-            .episode_posts(self, None, 1, PinRepresentation::None)
+        let episode = self;
+        let client = &self.webtoon.client;
+
+        let response = client
+            .episode_posts(episode, None, 1, PinRepresentation::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -479,14 +423,14 @@ impl Episode {
         Ok((comments, replies))
     }
 
-    /// Retrieves the direct (top-level) comments for the episode, retrieved from newest-to-oldest.
+    /// Returns an iterator over the top-level comments for this [`Episode`], newest first.
     ///
-    /// Due to potential API inconsistencies during pagination, this method cannot guarantee it wont return a duplicate comment.
+    /// Deleted comments with replies are included; deleted comments without replies are not.
     ///
-    /// Comments that have been deleted, but have replies, will still be included. Comments deleted without any replies will not be included.
+    /// If a session was provided, each [`Comment`] will contain additional poster metadata,
+    /// such as whether it was left by the session user.
     ///
-    /// If a valid session is passed to the client, the returned posts will contain some extra metadata
-    /// for the poster, which can be used for determining if, for example, a post was left by session user.
+    /// Due to API pagination behavior, duplicate comments may occasionally appear.
     ///
     /// # Example
     ///
@@ -496,11 +440,9 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?
-    ///     .expect("webtoon is known to exist");
+    /// let webtoon = client.webtoon(1046567, Type::Canvas).await?.expect("`1046567` exists");
     ///
-    /// let episode = webtoon.episode(1).await?
-    ///     .expect("an episode 1 must exist");
+    /// let episode = webtoon.episode(1).await?.expect("episode 1 exists");
     ///
     /// let mut comments = episode.posts();
     ///
@@ -517,7 +459,7 @@ impl Episode {
         Comments::new(self)
     }
 
-    /// Returns a list of panels for the episode.
+    /// Returns a list of panels for this [`Episode`].
     ///
     /// # Example
     ///
@@ -527,9 +469,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(843910, Type::Canvas).await?.expect("`843910` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for panel in episode.panels().await? {
@@ -542,23 +482,24 @@ impl Episode {
     /// # }
     /// ```
     pub async fn panels(&self) -> Result<Vec<Panel>, EpisodeError> {
-        if let Store::Value(panels) = self.panels.get() {
-            Ok(panels)
-        } else {
-            self.scrape().await?;
-
-            match self.panels.get() {
-                Store::Value(panels) => Ok(panels),
-                Store::Empty => assumption!(
-                    "`webtoons.com` episode `panels` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                ),
+        let episode = self;
+        match episode.panels.get() {
+            Store::Value(panels) => Ok(panels),
+            Store::Empty => {
+                episode.scrape().await?;
+                match episode.panels.get() {
+                    Store::Value(panels) => Ok(panels),
+                    Store::Empty => assumption!(
+                        "`webtoons.com` episode `panels` should have been populated with `episode.scrape`, and thus should never be `Empty`"
+                    ),
+                }
             }
         }
     }
 
-    /// Returns the thumbnail URL for episode.
+    /// Returns the thumbnail URL for this [`Episode`].
     ///
-    /// If an episode is only viewable on the app, depending on how an `Episode` is constructed, then this can return `Err(EpisodeError::NotViewable)`.
+    /// Returns `Err(EpisodeError::NotViewable)` for app-only episodes.
     ///
     /// # Example
     ///
@@ -568,9 +509,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6679, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6679, Type::Original).await?.expect("`6679` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     println!("thumbnail: {}", episode.thumbnail().await?);
@@ -581,54 +520,44 @@ impl Episode {
     /// # }
     /// ```
     pub async fn thumbnail(&self) -> Result<String, EpisodeError> {
-        if let Store::Value(thumbnail) = self.thumbnail.get() {
-            Ok(thumbnail.to_string())
-        } else {
-            self.scrape().await?;
-
-            match self.thumbnail.get() {
-                Store::Value(thumbnail) => Ok(thumbnail.to_string()),
-                Store::Empty => assumption!(
-                    "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                ),
+        let episode = self;
+        match episode.thumbnail.get() {
+            Store::Value(thumbnail) => Ok(thumbnail.to_string()),
+            Store::Empty => {
+                episode.scrape().await?;
+                match episode.thumbnail.get() {
+                    Store::Value(thumbnail) => Ok(thumbnail.to_string()),
+                    Store::Empty => assumption!(
+                        "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                    ),
+                }
             }
         }
     }
 
-    /// Returns the [`PublishedStatus`] for the episode, indicating whether the episode is published, a draft, or removed.
+    /// Returns the [`PublishedStatus`] of this [`Episode`], if any.
     ///
-    /// This can only be accurately determined when using [`Webtoon::episodes()`]. If [`Webtoon::episode()`] is used,
-    /// this will always return `None`, as the necessary metadata to determine an episode's published status is not available
-    /// through [`Webtoon::episode()`].
-    ///
-    /// The possible states are:
-    /// - [`Published`](variant@PublishedStatus::Published) - The episode is publicly available in some capacity (ad, fast-pass, or fully public).
-    /// - [`Draft`](variant@PublishedStatus::Draft) - The episode is not published in any form yet (it is in draft status).
-    /// - [`Removed`](variant@PublishedStatus::Removed) - The episode has been removed from publication.
+    /// Only populated when the episode was obtained via [`Webtoon::episodes()`]; always `None`
+    /// for episodes from [`Webtoon::episode()`].
     ///
     /// # Example
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, webtoon::episode::PublishedStatus, Client, Type};
+    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6889, Type::Original).await?.expect("`6889` exists");
     ///
     /// let mut episodes = webtoon.episodes().await?;
     ///
     /// episodes.sort_unstable_by_key(|episode| episode.number());
     ///
     /// if let Some(episode) = episodes.first() {
-    ///     match episode.published_status() {
-    ///             Some(PublishedStatus::Published) => println!("Episode is published."),
-    ///             Some(PublishedStatus::Draft) => println!("Episode is still a draft."),
-    ///             Some(PublishedStatus::Removed) => println!("Episode has been removed."),
-    ///             None => unreachable!("must use `Webtoon::episodes()`!"),
-    ///     }
+    ///     assert_eq!(episode.number(), 1);
+    ///     assert_matches!(episode.published_status(), Some(PublishedStatus::Published));
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -638,27 +567,15 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn published_status(&self) -> Option<PublishedStatus> {
-        self.published_status
+        let episode = self;
+        episode.published_status
     }
 
-    /// Returns the episode's current ad status.
+    /// Returns the [`AdStatus`] of this [`Episode`], if any.
     ///
-    /// This information is only available if a session is provided, and the Webtoon in question was created by the user of the session.
-    /// In any other scenario, this method returns `None`. To retrieve this data, [`Webtoon::episodes()`] must be used when getting episode data.
-    ///
-    /// The possible states are:
-    /// - [`Yes`](variant@AdStatus::Yes) - The episode is currently behind an ad.
-    /// - [`No`](variant@AdStatus::No) - The episode is no longer behind an ad, but once was.
-    /// - [`Never`](variant@AdStatus::Never) - The episode was never behind any kind of ad.
-    ///
-    /// # Original Series:
-    /// For original webtoons, it's not possible to determine the ad status from the public episode listing alone.
-    /// Generally, any random original episode may have been behind fast-pass, but initial release episodes (which are typically not behind fast-pass) would be indistinguishable.
-    /// Therefore, for Original series, this method will always return `None`.
-    ///
-    /// # Canvas Series:
-    /// For canvas webtoons created by the session's user, the ad status can be retrieved and returned if applicable.
-    /// If no session is provided and only public info is used, this will always return `None`.
+    /// Only available for [`Canvas`] episodes obtained via [`Webtoon::episodes()`] with a
+    /// creator session. Always `None` for [`Original`](variant@Type::Original) webtoons, missing
+    /// or non-creator sessions, or episodes from [`Webtoon::episode()`].
     ///
     /// # Example
     ///
@@ -668,9 +585,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::with_session("session");
     ///
-    /// let Some(webtoon) = client.webtoon(6679, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6679, Type::Canvas).await?.expect("`6679` exists");
     ///
     /// let mut episodes = webtoon.episodes().await?;
     ///
@@ -692,13 +607,13 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn ad_status(&self) -> Option<AdStatus> {
-        self.ad_status
+        let episode = self;
+        episode.ad_status
     }
 
-    /// Returns if the current episode is published.
+    /// Returns `true` if this [`Episode`] has a [`PublishedStatus::Published`] status.
     ///
-    /// This is the same as checking for `PublishedStatus::Published`. If there
-    /// is no known status, it will return `false`.
+    /// Returns `false` if the status is unknown, a draft, or removed.
     ///
     /// # Example
     ///
@@ -708,9 +623,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6889, Type::Original).await?.expect("`6889` exists");
     ///
     /// let mut episodes = webtoon.episodes().await?;
     ///
@@ -727,13 +640,12 @@ impl Episode {
     #[inline]
     #[must_use]
     pub fn is_published(&self) -> bool {
-        matches!(self.published_status, Some(PublishedStatus::Published))
+        let episode = self;
+        matches!(episode.published_status, Some(PublishedStatus::Published))
     }
 
     // TODO: If this is an alternate reader, this can fail. Should return `Option`.
-    /// Will download the panels of the episode.
-    ///
-    /// This returns a [`DownloadedPanels`], which offers ways to save to disk.
+    /// Downloads the panels of this [`Episode`] and returns a [`DownloadedPanels`].
     ///
     /// # Example
     ///
@@ -743,9 +655,7 @@ impl Episode {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(6889, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(6889, Type::Original).await?.expect("`6889` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
@@ -799,17 +709,7 @@ impl Episode {
         Self {
             webtoon: webtoon.clone(),
             number,
-
             title: Cache::empty(),
-            // NOTE:
-            // Currently there is no way to get this info from an episodes page.
-            //
-            // The only sources are the dashboard episode list data, and the
-            // episode list from the webtoons page. This could be gotten, in
-            // theory, with the webtoons page episode data, but caching the
-            // episodes would lead to a large refactor and be slow for when only
-            // getting one episodes' data. For now, will just return None until
-            // a better solution can be landed on.
             published: None,
             length: Cache::empty(),
             thumbnail: Cache::empty(),
@@ -843,61 +743,26 @@ impl Episode {
     }
 
     pub(super) async fn exists(&self) -> Result<bool, RequestError> {
-        self.webtoon.client.check_if_episode_exists(self).await
+        let episode = self;
+        let client = &self.webtoon.client;
+        client.check_if_episode_exists(episode).await
     }
 }
 
 pub(crate) fn season(title: &str) -> Result<Option<u8>, Assumption> {
-    // [Season 3]
-    {
-        let reg = Regex::new(r"\[Season (?P<season>\d+)\]")
-            .assumption("`[Season N]` regex should be valid")?;
+    let patterns = [
+        r"\[Season (?P<season>\d+)\]",
+        r"\[S(?P<season>\d+)\]",
+        r"\(S(?P<season>\d+)\)",
+        r"\(Season (?P<season>\d+)\)",
+    ];
 
-        if let Some(capture) = reg.captures(title.as_ref()) {
+    for pattern in patterns {
+        let regex = Regex::new(pattern).assumption("season regex should be valid")?;
+        if let Some(capture) = regex.captures(title) {
             let season = capture["season"]
                 .parse::<u8>()
-                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
-
-            return Ok(Some(season));
-        }
-    }
-
-    // [S3]
-    {
-        let reg = Regex::new(r"\[S(?P<season>\d+)\]").assumption("`[SN]` regex should be valid")?;
-
-        if let Some(capture) = reg.captures(title.as_ref()) {
-            let season = capture["season"]
-                .parse::<u8>()
-                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
-
-            return Ok(Some(season));
-        }
-    }
-
-    // (S3)
-    {
-        let reg = Regex::new(r"\(S(?P<season>\d+)\)").assumption("(SN) regex should be valid")?;
-
-        if let Some(capture) = reg.captures(title.as_ref()) {
-            let season = capture["season"]
-                .parse::<u8>()
-                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
-
-            return Ok(Some(season));
-        }
-    }
-
-    // (Season 3)
-    {
-        let reg = Regex::new(r"\(Season (?P<season>\d+)\)")
-            .assumption("`(Season N)` regex should be valid")?;
-
-        if let Some(capture) = reg.captures(title.as_ref()) {
-            let season = capture["season"]
-                .parse::<u8>()
-                .assumption(r"regex match on `\d+` so should be parsable as an int")?;
-
+                .assumption(r"regex matched `\d+` so should be parsable as `u8`")?;
             return Ok(Some(season));
         }
     }
@@ -919,7 +784,9 @@ impl PartialEq for Episode {
 
 impl Eq for Episode {}
 
-/// Represents an [`Episode`]'s ad status.
+/// The ad status of an [`Episode`].
+///
+/// Only available when the episode was obtained via [`Webtoon::episodes()`] with a creator session.
 #[derive(Debug, Clone, Copy)]
 pub enum AdStatus {
     /// Episode is currently behind an ad.
@@ -930,29 +797,16 @@ pub enum AdStatus {
     Never,
 }
 
-/// Represents the publication status of an episode.
+/// The publication status of an [`Episode`].
 ///
-/// The `PublishedStatus` enum indicates the current state of an episode. It is used to differentiate between episodes
-/// that are publicly available, those that are still drafts, and those that have been removed from publication.
-///
-/// ### Variants:
-///
-/// - `Published`:
-///   The episode is available to the public. This includes episodes behind ad or fast-pass paywalls.
-///
-/// - `Draft`:
-///   The episode is not yet published in any capacity. This means it hasn't been made available to the public or
-///   put behind ad/fast-pass options.
-///
-/// - `Removed`:
-///   The episode was previously published but has since been removed. This might happen due to takedowns, content issues, or other reasons.
+/// Only available when the episode was obtained via [`Webtoon::episodes()`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PublishedStatus {
-    /// The episode is available to the public. This includes episodes behind ad or fast-pass paywalls.
+    /// The episode is publicly available, including episodes behind ad or fast-pass paywalls.
     Published,
-    /// The episode is not yet published in any capacity. This means it hasn't been made available to the public or put behind ad/fast-pass options.
+    /// The episode has not yet been published in any capacity.
     Draft,
-    /// The episode was previously published but has since been removed. This might happen due to takedowns, content issues, or other reasons.
+    /// The episode was previously published but has since been removed.
     Removed,
 }
 
@@ -1032,7 +886,7 @@ fn note(html: &Html) -> Result<Option<String>, Assumption> {
         "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
     );
 
-    Ok(Some(note.to_string()))
+    Ok(Some(html_escape::decode_html_entities(note).to_string()))
 }
 
 fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
@@ -1041,15 +895,12 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
             .assumption(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
 
     for li in html.select(&selector) {
-        let data_episode_no = match li
+        let data_episode_no =  li
             .attr("data-episode-no")
             .assumption("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
-            .parse::<u16>()
-            {
-                Ok(data_episode_no) => data_episode_no,
-                Err(err) => assumption!("`data-episode-no` should always be able to parse into a `u16`: {err}"),
-            };
+            .parse::<u16>().assumption("`data-episode-no` should always be able to parse into a `u16`")?;
 
+        // We look through all the episodes until we find the current one.
         if data_episode_no != episode {
             continue;
         }
@@ -1066,12 +917,8 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
             .attr("data-url")
             .assumption("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
 
-        let mut thumbnail = match Url::parse(url) {
-            Ok(url) => url,
-            Err(err) => assumption!(
-                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"
-            ),
-        };
+        let mut thumbnail =  Url::parse(url)
+            .assumption_for(|err| format!("urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"))?;
 
         thumbnail
             // This host doesn't need a `referer` header to see the image.
@@ -1100,56 +947,38 @@ fn only_viewable_on_app(html: &Html) -> Result<bool, Assumption> {
     let selector = Selector::parse("div.publishing_wrap>img.qrcode")
         .assumption("`div.publishing_wrap>img.qrcode` should be a valid selector")?;
 
+    // If QR exists, then episode can only be viewed on the app.
     Ok(html.select(&selector).next().is_some())
 }
 
 fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
-    // TODO: Unsure how best to handle the fractional values, as in theory they can
-    // increase the total by at least a full pixel, which would impact the final height
-    // value. This seems like it would have the most noticeable impact when building
-    // the single image, as the layers will be slightly overlapped.
-    //
-    // It might be possible to store as a f32, but then when building the images
-    // we just accept that there is going to be some inaccuracy.
-
-    let value = img.value().attr("height").assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+    let value = img
+        .value()
+        .attr("height")
+        .assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let height = match value {
-        float if float.contains('.') => {
-            let mut float = float.split('.');
+        float if let Some((int, fract)) = float.split_once('.') => {
+            assumption!(
+                !fract.is_empty(),
+                "if there was a float, the fractional component should not be empty: `1.`"
+            );
+            assumption!(
+                fract.chars().all(|ch| ch.is_ascii_digit()),
+                "fraction component of a float should only contain digits"
+            );
 
-            let height = match float
-                .next()
-                .assumption("`height` attribute on `webtoons.com` episode page should be a float, `720.0`, so should always split on `.`: `720`")?
+            // TODO: Fractional pixel values are truncated. This could cause slight overlap
+            // when compositing panels into a single image, but there's no clean solution
+            // until we know how common large fractional values are (e.g. `1365.3333...`).
+            int
                 .parse::<u32>()
-             {
-                Ok(height) => height,
-                Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-             };
-
-            match float.next() {
-                Some(_) => {}
-                None => assumption!(
-                    "`webtoons.com` episode `height` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
-                ),
-            }
-
-            match float.next() {
-                None => {}
-                Some(val) => assumption!(
-                    "`webtoons.com` episode `height` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
-                ),
-            }
-
-            height
+                .assumption_for(|err| format!("failed to parse integer part `{int}` of float height `{value}` into a `u32`: {err}"))?
         }
         // Height can also be a whole number: `1280`.
-        height => match height.parse::<u32>() {
-            Ok(width) => width,
-            Err(err) => assumption!(
-                "`height` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{height}"
-            ),
-        },
+        height => height.parse::<u32>().assumption_for(|err| {
+            format!("failed to parse whole-number height `{height}` into a `u32`: {err}")
+        })?,
     };
 
     // assumption!(
@@ -1162,49 +991,32 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
     Ok(height)
 }
 
+// NOTE: See `height` and `length` for more info on the possible range of values.
 fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
-    // NOTE: See `height` and `length` for more info on the possible range of values.
-
     let value = img
         .value()
         .attr("width")
         .assumption("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
 
     let width = match value {
-        float if float.contains('.') => {
-            let mut float = float.split('.');
+        float if let Some((int, fract)) = float.split_once('.') => {
+            assumption!(
+                !fract.is_empty(),
+                "if there was a float, the fractional component should not be empty: `1.`"
+            );
+            assumption!(
+                fract.chars().all(|ch| ch.is_ascii_digit()),
+                "fractional component of a float should only contain digits"
+            );
 
-            let width = match float.next()
-                .assumption("detected a `.` in `width` attribute on `webtoons.com` episode page, so should be a float, `720.0`, so should always split on `.`: `720` `0`")?
+            int
                 .parse::<u32>()
-                {
-                    Ok(width) => width,
-                    Err(err) => assumption!("failed to parse a split float, `720.0` -> `720` `_` -> `720`, into a `u32`: {err}"),
-                };
-
-            match float.next() {
-                Some(_) => {}
-                None => assumption!(
-                    "`webtoons.com` episode `width` pixels should be represented as a float, yet nothing was yielded to the right of the `.`"
-                ),
-            }
-
-            match float.next() {
-                None => {}
-                Some(val) => assumption!(
-                    "`webtoons.com` episode `width` pixels should be represented as a float, yet yielded on a second `.` split, got: {val}"
-                ),
-            }
-
-            width
+                .assumption_for(|err| format!("failed to parse integer part `{int}` of float width `{value}` into a `u32`: {err}"))?
         }
         // Width can also be a whole number: `800`.
-        width => match width.parse::<u32>() {
-            Ok(width) => width,
-            Err(err) => assumption!(
-                "`width` was already found not to contain a `.`, which means it should be a whole number, which can directly parse into a `u32`: {err}\n\n{width}"
-            ),
-        },
+        width => width.parse::<u32>().assumption_for(|err| {
+            format!("failed to parse whole-number width `{width}` into a `u32`: {err}")
+        })?,
     };
 
     assumption!(
@@ -1217,23 +1029,16 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
     Ok(width)
 }
 
-/// Represents an episode’s published date or datetime.
+/// The publish date or datetime of an [`Episode`].
 ///
-/// A `Published` value may contain either:
-/// - a calendar date with no time component, or
-/// - a full datetime with time-of-day precision.
+/// The precision depends on how the episode was obtained:
 ///
-/// The level of precision depends on how the [`Episode`] was obtained:
+/// - Via [`Webtoon::episodes()`] without a creator session: date only (`year`, `month`, `day`).
+/// - Via [`Webtoon::episodes()`] with a creator session, or [`Webtoon::rss()`]: full datetime.
 ///
-/// - When fetched via [`Webtoon::episodes()`] **without** a matching session for
-///   the corresponding `Webtoon` (i.e., public access only), the published value
-///   includes only `year`, `month`, and `day`.
-///
-/// - When a valid session **is** provided, the published value includes full
-///   time-of-day precision.
-///
-/// - When fetched via [`Webtoon::rss()`], full datetime information is also
-///   provided (when available from the RSS feed).
+/// Time components ([`hour`](Published::hour), [`minute`](Published::minute),
+/// [`second`](Published::second), [`timestamp`](Published::timestamp)) return `None` for
+/// date-only values.
 #[derive(Debug, Clone, Copy)]
 pub struct Published(DateOrDateTime);
 
@@ -1252,73 +1057,49 @@ impl From<DateTime<Utc>> for Published {
 }
 
 impl Published {
-    /// Returns the day of the month.
-    ///
-    /// This is always available, regardless of whether the underlying value
-    /// contains only a date or a full datetime.
+    /// Returns the day of the month. Always available regardless of precision.
     #[inline]
     #[must_use]
     pub fn day(&self) -> u32 {
         self.0.day()
     }
 
-    /// Returns the month.
-    ///
-    /// This is always available, regardless of whether the underlying value
-    /// contains only a date or a full datetime.
+    /// Returns the month. Always available regardless of precision.
     #[inline]
     #[must_use]
     pub fn month(&self) -> u32 {
         self.0.month()
     }
 
-    /// Returns the year.
-    ///
-    /// This is always available, regardless of whether the underlying value
-    /// contains only a date or a full datetime.
+    /// Returns the year. Always available regardless of precision.
     #[inline]
     #[must_use]
     pub fn year(&self) -> i32 {
         self.0.year()
     }
 
-    /// Returns the hour, if available.
-    ///
-    /// If the underlying value contains only a date (no time-of-day), this
-    /// returns `None`. Otherwise, it returns the hour in 24-hour format.
+    /// Returns the hour in 24-hour format, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn hour(&self) -> Option<u32> {
         self.0.hour()
     }
 
-    /// Returns the minute, if available.
-    ///
-    /// If the underlying value contains only a date (no time-of-day), this
-    /// returns `None`. Otherwise, it returns the minute within the hour.
+    /// Returns the minute, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn minute(&self) -> Option<u32> {
         self.0.minute()
     }
 
-    /// Returns the second, if available.
-    ///
-    /// If the underlying value contains only a date (no time-of-day), this
-    /// returns `None`. Otherwise, it returns the second within the minute.
+    /// Returns the second, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn second(&self) -> Option<u32> {
         self.0.second()
     }
 
-    /// Returns the Unix timestamp, if available.
-    ///
-    /// A timestamp is only available when the underlying value contains a full
-    /// datetime; date-only values return `None`.
-    ///
-    /// The timestamp is expressed as the number of non-leap seconds since
-    /// the Unix epoch (1970-01-01 00:00:00 UTC).
+    /// Returns the Unix timestamp in non-leap seconds since `1970-01-01 00:00:00 UTC`, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn timestamp(&self) -> Option<i64> {
@@ -1326,9 +1107,7 @@ impl Published {
     }
 }
 
-/// Represents a single panel for an episode.
-///
-/// This type is not constructed directly, but gotten via [`Episode::panels()`].
+/// A single panel of an [`Episode`], obtained via [`Episode::panels()`].
 #[allow(unused)] // Not all fields are used with the base feature set.
 #[derive(Debug, Clone)]
 pub struct Panel {
@@ -1342,7 +1121,7 @@ pub struct Panel {
 }
 
 impl Panel {
-    /// Returns the URL for the panel.
+    /// Returns the URL of this [`Panel`].
     ///
     /// # Example
     ///
@@ -1352,9 +1131,7 @@ impl Panel {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(843910, Type::Canvas).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(843910, Type::Canvas).await?.expect("`843910` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     for panel in episode.panels().await? {
@@ -1369,7 +1146,8 @@ impl Panel {
     #[inline]
     #[must_use]
     pub fn url(&self) -> &str {
-        self.url.as_str()
+        let panel = self;
+        panel.url.as_str()
     }
 
     #[cfg(feature = "download")]
@@ -1377,7 +1155,8 @@ impl Panel {
         &mut self,
         client: &crate::platform::webtoons::Client,
     ) -> Result<(), RequestError> {
-        self.bytes = client.download_panel(&self.url).await?;
+        let panel = self;
+        panel.bytes = client.download_panel(&panel.url).await?;
         Ok(())
     }
 }
@@ -1399,16 +1178,13 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             // Some urls contain html encoded entities (e.g. https://webtoon-phinf.pstatic.net/20221005_56/1664941257466o9LqU_JPEG/Mom-I&#39;m-Sorry_DE_EP002_01_02.jpg).
             // If we do not clean these, then the parsing of the `ext` will fail
             // as the part after the `#` will be part of fragment, not the path.
-            .map(|url|html_escape::decode_html_entities(url) )
+            .map(html_escape::decode_html_entities)
             .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
-        let mut url = match Url::parse(&data_url) {
-            Ok(url) => url,
-            Err(err) => assumption!(
-                "urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"
-            ),
-        };
+        let mut url =Url::parse(&data_url)
+            .assumption_for(|err|format!("urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"))?;
 
+        // This host doesn't need a `referer` header to see the image.
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
@@ -1430,9 +1206,8 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 
         panels.push(Panel {
             url,
-
             episode,
-            // Enumerate starts at 0, so add +1 so that it starts at 1.
+            // Panels are 1-indexed.
             number: u16::try_from(number + 1)
                 .assumption("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
             height: height(img)?,
@@ -1450,9 +1225,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
     Ok(panels)
 }
 
-/// Represents all the panels for an episode.
-///
-/// This type is not constructed directly, but gotten via [`Episode::download()`].
+/// The downloaded panels of an [`Episode`], obtained via [`Episode::download()`].
 ///
 /// # Example
 ///
@@ -1462,9 +1235,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(webtoon) = client.webtoon(961, Type::Original).await? else {
-///     unreachable!("webtoon is known to exist");
-/// };
+/// let webtoon = client.webtoon(961, Type::Original).await?.expect("`961` exists");
 ///
 /// if let Some(episode) = webtoon.episode(1).await? {
 ///     let panels = episode.download().await?;
@@ -1485,7 +1256,7 @@ pub struct DownloadedPanels {
 
 #[cfg(feature = "download")]
 impl DownloadedPanels {
-    /// Returns how many panels are on the episode.
+    /// Returns the number of panels in this [`Episode`].
     ///
     /// # Example
     ///
@@ -1495,9 +1266,7 @@ impl DownloadedPanels {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(961, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(961, Type::Original).await?.expect("`961` exists");
     ///
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let panels = episode.download().await?;
@@ -1511,28 +1280,24 @@ impl DownloadedPanels {
     #[inline]
     #[must_use]
     pub fn count(&self) -> usize {
-        self.images.len()
+        let panels = self;
+        panels.images.len()
     }
 }
 
 #[cfg(feature = "download")]
-use crate::platform::webtoons::error::DownloadError;
+use crate::platform::webtoons::error::SavePanelError;
 #[cfg(feature = "download")]
 use image::{GenericImageView, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
 use tokio::io::AsyncWriteExt;
 
-// TODO: technically this should not have `DownloadError` as panels are already
-// downloaded, and this can only really fail saving to disk.
 #[cfg(feature = "download")]
 impl DownloadedPanels {
-    /// Saves all the panels of an episode as a single long image file in PNG format.
+    /// Saves all panels as a single vertically composited PNG image.
     ///
-    /// # Behavior
-    ///
-    /// - Combines all panels of the episode vertically into one long image.
-    /// - The output image is always saved as a PNG file, even if the original panels are in a different format (e.g., JPEG), due to JPEG limitations.
-    /// - If the directory specified by `path` does not exist, it will be created along with any required parent directories.
+    /// Always saves as PNG regardless of the original panel format. Creates `path` and any
+    /// missing parent directories if they do not exist.
     ///
     /// # Example
     ///
@@ -1542,9 +1307,7 @@ impl DownloadedPanels {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(2960, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(2960, Type::Original).await?.expect("`2960` exists");
     ///
     /// if let Some(episode) = webtoon.episode(1).await? {
     ///     let panels = episode.download().await?;
@@ -1555,7 +1318,7 @@ impl DownloadedPanels {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn save_single<P>(&self, path: P) -> Result<(), DownloadError>
+    pub async fn save_single<P>(&self, path: P) -> Result<(), SavePanelError>
     where
         P: AsRef<std::path::Path> + Send,
     {
@@ -1567,12 +1330,11 @@ impl DownloadedPanels {
             "`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!",
         )?;
 
-        let ext = &first.ext;
         let episode = first.episode;
         let width = self.width;
         let height = self.height;
 
-        let path = path.join(episode.to_string()).with_extension(ext);
+        let path = path.join(episode.to_string()).with_extension("png");
 
         tokio::fs::File::create(&path).await?;
 
@@ -1602,7 +1364,7 @@ impl DownloadedPanels {
         {
             Ok(ok) => match ok {
                 Ok(()) => Ok(()),
-                Err(image::ImageError::IoError(err)) => Err(DownloadError::IoError(err)),
+                Err(image::ImageError::IoError(err)) => Err(SavePanelError::IoError(err)),
                 Err(err) => assumption!(
                     "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
                 ),
@@ -1613,13 +1375,11 @@ impl DownloadedPanels {
         }
     }
 
-    /// Saves each panel of the episode to disk, naming the resulting files using the format `EPISODE_NUMBER-PANEL_NUMBER`.
+    /// Saves each panel as an individual file under `path`, named `{episode}-{panel}`.
     ///
-    /// For example, the first panel of the 34th episode would be saved as `34-1`. The file extension will match the panel's original format.
-    ///
-    /// # Behavior
-    ///
-    /// - If the specified directory does not exist, it will be created, along with any necessary parent directories.
+    /// For example, panel 1 of episode 34 is saved as `34-1.jpeg`. The file extension matches
+    /// the original panel format. Creates `path` and any missing parent directories if they
+    /// do not exist.
     ///
     /// # Example
     ///
@@ -1629,9 +1389,7 @@ impl DownloadedPanels {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(2960, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(2960, Type::Original).await?.expect("`2960` exists");
     ///
     /// if let Some(episode) = webtoon.episode(2).await? {
     ///     let panels = episode.download().await?;
@@ -1642,7 +1400,7 @@ impl DownloadedPanels {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn save_multiple<P>(&self, path: P) -> Result<(), DownloadError>
+    pub async fn save_multiple<P>(&self, path: P) -> Result<(), SavePanelError>
     where
         P: AsRef<std::path::Path> + Send,
     {
