@@ -1,13 +1,10 @@
-use anyhow::bail;
-use webtoon::platform::webtoons::Client;
+use webtoon::platform::webtoons::{Client, error::Error};
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Error> {
     let client = Client::new();
 
-    let Some(creator) = client.creator("JennyToons").await? else {
-        bail!("no creator exists with given id");
-    };
+    let creator = client.creator("JennyToons").await?.expect("known to exist");
 
     println!("id: {:?}", creator.id().await?);
     println!("username: {}", creator.username());

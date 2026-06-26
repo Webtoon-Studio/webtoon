@@ -22,7 +22,7 @@
 use super::{Client, Webtoon};
 use crate::{
     platform::webtoons::error::CanvasError,
-    stdx::error::{Assume, assumption},
+    stdx::error::{Assume, assume},
 };
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
@@ -64,22 +64,18 @@ pub(super) async fn scrape(
                 "`href` attribute is missing on `webtoon.com` `Canvas` page, `a` tag should always have one",
             )?;
 
-            let webtoon = match Webtoon::from_url_with_client(href, client) {
-                Ok(webtoon) => webtoon,
-                Err(err) => assumption!(
-                    "url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon`: {err}\n\n{href}"
-                ),
-            };
+            let webtoon =  Webtoon::from_url_with_client(href, client)
+                .with_assumption(|| format!("url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon` `{href}`"))?;
 
             webtoons.push(webtoon);
         }
     }
 
-    assumption!(
+    assume!(
         !webtoons.is_empty(),
         "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should never be empty"
     );
-    assumption!(
+    assume!(
         webtoons.len() % 20 == 0,
         "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should `webtoons % 20 == 0`"
     );

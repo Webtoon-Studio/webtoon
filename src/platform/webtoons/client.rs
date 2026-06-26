@@ -35,7 +35,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::assumption,
+        error::{Assume, assumption},
         http::{DEFAULT_USER_AGENT, IRetry},
     },
 };
@@ -384,18 +384,12 @@ impl Client {
 
             let json = response.text().await.map_err(RequestError)?;
 
-            let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                Ok(search) => search,
-                Err(err) => assumption!(
-                    "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                ),
-            };
+            let search =  serde_json::from_str::<api::search::RawSearch>(&json)
+                    .with_assumption(|| format!("failed to deserialize `webtoon.com` originals search api response (structure change possible) `{json}`"))?;
 
-            let Some(originals) = search.result.webtoon_title_list else {
-                assumption!(
-                    "search result didnt have `webtoonTitleList`(originals) field in response result"
-                );
-            };
+            let originals = search.result.webtoon_title_list.assumption(
+                "search result didnt have `webtoonTitleList`(originals) field in response result",
+            )?;
 
             // Initial response.
             for data in originals.data {
@@ -428,18 +422,13 @@ impl Client {
 
                 let json = response.text().await.map_err(RequestError)?;
 
-                let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                    Ok(search) => search,
-                    Err(err) => assumption!(
-                        "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                    ),
-                };
+                let search =  serde_json::from_str::<api::search::RawSearch>(&json)
+                    .with_assumption(|| format!("failed to deserialize `webtoon.com` originals search api response (structure change possible) `{json}`"))?;
 
-                let Some(originals) = search.result.webtoon_title_list else {
-                    assumption!(
-                        "search result didnt have `webtoonTitleList`(originals) field in response result"
-                    );
-                };
+                let originals = search
+                    .result
+                    .webtoon_title_list
+                    .assumption("search result didnt have `webtoonTitleList`(originals) field in response result")?;
 
                 for data in originals.data {
                     let webtoon = Item {
@@ -476,18 +465,12 @@ impl Client {
 
             let json = response.text().await.map_err(RequestError)?;
 
-            let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                Ok(search) => search,
-                Err(err) => assumption!(
-                    "failed to deserialize `webtoon.com` canvas search api response (structure change possible): {err}\n\n{json}"
-                ),
-            };
+            let search =  serde_json::from_str::<api::search::RawSearch>(&json)
+                .with_assumption(|| format!("failed to deserialize `webtoon.com` canvas search api response (structure change possible) `{json}`"))?;
 
-            let Some(canvas) = search.result.challenge_title_list else {
-                assumption!(
-                    "search result didnt have `challengeTitleList`(canvas) field in response result"
-                );
-            };
+            let canvas = search.result.challenge_title_list.assumption(
+                "search result didnt have `challengeTitleList`(canvas) field in response result",
+            )?;
 
             // Initial response.
             for data in canvas.data {
@@ -520,18 +503,13 @@ impl Client {
 
                 let json = response.text().await.map_err(RequestError)?;
 
-                let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                    Ok(search) => search,
-                    Err(err) => assumption!(
-                        "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                    ),
-                };
+                let search =  serde_json::from_str::<api::search::RawSearch>(&json)
+                    .with_assumption(|| format!("failed to deserialize `webtoon.com` originals search api response (structure change possible) `{json}`"))?;
 
-                let Some(canvas) = search.result.challenge_title_list else {
-                    assumption!(
-                        "search result didnt have `challengeTitleList`(canvas) field in response result"
-                    );
-                };
+                let canvas = search
+                    .result
+                    .challenge_title_list
+                    .assumption("search result didnt have `challengeTitleList`(canvas) field in response result")?;
 
                 for data in canvas.data {
                     let webtoon = Item {
@@ -750,7 +728,7 @@ impl Client {
             },
             Err(err) => {
                 assumption!(
-                    "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
+                    "failed to deserialize `userInfo` from `webtoons.com` response `{response}`: {err}"
                 )
             }
         };
@@ -891,14 +869,12 @@ impl Client {
 
         let json = response.text().await.map_err(RequestError)?;
 
-        match serde_json::from_str::<CreatorWebtoons>(&json) {
-            Ok(creator_webtoons) => Ok(creator_webtoons),
-            Err(err) => {
-                assumption!(
-                    "failed to deserialize creator webtoons `webtoons.com` response: {err}\n\n{json}"
-                )
-            }
-        }
+        let creator_webtoon =
+            serde_json::from_str::<CreatorWebtoons>(&json).with_assumption(|| {
+                format!("failed to deserialize creator webtoons `webtoons.com` response `{json}`")
+            })?;
+
+        Ok(creator_webtoon)
     }
 
     pub(super) async fn fetch_webtoon_homepage(
@@ -1022,10 +998,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match rss::Channel::from_str(&response) {
-            Ok(channel) => Ok(channel),
-            Err(err) => assumption!("rss feed returned from `webtoons.com` failed to parse: {err}"),
-        }
+        let rss = rss::Channel::from_str(&response)
+            .assumption("rss feed returned from `webtoons.com` failed to parse")?;
+
+        Ok(rss)
     }
 
     pub(super) async fn episode(
@@ -1086,12 +1062,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<RawLikesResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw likes api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_likes_response = serde_json::from_str::<RawLikesResponse>(&response)
+           .with_assumption(|| format!("failed to deserialize raw likes api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_likes_response)
     }
 
     pub(super) async fn episode_posts(
@@ -1141,12 +1115,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<RawPostResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_post_response =    serde_json::from_str::<RawPostResponse>(&response)
+            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_post_response)
     }
 
     pub(super) async fn check_if_episode_exists(
@@ -1214,12 +1186,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<Count>(&response) {
-            Ok(count) => Ok(count),
-            Err(err) => assumption!(
-                "failed to deserialize post upvote/downvote api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let count = serde_json::from_str::<Count>(&response)
+           .with_assumption(|| format!("failed to deserialize post upvote/downvote api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(count)
     }
 
     pub(super) async fn replies(
@@ -1257,12 +1227,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<RawPostResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_post_response = serde_json::from_str::<RawPostResponse>(&response)
+            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_post_response)
     }
 
     pub(super) async fn fetch_webtoon_user_info(
@@ -1293,12 +1261,10 @@ impl Client {
             .await
             .map_err(RequestError)?;
 
-        match serde_json::from_str::<WebtoonUserInfo>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize webtoon user info api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let webtoon_user_info =  serde_json::from_str::<WebtoonUserInfo>(&response)
+            .with_assumption(|| format!("failed to deserialize webtoon user info api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(webtoon_user_info)
     }
 
     #[cfg(feature = "download")]

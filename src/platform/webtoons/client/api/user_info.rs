@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::stdx::error::{Assumption, assumption};
+use crate::stdx::error::{Assume, Assumption};
 
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///
@@ -111,11 +111,8 @@ impl UserInfo {
 impl TryFrom<UserInfoRaw> for UserInfo {
     type Error = Assumption;
     fn try_from(user: UserInfoRaw) -> Result<Self, Self::Error> {
-        let Some(username) = user.username else {
-            assumption!(
-                "`UserInfoRaw::username` was `None`, and when using `try_from|into`, should be checked beforehand that it is `Some`"
-            );
-        };
+        let username = user.username
+            .assumption("`UserInfoRaw::username` was `None`, and when using `try_from|into`, should be checked beforehand that it is `Some`")?;
 
         Ok(Self {
             is_canvas_creator: user.is_canvas_creator,

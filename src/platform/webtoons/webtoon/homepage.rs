@@ -15,7 +15,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, AssumeFor, Assumption, assumption},
+        error::{Assume, Assumption, assume, assumption},
         math::MathExt,
     },
 };
@@ -266,11 +266,11 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     }
 
     match webtoon.r#type() {
-        Type::Original => assumption!(
+        Type::Original => assume!(
             !creators.is_empty(),
             "`webtoons.com` Webtoons must have some creator associated with them and displayed on their homepages"
         ),
-        Type::Canvas => assumption!(
+        Type::Canvas => assume!(
             creators.len() == 1,
             "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
         ),
@@ -295,17 +295,12 @@ fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
             .next()
             .assumption(" the `.info>.genre` tag was found on `webtoons.com` Webtoon homepage, but no text was present inside the element")?;
 
-        let genre = match Genre::from_str(text) {
-            Ok(genre) => genre,
-            Err(err) => {
-                assumption!("`webtoons.com` Webtoon homepage had an unexpected genre: {err}")
-            }
-        };
+        let genre = Genre::from_str(text)
+            .assumption("`webtoons.com` Webtoon homepage had an unexpected genre")?;
 
         genres.push(genre);
     }
 
-    // ASSUMPTION: Webtoons can only have either one or two genres on their homepages.
     match genres.as_slice() {
         [_] | [_, _] => Ok(genres),
         [] => assumption!("no genre was found on `webtoons.com` Webtoon homepage"),
@@ -327,7 +322,7 @@ fn views(html: &Html) -> Result<u64, WebtoonError> {
         .assumption("`em.cnt`(views) element is missing on `webtoons.com` Webtoon homepage")?
         .inner_html();
 
-    assumption!(
+    assume!(
         !views.is_empty(),
         "views element(`em.cnt`) on `webtoons.com` Webtoon homepage should never be empty"
     );
@@ -354,7 +349,7 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
         .assumption("second instance of `em.cnt`(subscribers) on `webtoons.com` Webtoon homepage is missing")?
         .inner_html();
 
-    assumption!(
+    assume!(
         !subscribers.is_empty(),
         "subscriber element(`em.cnt`) on `webtoons.com` Webtoon homepage should never be empty"
     );
@@ -398,22 +393,19 @@ fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
         releases.push(status);
     }
 
-    assumption!(
+    assume!(
         !releases.is_empty(),
         "original Webtoon homepage on `webtoons.com` should always have a release schedule, even if completed"
     );
 
-    assumption!(
+    assume!(
         releases.len() < 7,
         "original Webtoon homepage on `webtoons.com` should always have 6 or less items, as if there was a list of 7 days, it would just say `daily` instead: `{releases:?}`"
     );
 
-    let schedule = match Schedule::try_from(releases) {
-        Ok(schedule) => schedule,
-        Err(err) => assumption!(
-            "originals on `webtoons.com` should only have a few known release days/types: {err}"
-        ),
-    };
+    let schedule = Schedule::try_from(releases).assumption(
+        "originals on `webtoons.com` should only have a few known release days/types",
+    )?;
 
     Ok(schedule)
 }
@@ -461,12 +453,8 @@ fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
             "`src` attribute is missing in `.thmb>img` on `webtoons.com` canvas Webtoon homepage",
         )?;
 
-    let mut thumbnail = match Url::parse(url) {
-        Ok(thumbnail) => thumbnail,
-        Err(err) => assumption!(
-            "thumnbail url returned from `webtoons.com` canvas Webtoon homepage was an invalid absolute path url: {err}\n\n{url}"
-        ),
-    };
+    let mut thumbnail =  Url::parse(url)
+        .with_assumption(|| format!("thumbnail url returned from `webtoons.com` canvas Webtoon homepage was an invalid absolute path url `{url}`"))?;
 
     thumbnail
         // This host doesn't need a `referer` header to see the image.
@@ -490,12 +478,8 @@ fn banner(html: &Html) -> Result<Url, WebtoonError> {
         .attr("src")
         .assumption("`src` attribute is missing in `.thmb>img` on `webtoons.com` originals Webtoon homepage")?;
 
-    let mut banner = match Url::parse(url) {
-        Ok(banner) => banner,
-        Err(err) => assumption!(
-            "banner url returned from `webtoons.com` Webtoon homepage was an invalid absolute path url: {err}\n\n{url}"
-        ),
-    };
+    let mut banner = Url::parse(url)
+        .with_assumption(|| format!("banner url returned from `webtoons.com` Webtoon homepage was an invalid absolute path url `{url}`"))? ;
 
     banner
         // This host doesn't need a `referer` header to see the image.
@@ -518,11 +502,11 @@ fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Episode, Assum
 
     let number = data_episode_no
         .parse::<u16>()
-        .assumption_for(|err| format!("`data-episode-no` on `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}: {err}"))?;
+        .with_assumption(|| format!("`data-episode-no` on `webtoons.com` should be parse into a `u16`, but got: {data_episode_no}"))?;
 
     let published = Published::from(date(element)?);
 
-    assumption!(
+    assume!(
         published.year() >= 2014,
         "`webtoons.com` only started in 2014"
     );
@@ -565,7 +549,7 @@ fn episode_title(html: &ElementRef<'_>) -> Result<String, Assumption> {
         .assumption("`span.subj>span` on `webtoons.com` Webtoon homepage should have text inside it")?
         .trim();
 
-    assumption!(
+    assume!(
         !title.is_empty(),
         "`webtoons.com` Webtoon hompeage episodes' title should never be empty"
     );
@@ -598,7 +582,7 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
         )?
         .trim();
 
-    assumption!(
+    assume!(
         latest.starts_with('#'),
         "episode numbers on `webtoons.com` Webtoon homepages are prefixed with a `#`"
     );
@@ -606,9 +590,9 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     let episode = latest
         .trim_start_matches('#')
         .parse::<u16>()
-        .assumption_for(|err| format!("the maximum amount of episodes we should realistically see should be able to fit in a `u16`, got: {latest}: {err}"))?;
+        .with_assumption(|| format!("the maximum amount of episodes we should realistically see should be able to fit in a `u16`, got `{latest}`"))?;
 
-    assumption!(episode > 0, "`webtoons.com` episode count starts at 1");
+    assume!(episode > 0, "`webtoons.com` episode count starts at 1");
 
     Ok(episode.in_bucket_of(episodes_per_page))
 }
@@ -638,12 +622,12 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
-    assumption!(
+    assume!(
         !episodes.is_empty(),
         "public facing webtoons on `webtoons.com` should always have at least one public episode"
     );
 
-    assumption!(
+    assume!(
         u16::try_from(episodes.len()).is_ok(),
         "`webtoons.com` Webtoons should never have more than 65,535 episodes"
     );
@@ -687,7 +671,7 @@ pub(super) async fn random_episode(webtoon: &Webtoon) -> Result<Episode, Webtoon
 
     let elements: Vec<ElementRef<'_>> = html.select(&selector).collect();
 
-    assumption!(
+    assume!(
         !elements.is_empty(),
         "`webtoons.com` Webtoon homepage should always have at least one episode for which to get an episode element for a `random` episode"
     );
@@ -717,11 +701,11 @@ fn date(episode: &ElementRef<'_>) -> Result<NaiveDate, Assumption> {
         .assumption("`span.date` on `webtoons.com` Webtoon homepage should have text inside it")?
         .trim();
 
-    let date =
-        NaiveDate::parse_from_str(text, FMT).assumption_for(|err| {
-            format!("failed to parse `webtoons.com` Webtoon homepage episode date `{text}` with `{FMT}`, got: {err}")
-        })
-    ?;
+    let date = NaiveDate::parse_from_str(text, FMT).with_assumption(|| {
+        format!(
+            "failed to parse `webtoons.com` Webtoon homepage episode date `{text}` with `{FMT}`"
+        )
+    })?;
 
     Ok(date)
 }
@@ -802,13 +786,13 @@ fn count(
 ) -> Result<u64, Assumption> {
     fn parse(prefix: &str, remainder: &str) -> Result<(u64, u64), Assumption> {
         let left = prefix.parse::<u64>()
-                            .assumption_for(|err| {
-                                 format!("`on the `webtoons.com` Webtoon homepage, prefix part of a count should always fit in a `u64`, got: {prefix}: {err}")
+                            .with_assumption(|| {
+                                 format!("`on the `webtoons.com` Webtoon homepage, prefix part of a count should always fit in a `u64`, got `{prefix}`")
                              })?;
 
         let right = remainder.parse::<u64>()
-                            .assumption_for(|err| {
-                                format!("`on the `webtoons.com` Webtoon homepage, the remainder part of the count should always fit in a `u64`, got: {remainder}: {err}")
+                            .with_assumption(|| {
+                                format!("`on the `webtoons.com` Webtoon homepage, the remainder part of the count should always fit in a `u64`, got `{remainder}`")
                             })?;
 
         Ok((left, right))
@@ -825,7 +809,7 @@ fn count(
         // Separator found (e.g., "1.5").
         Some(Some((prefix, remainder))) if matches!(unit, Unit::Million | Unit::Billion) => {
             let (left, right) = parse(prefix, remainder)?;
-            assumption!(right < 10, "the `{right}` part of `{number}` should be less than '10', as the abbreviated million and billion numbers should only be single digit, i.e. 1..=9");
+            assume!(right < 10, "the `{right}` part of `{number}` should be less than '10', as the abbreviated million and billion numbers should only be single digit, i.e. 1..=9");
             Ok((left * multiplier) + (right * (multiplier / 10)))
         }
 
@@ -842,15 +826,15 @@ fn count(
         Some(None) => number
             .parse::<u64>()
             .map(|digit| digit * multiplier)
-            .assumption_for(|err| {
-                 format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got: {number}: {err}")
+            .with_assumption(|| {
+                 format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got `{number}`")
              }),
 
         // If no separator provided, then can parse directly.
         None => number
             .parse::<u64>()
-            .assumption_for(|err| {
-                format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got: {number}: {err}")
+            .with_assumption(|| {
+                format!("on the `webtoons.com` Webtoon homepage, a count without any separator should cleanly parse into single digit repesentation, got: `{number}`")
             }),
 
         Some(Some(_)) => assumption!("on `webtoons.com` Webtoon homepage, split `{number}` on `{separator:?}` but failed to match expected Thousand, Million, or Billion `matches!` arm"),

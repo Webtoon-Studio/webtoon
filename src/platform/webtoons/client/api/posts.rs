@@ -10,7 +10,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, assumption},
+        error::{Assume, assume},
     },
 };
 use chrono::DateTime;
@@ -289,7 +289,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         let upvotes = votes("likes", &mut liked);
         let downvotes = votes("dislikes", &mut disliked);
 
-        assumption!(
+        assume!(
             !(liked && disliked),
             "user cannot both have liked *and* disliked a post on `webtoons.com`; either or, neither, but not both"
         );
@@ -301,12 +301,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             _ => Reaction::None,
         };
 
-        let Some(posted) = DateTime::from_timestamp_millis(post.created_at) else {
-            assumption!(
-                "timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`",
-                post.created_at
-            );
-        };
+        let posted = DateTime::from_timestamp_millis(post.created_at)
+            .with_assumption(|| format!("timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`", post.created_at) )? ;
 
         let mut webtoons = Vec::new();
         let mut super_like: Option<u32> = None;
@@ -315,25 +311,23 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         for section in post.section_group.sections {
             match section {
                 Section::Giphy { data, .. } => {
-                    assumption!(
+                    assume!(
                         giphy_or_sticker.is_none(),
                         "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
                     );
                     giphy_or_sticker = Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())));
                 }
-                Section::Sticker { data, .. } => match Sticker::from_str(&data.sticker_id) {
-                    Ok(sticker) => {
-                        assumption!(
-                            giphy_or_sticker.is_none(),
-                            "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
-                        );
-                        giphy_or_sticker = Some(Flare::Sticker(sticker));
-                    }
-                    Err(err) => assumption!(
-                        "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id: {err}\n\n{}",
-                        data.sticker_id
-                    ),
-                },
+                Section::Sticker { data, .. } => {
+                    let sticker = Sticker::from_str(&data.sticker_id)
+                        .with_assumption(|| format!( "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id `{}`", data.sticker_id))?;
+
+                    assume!(
+                        giphy_or_sticker.is_none(),
+                        "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
+                    );
+
+                    giphy_or_sticker = Some(Flare::Sticker(sticker));
+                }
                 Section::ContentMeta { data, .. } => {
                     let Some(path) = data
                         .info
@@ -343,22 +337,16 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                         break;
                     };
 
-                    let url = match url::Url::parse("https://www.webtoons.com")
+                    let url =  url::Url::parse("https://www.webtoons.com")
                         .assumption("`https://www.webtoons.com` should be a valid url")?
                         .join(path)
-                    {
-                        Ok(url) => url,
-                        Err(err) => assumption!(
-                            "`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url: {err}\n\n{path}"
-                        ),
-                    };
+                        .with_assumption(|| format!("`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url `{path}`"))?;
 
-                    let webtoon = match episode.webtoon.client.webtoon_from_url(url.as_str()) {
-                        Ok(webtoon) => webtoon,
-                        Err(err) => assumption!(
-                            "url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url: {err}\n\n{url}"
-                        ),
-                    };
+                    let webtoon =  episode
+                        .webtoon
+                        .client
+                        .webtoon_from_url(url.as_str())
+                        .with_assumption(|| format!("url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url `{url}`"))?;
 
                     webtoons.push(webtoon);
                 }

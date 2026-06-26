@@ -3,7 +3,7 @@
 use super::{Webtoon, post::PinRepresentation};
 use crate::platform::webtoons::webtoon::post::{Comment, Comments};
 use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{Assume, AssumeFor, Assumption, assumption};
+use crate::stdx::error::{Assume, Assumption, assume, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
@@ -843,7 +843,7 @@ fn title(html: &Html) -> Result<String, Assumption> {
         .next()
         .assumption("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
 
-    assumption!(
+    assume!(
         !title.is_empty(),
         "`webtoons.com` episode title on episode page should never be empty"
     );
@@ -885,7 +885,7 @@ fn note(html: &Html) -> Result<Option<String>, Assumption> {
         "`.author_text` on `webtoons.com` episode page was found, but no text was present",
     )?;
 
-    assumption!(
+    assume!(
         !note.is_empty(),
         "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
     );
@@ -921,8 +921,9 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
             .attr("data-url")
             .assumption("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
 
-        let mut thumbnail =  Url::parse(url)
-            .assumption_for(|err| format!("urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{url}"))?;
+        let mut thumbnail = Url::parse(url).with_assumption(|| {
+            format!("urls found on `webtoons.com` episode page should always be valid urls: {url}")
+        })?;
 
         thumbnail
             // This host doesn't need a `referer` header to see the image.
@@ -963,11 +964,11 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
 
     let height = match value {
         float if let Some((int, fract)) = float.split_once('.') => {
-            assumption!(
+            assume!(
                 !fract.is_empty(),
                 "if there was a float, the fractional component should not be empty: `1.`"
             );
-            assumption!(
+            assume!(
                 fract.chars().all(|ch| ch.is_ascii_digit()),
                 "fraction component of a float should only contain digits"
             );
@@ -975,13 +976,15 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
             // TODO: Fractional pixel values are truncated. This could cause slight overlap
             // when compositing panels into a single image, but there's no clean solution
             // until we know how common large fractional values are (e.g. `1365.3333...`).
-            int
-                .parse::<u32>()
-                .assumption_for(|err| format!("failed to parse integer part `{int}` of float height `{value}` into a `u32`: {err}"))?
+            int.parse::<u32>().with_assumption(|| {
+                format!(
+                    "failed to parse integer part `{int}` of float height `{value}` into a `u32`"
+                )
+            })?
         }
         // Height can also be a whole number: `1280`.
-        height => height.parse::<u32>().assumption_for(|err| {
-            format!("failed to parse whole-number height `{height}` into a `u32`: {err}")
+        height => height.parse::<u32>().with_assumption(|| {
+            format!("failed to parse whole-number height `{height}` into a `u32`")
         })?,
     };
 
@@ -1004,26 +1007,28 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
 
     let width = match value {
         float if let Some((int, fract)) = float.split_once('.') => {
-            assumption!(
+            assume!(
                 !fract.is_empty(),
                 "if there was a float, the fractional component should not be empty: `1.`"
             );
-            assumption!(
+            assume!(
                 fract.chars().all(|ch| ch.is_ascii_digit()),
                 "fractional component of a float should only contain digits"
             );
 
-            int
-                .parse::<u32>()
-                .assumption_for(|err| format!("failed to parse integer part `{int}` of float width `{value}` into a `u32`: {err}"))?
+            int.parse::<u32>().with_assumption(|| {
+                format!(
+                    "failed to parse integer part `{int}` of float width `{value}` into a `u32`"
+                )
+            })?
         }
         // Width can also be a whole number: `800`.
-        width => width.parse::<u32>().assumption_for(|err| {
-            format!("failed to parse whole-number width `{width}` into a `u32`: {err}")
+        width => width.parse::<u32>().with_assumption(|| {
+            format!("failed to parse whole-number width `{width}` into a `u32`")
         })?,
     };
 
-    assumption!(
+    assume!(
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
         // TODO: There is a stated limit, but with height as an example, this, too, could be violated on the site.
         width <= 800,
@@ -1185,27 +1190,31 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             .map(html_escape::decode_html_entities)
             .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
 
-        let mut url =Url::parse(&data_url)
-            .assumption_for(|err|format!("urls found on `webtoons.com` episode page should always be valid urls: {err}\n\n{data_url}"))?;
+        let mut url = Url::parse(&data_url).with_assumption(|| {
+            format!(
+                "urls found on `webtoons.com` episode page should always be valid urls: {data_url}"
+            )
+        })?;
 
         // This host doesn't need a `referer` header to see the image.
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
 
-        let ext = match url.path().split('.').next_back() {
-            Some(ext) => ext.to_string(),
-            None => assumption!(
-                "`webtoons.com` episode page panel image urls should end in an extension, got: {url}"
-            ),
-        };
+        let ext =  url
+            .path()
+            .split('.')
+            .next_back()
+            .map(|ext| ext.to_owned())
+            .with_assumption(|| format!("`webtoons.com` episode page panel image urls should end in an extension, got `{url}`"))?;
 
-        // NOTE: `gif` is a supported format in some instances, despite wording that states
-        // only JPEG and PNG are accepted.
-        assumption!(
+        // NOTE:
+        // `gif` is a supported format in some instances, despite wording
+        // that states only JPEG and PNG are accepted.
+        assume!(
             ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG", "gif", "GIF"]
                 .into_iter()
                 .any(|format| format == ext),
-            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`), PNG(`png`), and GIF(`gif`, `GIF`), but found: `{ext}`"
+            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`), PNG(`png`), and GIF(`gif`, `GIF`), but found `{ext}`"
         );
 
         panels.push(Panel {
@@ -1221,7 +1230,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
         });
     }
 
-    assumption!(
+    assume!(
         !panels.is_empty(),
         "episodes on `webtoons.com` must have at least one panel on its viewer, platform doesnt let you create an episode without at least one"
     );
@@ -1330,9 +1339,10 @@ impl DownloadedPanels {
 
         tokio::fs::create_dir_all(path).await?;
 
-        let first = self.images.first().assumption(
-            "`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!",
-        )?;
+        let first = self
+            .images
+            .first()
+            .assumption("`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!")?;
 
         let episode = first.episode;
         let width = self.width;
@@ -1349,12 +1359,8 @@ impl DownloadedPanels {
         for panel in &self.images {
             let bytes = panel.bytes.as_slice();
 
-            let image = match image::load_from_memory(bytes) {
-                Ok(image) => image,
-                Err(err) => assumption!(
-                    "`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features: {err}"
-                ),
-            };
+            let image =  image::load_from_memory(bytes)
+                .assumption("`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features")?;
 
             for (x, y, pixels) in image.pixels() {
                 single.put_pixel(x, y + offset, pixels);
@@ -1365,16 +1371,13 @@ impl DownloadedPanels {
 
         match tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
             .await
-        {
-            Ok(ok) => match ok {
-                Ok(()) => Ok(()),
-                Err(image::ImageError::IoError(err)) => Err(SavePanelError::IoError(err)),
-                Err(err) => assumption!(
-                    "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
-                ),
-            },
+            .assumption(
+                "failed to join tokio handle trying to save single `webtoons.com` image to disk",
+            )? {
+            Ok(()) => Ok(()),
+            Err(image::ImageError::IoError(err)) => Err(SavePanelError::IoError(err)),
             Err(err) => assumption!(
-                "failed to join tokio handle trying to save single `webtoons.com` image to disk: {err}"
+                "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
             ),
         }
     }

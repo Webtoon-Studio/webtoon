@@ -1,8 +1,8 @@
 use chrono::Duration;
-use webtoon::platform::webtoons::Client;
+use webtoon::platform::webtoons::{Client, error::Error};
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Error> {
     let client = Client::new();
 
     let webtoons = client.originals().await?;

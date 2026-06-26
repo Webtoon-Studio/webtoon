@@ -3,7 +3,7 @@
 // mod genres;
 
 use super::{Client, Webtoon, error::OriginalsError};
-use crate::stdx::error::{Assume, assumption};
+use crate::stdx::error::{Assume, assume};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -41,18 +41,14 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
                 .attr("href")
                 .assumption("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
 
-            let webtoon = match Webtoon::from_url_with_client(href, client) {
-                Ok(webtoon) => webtoon,
-                Err(err) => assumption!(
-                    "urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`: {err}"
-                ),
-            };
+            let webtoon =  Webtoon::from_url_with_client(href, client)
+                .assumption("urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`")?;
 
             webtoons.push(webtoon);
         }
     }
 
-    assumption!(
+    assume!(
         !webtoons.is_empty(),
         "after scraping `webtoons.com` Originals page, there should be at least some Webtoons that were found"
     );

@@ -12,7 +12,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, Assumption, assumption},
+        error::{Assume, Assumption, assume},
     },
 };
 
@@ -97,7 +97,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
 
         let published = Published::from(datetime);
 
-        assumption!(
+        assume!(
             published.year() >= 2014,
             "`webtoons.com` only started in 2014"
         );
@@ -138,66 +138,56 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
 }
 
 fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
-    assumption!(
+    assume!(
         date.ends_with("GMT"),
         "all known rss date formats end with `GMT`"
     );
 
-    let Some(date) = date
+    let date = date
         .split_once(',')
         .map(|(_, date)| date.trim_end_matches("GMT").trim())
-    else {
-        assumption!(
-            "incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got: `{date}`"
-        );
-    };
+        .with_assumption(|| format!("incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got `{date}`"))?;
 
-    assumption!(
+    assume!(
         date.chars()
             .next()
             .is_some_and(|char| char.is_ascii_digit()),
         "`date` should start with a digit after splitting on `,`"
     );
 
-    assumption!(
+    assume!(
         !date.ends_with("GMT"),
         "`date` should not end with `GMT` after trimming"
     );
 
-    match NaiveDateTime::parse_from_str(date, "%d %b %Y %T") {
-        Ok(date) => Ok(date.and_utc()),
-        Err(err) => {
-            assumption!(
-                "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format: {err}\n\n: `{date}`"
-            )
-        }
-    }
+    let date = NaiveDateTime::parse_from_str(date, "%d %b %Y %T").with_assumption(|| {
+        format!(
+            "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format `{date}`"
+        )
+    })?;
+
+    Ok(date.and_utc())
 }
 
 fn episode(url: &str) -> Result<u16, Assumption> {
-    let url = match Url::parse(url) {
-        Ok(url) => url,
-        Err(err) => assumption!(
-            "urls returned from `webtoons.com` rss feed should always be valid: {err}\n\n`{url}`"
-        ),
-    };
+    let url = Url::parse(url).with_assumption(|| {
+        format!("urls returned from `webtoons.com` rss feed should always be valid `{url}`")
+    })?;
 
-    let Some(value) = url
+    let value = url
         .query_pairs()
         .find(|(key, _)| key == "episode_no")
         .map(|(_, v)| v)
-    else {
-        assumption!(
-            "`webtoons.com` Webtoon rss url should always have an `episode_no` query: `{url}`"
-        )
-    };
+        .with_assumption(|| {
+            format!(
+                "`webtoons.com` Webtoon rss url should always have an `episode_no` query: `{url}`"
+            )
+        })?;
 
-    match u16::from_str(&value) {
-        Ok(episode) => Ok(episode),
-        Err(err) => assumption!(
-            "`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes: {err}\n\n`{value}`"
-        ),
-    }
+    let number =   u16::from_str(&value)
+        .with_assumption(|| format!("`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes `{value}`"))?;
+
+    Ok(number)
 }
 
 #[cfg(test)]

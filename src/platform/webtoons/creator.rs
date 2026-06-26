@@ -5,7 +5,7 @@ use crate::{
     platform::webtoons::error::{ClientError, CreatorWebtoonsError},
     stdx::{
         cache::{Cache, Store},
-        error::{Assume, AssumeFor, Assumption, assumption},
+        error::{Assume, Assumption, assume, assumption},
     },
 };
 use core::fmt::{self, Debug};
@@ -401,7 +401,7 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
 
         return count
                     .parse::<u32>()
-                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"));
+                    .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"));
     }
 
     assumption!(
@@ -440,7 +440,7 @@ fn id(html: &Html) -> Result<String, Assumption> {
                 .take_while(|ch| ch.is_ascii_alphanumeric())
                 .collect::<String>();
 
-            assumption!(
+            assume!(
                 !id.is_empty(),
                 "`creatorId` on `webtoons.com` creator homepage should never be empty"
             );

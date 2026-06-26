@@ -5,7 +5,7 @@ use crate::{
     platform::webtoons::{Webtoon, error::WebtoonPostsError, webtoon::post::id::Id},
     stdx::{
         cache::{Cache, Store},
-        error::assumption,
+        error::assume,
     },
 };
 use chrono::{DateTime, Utc};
@@ -432,7 +432,7 @@ pub use iter::Comments;
 
 mod iter {
     use super::{Comment, Episode, Id, Post, WebtoonPostsError};
-    use crate::{platform::webtoons::webtoon::post::PinRepresentation, stdx::error::assumption};
+    use crate::{platform::webtoons::webtoon::post::PinRepresentation, stdx::error::assume};
 
     /// Internal state machine for the [`Comments`] iterator.
     ///
@@ -515,7 +515,7 @@ mod iter {
                             .episode_posts(self.episode, None, 10, PinRepresentation::Distinct)
                             .await?;
 
-                        assumption!(
+                        assume!(
                             response.result.tops.len() < 4,
                             "there should only be at most 3 top comments on `webtoons.com` episode"
                         );
@@ -1028,7 +1028,7 @@ impl Post {
                 .episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
                 .await?;
 
-            assumption!(
+            assume!(
                 response.result.tops.len() < 4,
                 "there should only be at most 3 top comments on `webtoons.com` episode"
             );
@@ -1084,7 +1084,7 @@ impl Post {
         let mut upvotes = 0;
         let mut downvotes = 0;
 
-        assumption!(
+        assume!(
             response.result.emotions.len() < 3,
             "`webtoons.com` post api should only have either upvotes or downvotes, yet had three items: {:?}",
             response.result.emotions
