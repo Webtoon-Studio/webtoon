@@ -544,7 +544,6 @@ impl Episode {
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, webtoon::episode::PublishedStatus, Client, Type};
-    /// # use std::assert_matches;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
@@ -557,7 +556,7 @@ impl Episode {
     ///
     /// if let Some(episode) = episodes.first() {
     ///     assert_eq!(episode.number(), 1);
-    ///     assert_matches!(episode.published_status(), Some(PublishedStatus::Published));
+    ///     assert_eq!(episode.published_status(), Some(PublishedStatus::Published));
     ///     # return Ok(());
     /// }
     /// # unreachable!("should have entered the episode block and returned");
@@ -710,6 +709,11 @@ impl Episode {
             webtoon: webtoon.clone(),
             number,
             title: Cache::empty(),
+            // NOTE: Published date is unavailable from a single episode page.
+            // The only sources are the dashboard and the webtoon episode list,
+            // but caching the full episode list for a single lookup would be
+            // slow and require a larger refactor. Returns `None` until a better
+            // solution is found.
             published: None,
             length: Cache::empty(),
             thumbnail: Cache::empty(),

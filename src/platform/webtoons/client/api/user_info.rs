@@ -126,7 +126,7 @@ impl TryFrom<UserInfoRaw> for UserInfo {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct UserInfoRaw {
+pub struct UserInfoRaw {
     #[serde(rename = "challengeAuthor")]
     pub is_canvas_creator: bool,
 

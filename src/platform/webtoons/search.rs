@@ -1,10 +1,7 @@
 //! Module representing `webtoons.com` search.
 
 use crate::{
-    platform::webtoons::{
-        Client, Type, Webtoon,
-        error::{ClientError, WebtoonError},
-    },
+    platform::webtoons::{Client, Type, Webtoon, error::ClientError},
     stdx::error::assumption,
 };
 

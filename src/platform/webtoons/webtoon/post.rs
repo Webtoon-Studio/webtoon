@@ -470,6 +470,7 @@ mod iter {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use = "iterators are lazy and do nothing unless consumed"]
     pub struct Comments<'e> {
         episode: &'e Episode,
         buf: Vec<Post>,
@@ -483,10 +484,12 @@ mod iter {
         /// This constructor does not perform any network requests. The first
         /// request is deferred until [`Comments::next`] is called.
         #[inline]
-        #[must_use]
         pub(crate) fn new(episode: &'e Episode) -> Self {
             Self {
                 episode,
+                // WHY:
+                // The max amount of posts returned from the API at once is 100.
+                // There are at most `3` pinned comments.
                 buf: Vec::with_capacity(103),
                 cursor: None,
                 state: State::Start,
