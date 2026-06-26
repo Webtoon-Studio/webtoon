@@ -791,7 +791,7 @@ impl Client {
 }
 
 impl Client {
-    pub(super) async fn originals_page(&self, day: &str) -> Result<Html, RequestError> {
+    pub(super) async fn fetch_originals_page(&self, day: &str) -> Result<Html, RequestError> {
         let url = format!("https://www.webtoons.com/en/originals/{day}");
 
         let document = self
