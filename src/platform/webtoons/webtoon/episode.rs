@@ -48,6 +48,7 @@ pub struct Episode {
     pub(crate) title: Cache<String>,
     pub(crate) published: Option<Published>,
     pub(crate) length: Cache<Option<u32>>,
+    // TODO: Add super likes.
     pub(crate) views: Option<u32>,
     pub(crate) thumbnail: Cache<Url>,
     pub(crate) note: Cache<Option<String>>,

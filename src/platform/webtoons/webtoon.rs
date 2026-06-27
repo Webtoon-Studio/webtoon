@@ -16,6 +16,7 @@ use rss::Rss;
 use super::error::WebtoonError;
 use super::originals::Schedule;
 use super::{Client, creator::Creator};
+use crate::platform::webtoons::dashboard;
 use crate::platform::webtoons::webtoon::episode::Episode;
 use crate::platform::webtoons::webtoon::homepage::Homepage;
 use crate::stdx::error::{assume_matches, assumption};
@@ -29,7 +30,6 @@ use crate::{
     },
     stdx::{
         cache::{Cache, Store},
-        error::Assume,
         http::IRetry,
     },
 };
@@ -349,16 +349,14 @@ impl Webtoon {
                     && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
                     && user.is_webtoon_creator() =>
             {
-                // let episodes = dashboard::episodes::scrape(webtoon).await?;
+                let episodes = dashboard::analytics::episodes(webtoon).await?;
 
-                // let views = episodes
-                //     .iter()
-                //     .filter_map(|episode| episode.views.map(u64::from))
-                //     .sum::<u64>();
+                let views = episodes
+                    .iter()
+                    .filter_map(|episode| episode.views.map(u64::from))
+                    .sum::<u64>();
 
-                // Ok(views)
-
-                todo!()
+                Ok(views)
             }
             Type::Original | Type::Canvas => match webtoon.homepage.get() {
                 Store::Value(homepage) => Ok(homepage.views()),
@@ -405,7 +403,11 @@ impl Webtoon {
                     && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
                     && let valid_session = session?
                     && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
-                    && user.is_webtoon_creator() =>
+                    && user.is_webtoon_creator()
+                    // HACK: There is the new analytics page that has subscribers
+                    // but in looking, it doesn't really seem to match the displayed
+                    // subscriber count on the homepage; not really sure what to do?
+                    && false =>
             {
                 todo!()
             }
@@ -621,7 +623,7 @@ impl Webtoon {
                     && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
                     && user.is_webtoon_creator() =>
             {
-                todo!()
+                Ok(dashboard::analytics::episodes(webtoon).await?)
             }
             Type::Original | Type::Canvas => Ok(homepage::episodes(webtoon).await?),
         }
