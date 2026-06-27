@@ -4,24 +4,24 @@ mod homepage;
 pub mod episode;
 pub mod post;
 
-#[cfg(feature = "rss")]
-pub mod rss;
-#[cfg(feature = "rss")]
-use crate::platform::webtoons::error::RssError;
-#[cfg(feature = "rss")]
-use rss::Rss;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use self::{episode::Episode, homepage::Homepage};
+#[cfg(feature = "rss")]
+pub mod rss;
+#[cfg(feature = "rss")]
+use rss::Rss;
+
 use super::error::WebtoonError;
 use super::originals::Schedule;
 use super::{Client, creator::Creator};
+use crate::platform::webtoons::webtoon::episode::Episode;
+use crate::platform::webtoons::webtoon::homepage::Homepage;
 use crate::{
     platform::webtoons::{
         error::{
-            ClientError, InvalidWebtoonUrl, RequestError, SessionError, WebtoonEpisodesError,
-            WebtoonLikesError, WebtoonPostsError, WebtoonSubscribersError, WebtoonViewsError,
+            ClientError, EpisodesError, InvalidWebtoonUrl, PostsError, SessionError,
+            SubscribersError, ViewsError,
         },
         webtoon::post::Comment,
     },
@@ -333,7 +333,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
-    pub async fn views(&self) -> Result<u64, WebtoonViewsError> {
+    pub async fn views(&self) -> Result<u64, ViewsError> {
         let webtoon = self;
         let client = &self.client;
 
@@ -391,7 +391,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
-    pub async fn subscribers(&self) -> Result<u32, WebtoonSubscribersError> {
+    pub async fn subscribers(&self) -> Result<u32, SubscribersError> {
         let webtoon = self;
         let client = &self.client;
 
@@ -577,7 +577,6 @@ impl Webtoon {
         }
     }
 
-    // TODO: Docs still need some work as exact semantics are worked out.
     /// Returns all episodes for this [`Webtoon`].
     ///
     /// There is no guarantee to order.
@@ -606,7 +605,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
-    pub async fn episodes(&self) -> Result<Vec<Episode>, WebtoonEpisodesError> {
+    pub async fn episodes(&self) -> Result<Vec<Episode>, EpisodesError> {
         let webtoon = self;
         let client = &self.client;
 
@@ -625,7 +624,6 @@ impl Webtoon {
         }
     }
 
-    // TODO: Docs will need refinement once semantics are nailed down.
     /// Returns the [`Episode`] at `number` for this [`Webtoon`], if it exists.
     ///
     /// Unlike [`Webtoon::episodes()`], this includes episodes that are unpublished, paywalled,
@@ -740,7 +738,7 @@ impl Webtoon {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, WebtoonLikesError> {
+    pub async fn likes(&self) -> Result<u32, WebtoonError> {
         let webtoon = self;
 
         let mut episodes = 1..;
@@ -779,7 +777,7 @@ impl Webtoon {
     /// # unreachable!("should have entered the episode block and returned");
     /// # }
     /// ```
-    pub async fn posts(&self) -> Result<Vec<Comment>, WebtoonPostsError> {
+    pub async fn posts(&self) -> Result<Vec<Comment>, PostsError> {
         let webtoon = self;
 
         let mut episodes = 1..;
@@ -818,7 +816,7 @@ impl Webtoon {
     /// ```
     #[inline]
     #[cfg(feature = "rss")]
-    pub async fn rss(&self) -> Result<Rss, RssError> {
+    pub async fn rss(&self) -> Result<Rss, WebtoonError> {
         let webtoon = self;
         rss::feed(webtoon).await
     }
@@ -839,13 +837,7 @@ impl Webtoon {
             }
         );
 
-        let response = client
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
+        let response = client.http.get(&url).retry().send().await?;
 
         // Webtoon doesn't exist or is not public.
         if response.status() == 404 {

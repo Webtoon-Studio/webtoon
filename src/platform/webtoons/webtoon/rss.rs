@@ -5,11 +5,7 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::{
-    platform::webtoons::{
-        creator::Creator,
-        error::{RssError, WebtoonError},
-        webtoon::episode::Published,
-    },
+    platform::webtoons::{creator::Creator, error::WebtoonError, webtoon::episode::Published},
     stdx::{
         cache::Cache,
         error::{Assume, Assumption, assume},
@@ -72,7 +68,7 @@ impl Rss {
     }
 }
 
-pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
+pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
     let channel = webtoon.client.rss(webtoon).await?;
 
     let mut episodes = Vec::new();
@@ -125,13 +121,10 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, RssError> {
         url: channel.link.clone(),
         thumbnail: channel
             .image()
-            .assumption("`webtoons.com` Webtoon rss feed should should have an `image`, represening the thumbnail of the Webtoon")?
+            .assumption("`webtoons.com` Webtoon rss feed should should have an `image`, representing the thumbnail of the Webtoon")?
             .url
             .clone(),
-        creators: webtoon.creators().await.map_err(|err| match err {
-                WebtoonError::Internal(err) => RssError::from(err),
-                WebtoonError::RequestFailed(err) => RssError::from(err),
-            })?,
+        creators: webtoon.creators().await?,
         summary: channel.description,
         episodes,
     })

@@ -7,7 +7,7 @@ use crate::stdx::error::{Assume, Assumption, assume, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
-        error::{EpisodeError, RequestError, WebtoonLikesError, WebtoonPostsError},
+        error::{EpisodeError, LikesError, PostsError},
     },
     stdx::time::DateOrDateTime,
 };
@@ -362,7 +362,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn likes(&self) -> Result<u32, WebtoonLikesError> {
+    pub async fn likes(&self) -> Result<u32, LikesError> {
         let episode = self;
         let client = &self.webtoon.client;
 
@@ -409,7 +409,7 @@ impl Episode {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn comments_and_replies(&self) -> Result<(u32, u32), WebtoonPostsError> {
+    pub async fn comments_and_replies(&self) -> Result<(u32, u32), PostsError> {
         let episode = self;
         let client = &self.webtoon.client;
 
@@ -745,7 +745,7 @@ impl Episode {
         Ok(())
     }
 
-    pub(super) async fn exists(&self) -> Result<bool, RequestError> {
+    pub(super) async fn exists(&self) -> Result<bool, reqwest::Error> {
         let episode = self;
         let client = &self.webtoon.client;
         client.check_if_episode_exists(episode).await
@@ -1162,7 +1162,7 @@ impl Panel {
     async fn download(
         &mut self,
         client: &crate::platform::webtoons::Client,
-    ) -> Result<(), RequestError> {
+    ) -> Result<(), reqwest::Error> {
         let panel = self;
         panel.bytes = client.download_panel(&panel.url).await?;
         Ok(())

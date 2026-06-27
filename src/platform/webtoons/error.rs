@@ -8,16 +8,10 @@ pub use _inner::SavePanelError;
 
 pub use _inner::{
     CanvasError, ClientBuilderError, ClientError, CreatorError, CreatorWebtoonsError, EpisodeError,
-    Error, OriginalsError, RssError, SearchError, SessionError, UserInfoError,
-    WebtoonEpisodesError, WebtoonError, WebtoonLikesError, WebtoonPostsError,
-    WebtoonSubscribersError, WebtoonViewsError,
+    EpisodesError, Error, LikesError, OriginalsError, PostsError, SearchError, SessionError,
+    SubscribersError, UserInfoError, ViewsError, WebtoonError,
 };
 
-#[derive(Debug, Error)]
-#[error(transparent)]
-pub struct RequestError(#[from] pub(crate) reqwest::Error);
-
-// TODO: Create a `Url` in `webtoon::homepage` that validates the expected structure, i.e. "Parse, don't validate"
 /// Represents an invalid `webtoons.com` Webtoon homepage URL.
 ///
 /// Given how exact the format is, and the unlikely nature of something actionable
@@ -38,78 +32,79 @@ mod _inner {
     use error_set::error_set;
 
     error_set! {
-        #[expect(
-            clippy::error_impl_error,
-            reason = "`Error` is a ball of mud enum thats built through codegen; only meant for prototyping"
-        )]
+        /// Catch-all error for prototyping. Prefer specific types in production code.
+        #[expect(clippy::error_impl_error, reason = "catch-all for prototyping only")]
         Error := {
             InvalidWebtoonUrl(super::InvalidWebtoonUrl),
             #[cfg(feature = "download")]
             IoError(std::io::Error),
             ParseIdError(ParsePostIdError),
         }
-        || Base
         || OriginalsError
         || CanvasError
         || SearchError
         || CreatorError
         || WebtoonError
         || EpisodeError
-        || RequestError
         || SessionError
-        || WebtoonPostsError
+        || PostsError
         || ClientError
+        || Network
+        || Internal
 
-        OriginalsError := Base || RequestError
+        SearchError := Internal || Network
 
-        CanvasError := Base || RequestError
+        OriginalsError := Internal || Network
 
-        SearchError := Base || RequestError
+        CanvasError := Internal || Network
 
+        // TODO: See if we need the ClientError::UnsupportedLanguage
         CreatorWebtoonsError := CreatorError || ClientError
 
         CreatorError := {
             #[display("invalid creator profile")]
             InvalidCreatorProfile,
-        } || Base || RequestError
+        } || Internal || Network
 
-        WebtoonError := Base || RequestError
-
-        RssError :=  Base || RequestError
+        WebtoonError := Internal || Network
 
         EpisodeError := {
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
-        } || Base || RequestError
+        } || Internal || Network
 
-        WebtoonPostsError := Base || RequestError || InvalidSession
+        PostsError := Internal || Network || InvalidSession
 
-        WebtoonLikesError := Base || RequestError
+        LikesError := Internal || Network
 
-        // TODO: Need to add `InvalidPermissions` as session provided might be a
-        // valid one, but not the one needed for the specific webtoon.
-        WebtoonEpisodesError :=  Base || RequestError || InvalidSession
-        WebtoonViewsError := Base || RequestError
-        WebtoonSubscribersError := Base || RequestError
+        EpisodesError :=  Internal || Network
 
-        SessionError :=  Base || RequestError || NoSessionProvided || InvalidSession
+        ViewsError := Internal || Network
 
-        UserInfoError := Base || RequestError
+        SubscribersError := Internal || Network
 
+        SessionError :=  Internal || Network || NoSessionProvided || InvalidSession
+
+        UserInfoError := Internal || Network
+
+        /// Error saving downloaded panels to disk.
+        #[cfg(feature = "download")]
+        SavePanelError := {
+            IoError(std::io::Error),
+        } || Internal || Network
+
+        /// Error building a [`Client`].
         ClientBuilderError := {
+            #[display("failed to build the HTTP client (TLS or DNS initialization failed)")]
             BuildFailed,
         }
 
         ClientError := {
             #[display("only the english `webtoons.com` is supported")]
             UnsupportedLanguage
-        } || Base || RequestError
+        } || Internal || Network
 
-        SavePanelError := {
-            IoError(std::io::Error),
-        } || Base || RequestError
-
-        // --- Internal ---
+        // ---------------------------------------------------------------------
 
         InvalidSession := {
             #[display("session invalid or expired")]
@@ -126,16 +121,19 @@ mod _inner {
             InvalidPermissions,
         }
 
-        RequestError := {
-            RequestFailed(super::RequestError),
+        // ---------------------------------------------------------------------
+
+        Network := {
+            #[display("{0}")]
+            RequestFailed(reqwest::Error),
         }
 
-        Base := {
+        Internal := {
             Internal(Assumption),
         }
     }
 
-    impl From<SessionError> for WebtoonViewsError {
+    impl From<SessionError> for ViewsError {
         #[track_caller]
         fn from(err: SessionError) -> Self {
             match err {
@@ -151,7 +149,7 @@ mod _inner {
         }
     }
 
-    impl From<SessionError> for WebtoonSubscribersError {
+    impl From<SessionError> for SubscribersError {
         #[track_caller]
         fn from(err: SessionError) -> Self {
             match err {
@@ -167,7 +165,7 @@ mod _inner {
         }
     }
 
-    impl From<SessionError> for WebtoonEpisodesError {
+    impl From<SessionError> for EpisodesError {
         #[track_caller]
         fn from(err: SessionError) -> Self {
             match err {
