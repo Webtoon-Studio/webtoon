@@ -62,10 +62,7 @@ mod _inner {
 
         OriginalsError := Base || RequestError
 
-        CanvasError := {
-            #[display("range `start` cannot be lower than `end`")]
-            InvalidRange,
-        } || Base || RequestError
+        CanvasError := Base || RequestError
 
         SearchError := Base || RequestError
 

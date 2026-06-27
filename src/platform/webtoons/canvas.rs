@@ -1,23 +1,4 @@
-//! Module representing the canvas story list at `www.webtoons.com/*/canvas/list`.
-//!
-//! # Example
-//!
-//! ```rust
-//! # use webtoon::platform::webtoons::{ Client, error::Error, canvas::Sort};
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Error> {
-//! let client = Client::new();
-//!
-//! let webtoons = client
-//!     .canvas(1..=3, Sort::Popularity)
-//!     .await?;
-//!
-//! for webtoon in webtoons {
-//!     println!("Webtoon: {}", webtoon.id());
-//! }
-//! # Ok(())
-//! # }
-//! ```
+//! Canvas story list at `https://www.webtoons.com/*/canvas/list`.
 
 use super::{Client, Webtoon};
 use crate::{
@@ -32,28 +13,28 @@ pub(super) async fn scrape(
     pages: impl RangeBounds<u16>,
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
-    // NOTE: currently all languages follow the same pattern.
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
         .assumption("`div.challenge_lst>ul>li>a` should be a valid selector")?;
 
     let start = match pages.start_bound() {
+        // 1..=100, 1..100, 1.. -> start at page 1
         std::ops::Bound::Included(&n) => n.max(1),
-        std::ops::Bound::Excluded(&n) => n + 1,
+        // (0..=100), (0..100) -> start at page 1 (webtoons.com pages are 1-indexed)
+        std::ops::Bound::Excluded(&n) => (n + 1).max(1),
+        // ..=100, ..100, .. -> start at page 1
         std::ops::Bound::Unbounded => 1,
     };
 
     let end = match pages.end_bound() {
+        // 1..=100 -> end at page 100 (inclusive)
         std::ops::Bound::Included(&n) => n + 1,
+        // 1..100 -> end at page 100 (exclusive, so n is already the correct bound)
         std::ops::Bound::Excluded(&n) => n,
+        // 1.., .. -> cap at page 100 to avoid unbounded scraping
         std::ops::Bound::Unbounded => 100,
     };
 
-    // For simplicity, and ensuring expected behavior, enforce that range used is
-    // always increasing, from left to right.
-    if start > end {
-        return Err(CanvasError::InvalidRange);
-    }
-
+    // MAGIC: `20`: webtoons per page.
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
@@ -83,7 +64,7 @@ pub(super) async fn scrape(
     Ok(webtoons)
 }
 
-/// Represents sorting options when scraping `www.webtoons.com/*/canvas/list`.
+/// Sorting options for the [`Canvas`] story list.
 #[derive(Debug, Clone, Copy)]
 pub enum Sort {
     /// Sort by views.
@@ -107,5 +88,27 @@ impl Display for Sort {
         };
 
         write!(f, "{sort}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -- Sort::fmt --
+
+    #[test]
+    fn sort_popularity_displays_as_mana() {
+        assert_eq!(Sort::Popularity.to_string(), "MANA");
+    }
+
+    #[test]
+    fn sort_likes_displays_as_likeit() {
+        assert_eq!(Sort::Likes.to_string(), "LIKEIT");
+    }
+
+    #[test]
+    fn sort_date_displays_as_update() {
+        assert_eq!(Sort::Date.to_string(), "UPDATE");
     }
 }
