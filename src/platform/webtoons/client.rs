@@ -831,7 +831,10 @@ impl Client {
         Ok(html)
     }
 
-    pub(super) async fn creator_page(&self, profile: &str) -> Result<Option<Html>, CreatorError> {
+    pub(super) async fn fetch_creator_page(
+        &self,
+        profile: &str,
+    ) -> Result<Option<Html>, CreatorError> {
         let url = format!("https://www.webtoons.com/p/community/en/u/{profile}");
 
         let response = self
