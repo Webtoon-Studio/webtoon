@@ -88,12 +88,11 @@ mod _inner {
         UserInfoError := Internal || Network
 
         /// Error saving downloaded panels to disk.
-        #[cfg(feature = "download")]
         SavePanelError := {
             IoError(std::io::Error),
         } || Internal || Network
 
-        /// Error building a [`Client`].
+        /// Error building a [`Client`](crate::platform::webtoons::client::Client).
         ClientBuilderError := {
             #[display("failed to build the HTTP client (TLS or DNS initialization failed)")]
             BuildFailed,

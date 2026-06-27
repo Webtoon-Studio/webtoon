@@ -127,7 +127,7 @@ impl Episode {
 
     /// Returns the title of this [`Episode`].
     ///
-    /// Returns `EpisodeError::NotViewable` if the episode is hidden or deleted, which can
+    /// Returns [`EpisodeError::NotViewable`] if the episode is hidden or deleted, which can
     /// occur when the episode was obtained via [`Webtoon::episode()`].
     ///
     /// # Example
@@ -168,7 +168,7 @@ impl Episode {
     ///
     /// Inferred from the episode title by matching patterns like `[Season 2]`, `(Season 2)`,
     /// `[S2]`, or `(S2)`. Returns `None` if no pattern is found, or
-    /// `EpisodeError::NotViewable` if the episode is hidden or deleted.
+    /// [`EpisodeError::NotViewable`] if the episode is hidden or deleted.
     ///
     /// # Example
     ///
@@ -195,6 +195,9 @@ impl Episode {
     }
 
     /// Returns the creator's note for this [`Episode`], if any.
+    ///
+    /// Returns `None` if no note is found, or [`EpisodeError::NotViewable`] if the
+    /// episode is hidden or deleted.
     ///
     /// # Example
     ///
@@ -234,7 +237,7 @@ impl Episode {
     /// Returns the total vertical length of this [`Episode`] in pixels, if any.
     ///
     /// Returns `None` for episodes with audio or GIFs, as that viewer is unsupported.
-    /// Returns `Err(EpisodeError::NotViewable)` for paywalled or app-only episodes.
+    /// Returns [`EpisodeError::NotViewable`] for paywalled or app-only episodes.
     ///
     /// # Example
     ///
@@ -275,7 +278,7 @@ impl Episode {
     /// Only populated when the episode was obtained via [`Webtoon::episodes()`] or
     /// [`Webtoon::rss()`]; always `None` for episodes from [`Webtoon::episode()`].
     ///
-    /// For [`Canvas`] episodes fetched with a creator session, draft episodes return `None`.
+    /// For `Canvas` episodes fetched with a creator session, draft episodes return `None`.
     ///
     /// # Example
     ///
@@ -311,8 +314,8 @@ impl Episode {
 
     /// Returns the view count for this [`Episode`], if available.
     ///
-    /// Only populated for [`Canvas`] episodes obtained via [`Webtoon::episodes()`] with a
-    /// creator session. All other cases - [`Original`](variant@Type::Original) webtoons, no
+    /// Only populated for `Canvas` episodes obtained via [`Webtoon::episodes()`] with a
+    /// creator session. All other cases - `Original` webtoons, no
     /// session, or episodes from [`Webtoon::episode()`] - always return `None`.
     ///
     /// # Example
@@ -498,7 +501,7 @@ impl Episode {
 
     /// Returns the thumbnail URL for this [`Episode`].
     ///
-    /// Returns `Err(EpisodeError::NotViewable)` for app-only episodes.
+    /// Returns [`EpisodeError::NotViewable`] for app-only episodes.
     ///
     /// # Example
     ///
@@ -571,8 +574,8 @@ impl Episode {
 
     /// Returns the [`AdStatus`] of this [`Episode`], if any.
     ///
-    /// Only available for [`Canvas`] episodes obtained via [`Webtoon::episodes()`] with a
-    /// creator session. Always `None` for [`Original`](variant@Type::Original) webtoons, missing
+    /// Only available for `Canvas` episodes obtained via [`Webtoon::episodes()`] with a
+    /// creator session. Always `None` for `Original` webtoons, missing
     /// or non-creator sessions, or episodes from [`Webtoon::episode()`].
     ///
     /// # Example
@@ -642,8 +645,7 @@ impl Episode {
         matches!(episode.published_status, Some(PublishedStatus::Published))
     }
 
-    // TODO: If this is an alternate reader, this can fail. Should return `Option`.
-    /// Downloads the panels of this [`Episode`] and returns a [`DownloadedPanels`].
+    /// Downloads the panels of this [`Episode`].
     ///
     /// # Example
     ///

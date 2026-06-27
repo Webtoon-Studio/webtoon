@@ -1,4 +1,5 @@
 //! A Webtoon on `webtoons.com` and its associated operations.
+
 mod homepage;
 
 pub mod episode;
@@ -37,7 +38,8 @@ use std::sync::Arc;
 
 /// A Webtoon from `webtoons.com`.
 ///
-/// Obtained through a [`Client`] via [`Client::webtoon()`] or [`Client::webtoon_from_url()`];
+/// Obtained through a [`Client`] via [`Client::webtoon()`], [`Client::webtoon_from_url()`] or
+/// [`Creator::webtoons()`];
 /// not constructed directly. Abstracts over both [`Type::Original`] and [`Type::Canvas`] webtoons.
 ///
 /// See the method documentation for available operations.
@@ -213,7 +215,7 @@ impl Webtoon {
 
     /// Returns the [`Creator`]'s' for this `Webtoon`.
     ///
-    /// [`Canvas`] webtoon's always have exactly one creator.
+    /// `Canvas` webtoon's always have exactly one creator.
     ///
     /// # Example
     ///
@@ -313,7 +315,7 @@ impl Webtoon {
 
     /// Returns the total number of views for this [`Webtoon`].
     ///
-    /// For [`Canvas`] webtoons where [`Client::with_session()`] was used and the session belongs
+    /// For `Canvas` webtoons where [`Client::with_session()`] was used and the session belongs
     /// to the webtoon's creator, the total is summed from the analytics dashboard. Otherwise, the
     /// value is scraped from the webtoon's homepage and may be truncated.
     ///
@@ -371,7 +373,7 @@ impl Webtoon {
 
     /// Returns the total number of subscribers for this [`Webtoon`].
     ///
-    /// For [`Canvas`] webtoons where [`Client::with_session()`] was used and the session belongs
+    /// For `Canvas` webtoons where [`Client::with_session()`] was used and the session belongs
     /// to the webtoon's creator, the count is retrieved from the creator's stats dashboard.
     /// Otherwise, the value is scraped from the webtoon's homepage and may be rounded.
     ///
@@ -460,7 +462,7 @@ impl Webtoon {
 
     /// Returns the release schedule for this [`Webtoon`], if any.
     ///
-    /// [`Canvas`] webtoons have no release schedule and always return `None`. [`Original`]
+    /// `Canvas` webtoons have no release schedule and always return `None`. `Original`
     /// webtoons return `Some(Schedule)` with the episode drop cadence.
     ///
     /// # Example
@@ -500,7 +502,7 @@ impl Webtoon {
 
     /// Returns `true` if this [`Webtoon`] has completed its run.
     ///
-    /// [`Canvas`] webtoons have no completion state and always return `false` without failing.
+    /// `Canvas` webtoons have no completion state and always return `false` without failing.
     ///
     /// # Example
     ///
@@ -540,7 +542,7 @@ impl Webtoon {
 
     /// Returns the banner image URL for this [`Webtoon`], if any.
     ///
-    /// [`Canvas`] webtoons have no banner image and always return `None` without failing.
+    /// `Canvas` webtoons have no banner image and always return `None` without failing.
     ///
     /// # Example
     ///
@@ -626,9 +628,9 @@ impl Webtoon {
 
     /// Returns the [`Episode`] at `number` for this [`Webtoon`], if it exists.
     ///
-    /// Unlike [`Webtoon::episodes()`], this includes episodes that are unpublished, paywalled,
+    /// Unlike [`Webtoon::episodes()`], even without a session this includes episodes that are unpublished, paywalled,
     /// or no longer publicly visible. [`Episode::views()`] and [`Episode::published()`] will
-    /// always return `None`; use [`Webtoon::episodes()`] if you need that data.
+    /// always return `None`; use [`Webtoon::episodes()`] with a valid session if you need that data.
     ///
     /// # Examples
     ///
@@ -830,7 +832,7 @@ impl Webtoon {
         client: &Client,
     ) -> Result<Option<Self>, ClientError> {
         let url = format!(
-            "https://www.webtoons.com/*/{}/*/list?title_no={id}",
+            "https://www.webtoons.com/en/{}/*/list?title_no={id}",
             match r#type {
                 Type::Original => "*",
                 Type::Canvas => "canvas",
@@ -846,6 +848,7 @@ impl Webtoon {
 
         let url = response.url();
 
+        // TODO: Need to validate that webtoon is English.
         let (scope, slug, _) = parse_url(url).with_assumption(|| {
             format!("`webtoons.com` returned an unexpected url format: `{url}`")
         })?;

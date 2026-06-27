@@ -22,11 +22,11 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
         "complete",
     ];
 
-    let documents: Vec<Html> =
-        futures::future::try_join_all(days.iter().map(|day| async {
-            Ok::<Html, OriginalsError>(client.fetch_originals_page(day).await?)
-        }))
-        .await?;
+    let documents: Vec<Html> = futures::future::try_join_all(days.iter().map(|&day| async {
+        let page = client.fetch_originals_page(day).await?;
+        Ok::<Html, OriginalsError>(page)
+    }))
+    .await?;
 
     let mut webtoons = Vec::with_capacity(2000);
 
@@ -51,7 +51,7 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
     Ok(webtoons)
 }
 
-/// The release schedule for an [`Original`](variant@Type::Original) webtoon.
+/// The release schedule for an `Original` webtoon.
 ///
 /// A webtoon can release on one or more days of the week, daily, or be completed.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -148,8 +148,6 @@ mod tests {
 
     use super::*;
 
-    // -- Weekday::from_str --
-
     #[test]
     fn weekday_parses_long_form() {
         assert_eq!(Weekday::from_str("MONDAY").unwrap(), Weekday::Monday);
@@ -183,8 +181,6 @@ mod tests {
         assert!(Weekday::from_str("").is_err());
     }
 
-    // -- Schedule::from_str --
-
     #[test]
     fn schedule_parses_daily() {
         assert_eq!(Schedule::from_str("DAILY").unwrap(), Schedule::Daily);
@@ -216,8 +212,6 @@ mod tests {
         assert!(Schedule::from_str("FUNDAY").is_err());
         assert!(Schedule::from_str("").is_err());
     }
-
-    // -- Schedule::try_from --
 
     #[test]
     fn schedule_try_from_single_weekday() {

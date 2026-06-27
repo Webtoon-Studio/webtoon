@@ -62,7 +62,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         if matches!(episode.dashboard_status, DashboardStatus::Published) {
             assume_matches!(
                 published, Some(date) if date.year() >= 2014,
-                "if an episode is published, then it published year must be at least 2014"
+                "if an episode is published, then its published year must be at least 2014"
             );
         }
 

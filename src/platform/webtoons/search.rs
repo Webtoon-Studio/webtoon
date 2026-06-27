@@ -57,7 +57,7 @@ impl Item {
             .client
             .webtoon(self.id, self.r#type)
             .await?
-            .assumption("`webtoons.com` search should only return visible, existing series.")?;
+            .assumption("`webtoons.com` search should only return visible, existing series")?;
 
         Ok(webtoon)
     }

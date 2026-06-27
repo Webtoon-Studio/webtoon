@@ -19,6 +19,8 @@
 retrieving metadata, episodes, and discussion data, while abstracting away
 platform-specific quirks.
 
+Note: only the English site is supported.
+
 ## Design Philosophy: Read-Only
 
 This crate is built as a data access layer. It is intentionally read-only to

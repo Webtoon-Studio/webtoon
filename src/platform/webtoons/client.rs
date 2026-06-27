@@ -218,7 +218,7 @@ impl Client {
     /// # use webtoon::platform::webtoons::Client;
     /// let client = Client::with_session("my-session-token");
     /// ```
-    ///    #[inline]
+    #[inline]
     #[must_use]
     pub fn with_session(session: &str) -> Self {
         #[expect(
@@ -396,7 +396,7 @@ impl Client {
         Ok(webtoons)
     }
 
-    /// Returns all [`Original`](variant@Type::Original) webtoons from `webtoons.com/en/originals`.
+    /// Returns all `Original` webtoons from `webtoons.com/en/originals`.
     ///
     /// # Examples
     ///
@@ -418,7 +418,7 @@ impl Client {
         originals::scrape(client).await
     }
 
-    /// Returns [`Canvas`](variant@Type::Canvas) webtoons from `webtoons.com/en/canvas`.
+    /// Returns `Canvas` webtoons from `webtoons.com/en/canvas`.
     ///
     /// `pages` accepts any `u16` range; an unbounded end is capped at page 100 to
     /// avoid infinite scraping since `webtoons.com` gives no indication when pages

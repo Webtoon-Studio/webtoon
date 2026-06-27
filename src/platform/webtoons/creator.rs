@@ -12,7 +12,7 @@ use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};
 
-/// A creator on `webtoons.com`, obtained via [`Client::creator()`] or [`Webtoon::creators`].
+/// A creator on `webtoons.com`, obtained via [`Client::creator()`] or [`Webtoon::creators()`].
 ///
 /// Only the English site is supported. However, some Original webtoons are authored
 /// by Korean creators or studios (e.g. DC Comics) that have no `webtoons.com` account,

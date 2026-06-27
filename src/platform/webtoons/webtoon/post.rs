@@ -1603,7 +1603,7 @@ pub mod id {
         },
     }
 
-    /// A unique identifier for a post or reply on a [`Webtoon`] episode.
+    /// A unique identifier for a post or reply on a [`Webtoon`](crate::platform::webtoons::webtoon::Webtoon) episode.
     ///
     /// IDs follow the format `GW-epicom:0-w_95_1-1d-z`, where the components encode
     /// the webtoon type, webtoon id, episode number, post position (Base36), and

@@ -1,4 +1,4 @@
-//! Canvas story list at `https://www.webtoons.com/*/canvas/list`.
+//! Canvas story list at `https://www.webtoons.com/en/canvas/list`.
 
 use super::{Client, Webtoon};
 use crate::{
@@ -64,7 +64,7 @@ pub(super) async fn scrape(
     Ok(webtoons)
 }
 
-/// Sorting options for the [`Canvas`] story list.
+/// Sorting options for the `Canvas` story list.
 #[derive(Debug, Clone, Copy)]
 pub enum Sort {
     /// Sort by views.
@@ -94,8 +94,6 @@ impl Display for Sort {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // -- Sort::fmt --
 
     #[test]
     fn sort_popularity_displays_as_mana() {

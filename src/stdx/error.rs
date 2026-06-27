@@ -214,7 +214,7 @@ mod tests {
     use super::*;
     use std::assert_matches;
 
-    // -- assumption! --
+    // --- assumption! ---
 
     #[test]
     fn assumption_with_literal() {
@@ -261,7 +261,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // -- assume! --
+    // --- assume! ---
 
     #[test]
     fn assume_does_not_error_when_condition_holds() {
@@ -328,7 +328,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // -- assume_matches! --
+    // --- assume_matches! ---
 
     #[test]
     fn assume_matches_succeeds_on_matching_pattern() {
@@ -379,7 +379,7 @@ mod tests {
     fn assume_matches_errors_when_guard_fails() {
         let result: Result<(), Assumption> = (|| {
             let published: Option<i32> = Some(2010);
-            assume_matches!(published, Some(_year) if _year >= 2014, "published year must be at least 2014");
+            assume_matches!(published, Some(year) if year >= 2014, "published year must be at least 2014");
             Ok(())
         })();
         let err = result.unwrap_err();
@@ -393,7 +393,7 @@ mod tests {
     fn assume_matches_errors_on_none_with_guard() {
         let result: Result<(), Assumption> = (|| {
             let published: Option<i32> = None;
-            assume_matches!(published, Some(_year) if _year >= 2014, "published year must be at least 2014");
+            assume_matches!(published, Some(year) if year >= 2014, "published year must be at least 2014");
             Ok(())
         })();
         let err = result.unwrap_err();
@@ -427,7 +427,7 @@ mod tests {
         );
     }
 
-    // -- .assumption() / .with_assumption() --
+    // --- .assumption() / .with_assumption() ---
 
     #[test]
     fn option_assumption() {
