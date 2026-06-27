@@ -4,19 +4,14 @@
 use thiserror::Error;
 
 #[cfg(feature = "download")]
-pub use _inner::DownloadError;
+pub use _inner::SavePanelError;
 
 pub use _inner::{
-    CanvasError, ClientBuilderError, CreatorError, EpisodeError, EpisodesError, Error, LikesError,
-    OriginalsError, PostsError, RssError, SearchError, SessionError, SubscribersError,
-    UserInfoError, ViewsError, WebtoonError,
+    CanvasError, ClientBuilderError, ClientError, CreatorError, CreatorWebtoonsError, EpisodeError,
+    EpisodesError, Error, LikesError, OriginalsError, PostsError, SearchError, SessionError,
+    SubscribersError, UserInfoError, ViewsError, WebtoonError,
 };
 
-#[derive(Debug, Error)]
-#[error(transparent)]
-pub struct RequestError(#[from] pub(crate) reqwest::Error);
-
-// TODO: Create a `Url` in `webtoon::homepage` that validates the expected structure, i.e. "Parse, don't validate"
 /// Represents an invalid `webtoons.com` Webtoon homepage URL.
 ///
 /// Given how exact the format is, and the unlikely nature of something actionable
@@ -33,82 +28,82 @@ impl InvalidWebtoonUrl {
 }
 
 mod _inner {
-    use crate::{platform::webtoons::webtoon::post::id::ParseIdError, stdx::error::Assumption};
+    use crate::{platform::webtoons::webtoon::post::id::ParsePostIdError, stdx::error::Assumption};
     use error_set::error_set;
 
     error_set! {
-        #[expect(
-            clippy::error_impl_error,
-            reason = "`Error` is a ball of mud enum thats built through codegen; only meant for prototyping"
-        )]
+        /// Catch-all error for prototyping. Prefer specific types in production code.
+        #[expect(clippy::error_impl_error, reason = "catch-all for prototyping only")]
         Error := {
             InvalidWebtoonUrl(super::InvalidWebtoonUrl),
             #[cfg(feature = "download")]
             IoError(std::io::Error),
-            ParseIdError(ParseIdError),
+            ParseIdError(ParsePostIdError),
         }
-        || Base
         || OriginalsError
         || CanvasError
         || SearchError
         || CreatorError
         || WebtoonError
         || EpisodeError
-        || ClientError
         || SessionError
         || PostsError
+        || ClientError
+        || Network
+        || Internal
 
-        OriginalsError := Base || ClientError
+        SearchError := Internal || Network
 
-        CanvasError := {
-            #[display("range `start` cannot be lower than `end`")]
-            InvalidRange,
-        } || Base || ClientError
+        OriginalsError := Internal || Network
 
-        SearchError := Base || ClientError
+        CanvasError := Internal || Network
+
+        // TODO: See if we need the ClientError::UnsupportedLanguage
+        CreatorWebtoonsError := CreatorError || ClientError
 
         CreatorError := {
-            #[display("`webtoons.com` does not support creator profiles for this language")]
-            UnsupportedLanguage,
             #[display("invalid creator profile")]
             InvalidCreatorProfile,
-        } || Base || ClientError
+        } || Internal || Network
 
-        WebtoonError := {
-            #[display("only english webtoons are supported")]
-            NotEnglish
-        } || Base || ClientError
-
-        RssError :=  Base || ClientError
+        WebtoonError := Internal || Network
 
         EpisodeError := {
             #[display("episode not viewable (missing, ad-locked, or fast-pass)")]
             NotViewable,
-        } || Base || ClientError
+        } || Internal || Network
 
-        PostsError := Base || ClientError || InvalidSession
+        PostsError := Internal || Network || InvalidSession
 
-        LikesError := Base || ClientError
+        LikesError := Internal || Network
 
-        // TODO: Need to add `InvalidPermissions` as session provided might be a
-        // valid one, but not the one needed for the specific webtoon.
-        EpisodesError :=  Base || ClientError || InvalidSession
-        ViewsError := Base || ClientError || InvalidSession
-        SubscribersError := Base || ClientError || InvalidSession
+        EpisodesError :=  Internal || Network
 
-        SessionError :=  Base || ClientError || NoSessionProvided || InvalidSession
+        ViewsError := Internal || Network
 
-        UserInfoError := Base || ClientError
+        SubscribersError := Internal || Network
 
+        SessionError :=  Internal || Network || NoSessionProvided || InvalidSession
+
+        UserInfoError := Internal || Network
+
+        /// Error saving downloaded panels to disk.
+        SavePanelError := {
+            IoError(std::io::Error),
+        } || Internal || Network
+
+        /// Error building a [`Client`](crate::platform::webtoons::client::Client).
         ClientBuilderError := {
+            #[display("failed to build the HTTP client (TLS or DNS initialization failed)")]
             BuildFailed,
         }
 
-        DownloadError := {
-            IoError(std::io::Error),
-        } || Base || ClientError
+        ClientError := {
+            #[display("only the english `webtoons.com` is supported")]
+            UnsupportedLanguage
+        } || Internal || Network
 
-        // --- Internal ---
+        // ---------------------------------------------------------------------
 
         InvalidSession := {
             #[display("session invalid or expired")]
@@ -125,12 +120,63 @@ mod _inner {
             InvalidPermissions,
         }
 
-        ClientError := {
-            RequestFailed(super::RequestError),
+        // ---------------------------------------------------------------------
+
+        Network := {
+            #[display("{0}")]
+            RequestFailed(reqwest::Error),
         }
 
-        Base := {
+        Internal := {
             Internal(Assumption),
+        }
+    }
+
+    impl From<SessionError> for ViewsError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
+        }
+    }
+
+    impl From<SessionError> for SubscribersError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
+        }
+    }
+
+    impl From<SessionError> for EpisodesError {
+        #[track_caller]
+        fn from(err: SessionError) -> Self {
+            match err {
+                SessionError::RequestFailed(request_error) => Self::RequestFailed(request_error),
+                SessionError::Internal(assumption) => Self::Internal(assumption),
+                SessionError::NoSessionProvided => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is NoSessionProvided"
+                ),
+                SessionError::InvalidSession => unreachable!(
+                    "should have a guard before any `?` for `from` that checks if SessionError is InvalidSession"
+                ),
+            }
         }
     }
 }

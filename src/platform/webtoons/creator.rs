@@ -1,33 +1,25 @@
-//! Module containing things related to a creator on `webtoons.com`.
+//! A creator on `webtoons.com`.
 
 use super::{Client, Webtoon, error::CreatorError};
 use crate::{
-    platform::webtoons::error::WebtoonError,
+    platform::webtoons::error::{ClientError, CreatorWebtoonsError},
     stdx::{
         cache::{Cache, Store},
-        error::{Assume, AssumeFor, Assumption, assumption},
+        error::{Assume, Assumption, assume, assumption},
     },
 };
 use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};
 
-/// Represents a Creator of a `Webtoon`.
+/// A creator on `webtoons.com`, obtained via [`Client::creator()`] or [`Webtoon::creators()`].
 ///
-/// More generally this represents an account on `webtoons.com`.
+/// Only the English site is supported. However, some Original webtoons are authored
+/// by Korean creators or studios (e.g. DC Comics) that have no `webtoons.com` account,
+/// which means their profile page does not exist. Methods that require a profile page
+/// return `None` in that case.
 ///
-/// This type is not constructed directly, instead it is gotten through a [`Client`] via [`Client::creator()`].
-///
-/// # Accounts and Languages
-///
-/// Not all languages support accounts, and the functionality of `Creator` will be more limited on those languages. This
-/// is also true for Korean stories that have been brought over and translated. Rarely will the Korean creator have an
-/// account on `webtoons.com`.
-///
-/// Some functionality works with such accountless creators, but it depends on the function. Read the method docs for more
-/// info.
-///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use webtoon::platform::webtoons::{error::Error, Client};
@@ -35,9 +27,7 @@ use scraper::{Html, Selector};
 /// # async fn main() -> Result<(), Error> {
 /// let client = Client::new();
 ///
-/// let Some(creator) = client.creator("s0s2").await? else {
-///     unreachable!("profile is known to exist");
-/// };
+/// let creator = client.creator("s0s2").await?.expect("`s0s2` exists");
 ///
 /// assert_eq!("s0s2", creator.username());
 /// # Ok(())
@@ -47,12 +37,6 @@ use scraper::{Html, Selector};
 pub struct Creator {
     pub(super) client: Client,
     pub(super) username: String,
-
-    // Originals authors might not have a profile:
-    // - Korean
-    // - Chinese
-    // - German
-    // - French
     pub(super) profile: Option<String>,
     pub(super) homepage: Cache<Option<Homepage>>,
 }
@@ -96,7 +80,7 @@ pub(super) struct Homepage {
 }
 
 impl Creator {
-    /// Returns a `Creators` username.
+    /// Returns the username of this [`Creator`].
     ///
     /// # Example
     ///
@@ -106,9 +90,7 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("hanzaart").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("hanzaart").await?.expect("`hanzaart` exists");
     ///
     /// assert_eq!("Hanza Art", creator.username());
     /// # Ok(())
@@ -117,14 +99,15 @@ impl Creator {
     #[inline]
     #[must_use]
     pub fn username(&self) -> &str {
-        &self.username
+        let creator = self;
+        &creator.username
     }
 
-    /// Returns a `Creators` profile segment in `https://www.webtoons.com/*/creator/{profile}`
+    /// Returns the profile path segment used in `webtoons.com/*/creator/{profile}`, if any.
     ///
-    /// Not all creators for a story have a `webtoons.com` profile (Korean stories for example).
+    /// Returns `None` for Korean or studio creators that have no `webtoons.com` account.
     ///
-    /// - If constructed via [`Client::creator()`], then this will always be `Some`
+    /// Always `Some` when [`Creator`] was obtained via [`Client::creator()`].
     ///
     /// # Example
     ///
@@ -134,9 +117,7 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("MaccusNormann").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("MaccusNormann").await?.expect("MaccusNormann exists");
     ///
     /// assert_eq!(Some("MaccusNormann"), creator.profile());
     /// # Ok(())
@@ -145,14 +126,15 @@ impl Creator {
     #[inline]
     #[must_use]
     pub fn profile(&self) -> Option<&str> {
-        self.profile.as_deref()
+        let creator = self;
+        creator.profile.as_deref()
     }
 
-    /// Returns a `Creators` id.
+    /// Returns the internal id of this [`Creator`], if any.
     ///
-    /// Sometimes this is just the [`profile()`](Creator::profile()) with the `_` prefix stripped.
-    ///
-    /// If creator has no `webtoons.com` profile, or page is disable by the creator, then this will return `None`.
+    /// Returns `None` for Korean or studio creators that have no `webtoons.com` account,
+    /// or if their profile page is disabled. Sometimes matches [`profile`](Creator::profile)
+    /// with the leading `_` stripped.
     ///
     /// # Example
     ///
@@ -162,9 +144,7 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("MaccusNormann").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("MaccusNormann").await?.expect("`MaccusNormann` exists");
     ///
     /// assert_eq!(Some("w7ml9"), creator.id().await?.as_deref());
     /// # Ok(())
@@ -172,30 +152,25 @@ impl Creator {
     /// ```
     #[inline]
     pub async fn id(&self) -> Result<Option<String>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.id))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
-            let homepage = homepage(profile, &self.client).await?;
-            let id = homepage.as_ref().map(|homepage| homepage.id.clone());
+        let creator = self;
+        let client = &self.client;
 
-            self.homepage.insert(homepage);
-
-            Ok(id)
+        match creator.homepage.get() {
+            Store::Value(homepage) => Ok(homepage.map(|homepage| homepage.id)),
+            Store::Empty if let Some(profile) = creator.profile.as_deref() => {
+                let homepage = homepage(profile, client).await?;
+                let id = homepage.as_ref().map(|homepage| homepage.id.clone());
+                creator.homepage.insert(homepage);
+                Ok(id)
+            }
+            Store::Empty => Ok(None),
         }
     }
 
-    /// Returns the number of followers for the `Creator`.
+    /// Returns the follower count for this [`Creator`], if any.
     ///
-    /// Will return `None` if profile homepage is not a supported language:
-    /// - French
-    /// - German
-    /// - Korean
-    /// - Chinese.
-    ///
-    /// If the profile page is disabled, this will also return `None`.
+    /// Returns `None` for Korean or studio creators that have no `webtoons.com` account,
+    /// or if their profile page is disabled.
     ///
     /// # Example
     ///
@@ -205,9 +180,7 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("g8dak").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("g8dak").await?.expect("`g8dak` exists");
     ///
     /// println!("{} has {:?} followers!", creator.username(), creator.followers().await?);
     /// # Ok(())
@@ -215,38 +188,26 @@ impl Creator {
     /// ```
     #[inline]
     pub async fn followers(&self) -> Result<Option<u32>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.followers))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
-            let homepage = homepage(profile, &self.client).await?;
-            let followers = homepage.as_ref().map(|page| page.followers);
+        let creator = self;
+        let client = &self.client;
 
-            self.homepage.insert(homepage);
-
-            Ok(followers)
+        match creator.homepage.get() {
+            Store::Value(homepage) => Ok(homepage.map(|homepage| homepage.followers)),
+            Store::Empty if let Some(profile) = creator.profile.as_deref() => {
+                let homepage = homepage(profile, client).await?;
+                let followers = homepage.as_ref().map(|page| page.followers);
+                creator.homepage.insert(homepage);
+                Ok(followers)
+            }
+            Store::Empty => Ok(None),
         }
     }
 
-    /// Returns a list of [`Webtoon`] that the creator is/was involved with.
+    /// Returns the [`Webtoon`]s this [`Creator`] is or was involved with, if any.
     ///
-    /// # Returns
-    ///
-    /// Will return `Some` if there is a Webtoon profile, otherwise it will return `None`.
-    ///
-    /// This is for creators where there are no profile, either due to being a Korean based creator,
-    /// or that the language version of `webtoons.com` does not support profile pages. It also will return `None` if the
-    /// creator page is disabled.
-    ///
-    /// The webtoons returned are only those that are publicly viewable. If there are no viewable webtoons, it will return an empty `Vec`.
-    ///
-    /// **Unsupported Languages**:
-    /// - Korean
-    /// - Chinese
-    /// - French
-    /// - German.
+    /// Returns `None` for Korean or studio creators that have no `webtoons.com` account,
+    /// or if their profile page is disabled. Only publicly visible webtoons are returned;
+    /// may be an empty `Vec` if none are currently public.
     ///
     /// # Example
     ///
@@ -256,9 +217,7 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("jayessart").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("jayessart").await?.expect("`jayessart` exists");
     ///
     /// if let Some(webtoons) = creator.webtoons().await? {
     ///     for webtoon in webtoons  {
@@ -268,49 +227,33 @@ impl Creator {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorError> {
-        let Some(id) = self.id().await? else {
+    pub async fn webtoons(&self) -> Result<Option<Vec<Webtoon>>, CreatorWebtoonsError> {
+        let creator = self;
+        let client = &self.client;
+
+        let Some(id) = creator.id().await? else {
             return Ok(None);
         };
 
-        let response = self
-            .client
-            .creator_webtoons(&id)
-            .await
-            .map_err(|err| match err {
-                WebtoonError::Internal(err) => CreatorError::from(err),
-                WebtoonError::RequestFailed(err) => CreatorError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
-            })?;
+        let response = creator.client.fetch_creator_webtoons(&id).await?;
 
         let webtoons =
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
-                let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, &self.client).await {
+                let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, client).await {
                     Ok(Some(webtoon)) => webtoon,
                     Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
                     Err(err) => return Err(err),
                 };
-
-                Ok::<Webtoon, WebtoonError>(webtoon)
-            })).await.map_err(|err| match err {
-                WebtoonError::Internal(err) => CreatorError::from(err),
-                WebtoonError::RequestFailed(err) => CreatorError::from(err),
-                WebtoonError::NotEnglish => unreachable!(),
-            })?;
+                Ok::<Webtoon, ClientError>(webtoon)
+            })).await?;
 
         Ok(Some(webtoons))
     }
 
-    /// Returns if creator has a `Patreon` linked to their account.
+    /// Returns `true` if this [`Creator`] has a Patreon linked to their account, if any.
     ///
-    /// Will return `None` if the language version of the site doesn't support profile pages, or if the profile page is
-    /// disabled.
-    ///
-    /// **Unsupported Languages**:
-    /// - Korean
-    /// - Chinese
-    /// - French
-    /// - German.
+    /// Returns `None` for Korean or studio creators that have no `webtoons.com` account,
+    /// or if their profile page is disabled.
     ///
     /// # Example
     ///
@@ -320,29 +263,26 @@ impl Creator {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(creator) = client.creator("u8ehb").await? else {
-    ///     unreachable!("profile is known to exist");
-    /// };
+    /// let creator = client.creator("u8ehb").await?.expect("`u8ehb` exists");
     ///
-    /// assert_eq!(Some(true), creator.has_patreon().await?);
+    /// assert_eq!(creator.has_patreon().await?, Some(true));
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
     pub async fn has_patreon(&self) -> Result<Option<bool>, CreatorError> {
-        if let Store::Value(homepage) = self.homepage.get() {
-            Ok(homepage.map(|homepage| homepage.has_patreon))
-        } else {
-            let Some(profile) = self.profile.as_deref() else {
-                return Ok(None);
-            };
+        let creator = self;
+        let client = &self.client;
 
-            let homepage = homepage(profile, &self.client).await?;
-            let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
-
-            self.homepage.insert(homepage);
-
-            Ok(has_patreon)
+        match creator.homepage.get() {
+            Store::Value(homepage) => Ok(homepage.map(|homepage| homepage.has_patreon)),
+            Store::Empty if let Some(profile) = creator.profile.as_deref() => {
+                let homepage = homepage(profile, client).await?;
+                let has_patreon = homepage.as_ref().map(|homepage| homepage.has_patreon);
+                creator.homepage.insert(homepage);
+                Ok(has_patreon)
+            }
+            Store::Empty => Ok(None),
         }
     }
 }
@@ -351,7 +291,7 @@ pub(super) async fn homepage(
     profile: &str,
     client: &Client,
 ) -> Result<Option<Homepage>, CreatorError> {
-    let Some(html) = client.creator_page(profile).await? else {
+    let Some(html) = client.fetch_creator_page(profile).await? else {
         return Ok(None);
     };
 
@@ -381,12 +321,12 @@ fn username(html: &Html) -> Result<String, Assumption> {
     if let Some(element) = html.select(&selector).next()
         && let Some(name) = element.value().attr("content")
     {
-        Ok(html_escape::decode_html_entities(name).to_string())
-    } else {
-        assumption!(
-            r#"did not find `head>meta[name="author"]` on `webtoons.com` creator homepage html"#
-        );
+        return Ok(html_escape::decode_html_entities(name).to_string());
     }
+
+    assumption!(
+        r#"did not find `head>meta[name="author"]` on `webtoons.com` creator homepage html"#
+    );
 }
 
 fn followers(html: &Html) -> Result<u32, Assumption> {
@@ -412,7 +352,7 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
 
         return count
                     .parse::<u32>()
-                    .assumption_for( |err| format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}: {err}"));
+                    .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"));
     }
 
     assumption!(
@@ -451,7 +391,7 @@ fn id(html: &Html) -> Result<String, Assumption> {
                 .take_while(|ch| ch.is_ascii_alphanumeric())
                 .collect::<String>();
 
-            assumption!(
+            assume!(
                 !id.is_empty(),
                 "`creatorId` on `webtoons.com` creator homepage should never be empty"
             );

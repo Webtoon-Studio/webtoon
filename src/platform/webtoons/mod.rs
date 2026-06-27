@@ -6,12 +6,10 @@ pub mod canvas;
 pub mod client;
 pub mod creator;
 pub mod error;
-pub mod meta;
 pub mod originals;
 pub mod search;
 pub mod webtoon;
 
 pub use client::{Client, ClientBuilder};
 pub use creator::Creator;
-pub use meta::Type;
-pub use webtoon::Webtoon;
+pub use webtoon::{Type, Webtoon};

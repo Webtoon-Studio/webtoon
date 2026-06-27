@@ -101,7 +101,7 @@ impl PartialEq<u32> for Base36 {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;

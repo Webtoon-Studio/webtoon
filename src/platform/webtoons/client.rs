@@ -9,11 +9,12 @@ use super::{
     Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
-    error::{CanvasError, CreatorError, OriginalsError, SearchError, WebtoonError},
-    meta::Scope,
+    error::{CanvasError, CreatorError, OriginalsError, SearchError},
     originals::{self},
     webtoon::{episode::Episode, post::Post},
 };
+#[cfg(feature = "rss")]
+use crate::platform::webtoons::error::WebtoonError;
 use crate::{
     platform::webtoons::{
         client::api::{
@@ -25,31 +26,29 @@ use crate::{
             webtoon_user_info::WebtoonUserInfo,
         },
         error::{
-            ClientBuilderError, EpisodeError, InvalidWebtoonUrl, LikesError, PostsError,
-            RequestError, SessionError, UserInfoError,
+            ClientBuilderError, ClientError, CreatorWebtoonsError, EpisodeError, InvalidWebtoonUrl,
+            LikesError, PostsError, SessionError, UserInfoError,
         },
         search::Item,
-        webtoon::post::{PinRepresentation, id::Id},
+        webtoon::{
+            Scope,
+            post::{PinRepresentation, id::Id},
+        },
     },
     stdx::{
         cache::Cache,
-        error::assumption,
+        error::{Assume, assume, assumption},
         http::{DEFAULT_USER_AGENT, IRetry},
     },
 };
 use scraper::Html;
 use std::{fmt::Display, ops::RangeBounds, sync::Arc};
 
-/// A builder for configuring and creating instances of [`Client`] with custom settings.
+/// A builder for [`Client`] with custom configuration.
 ///
-/// The `ClientBuilder` provides an API for fine-tuning various aspects of the `Client`
-/// configuration and custom user agents. It enables a more controlled construction
-/// of the `Client` when the default configuration isn't sufficient.
-///
-/// # Usage
-///
-/// The builder allows for method chaining to incrementally configure the client, with the final
-/// step being a call to [`build()`](ClientBuilder::build()), which consumes the builder and returns a [`Client`].
+/// Obtain one via [`ClientBuilder::new()`] and call [`build()`](ClientBuilder::build())
+/// when done. For simple cases, [`Client::new()`] or [`Client::with_session()`] are
+/// sufficient without a builder.
 ///
 /// # Example
 ///
@@ -60,11 +59,6 @@ use std::{fmt::Display, ops::RangeBounds, sync::Arc};
 ///     .build()?;
 /// # Ok::<(), webtoon::platform::webtoons::error::ClientBuilderError>(())
 /// ```
-///
-/// # Notes
-///
-/// This builder is the preferred way to create clients when needing custom configurations, and
-/// should be used instead of `Client::new()` for more advanced setups.
 #[derive(Debug)]
 pub struct ClientBuilder {
     builder: reqwest::ClientBuilder,
@@ -79,9 +73,9 @@ impl Default for ClientBuilder {
 }
 
 impl ClientBuilder {
-    /// Creates a new `ClientBuilder` with default settings.
+    /// Creates a new [`ClientBuilder`] with default settings.
     ///
-    /// This includes a default user agent (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`), and is the starting point for configuring a `Client`.
+    /// Sets the user agent to `{crate_name}/{crate_version}`.
     ///
     /// # Example
     ///
@@ -104,10 +98,10 @@ impl ClientBuilder {
         }
     }
 
-    /// Configures the `ClientBuilder` to use the specified session token for authentication.
+    /// Sets the session token for authenticated requests.
     ///
-    /// This method is useful when creating a `Client` that needs to make authenticated requests. The session token will
-    /// be included in all subsequent requests made by the resulting `Client`, where needed.
+    /// This is the `NEO_SES` cookie value. Included in requests where authentication
+    /// is required.
     ///
     /// # Example
     ///
@@ -115,10 +109,6 @@ impl ClientBuilder {
     /// # use webtoon::platform::webtoons::ClientBuilder;
     /// let builder = ClientBuilder::new().with_session("session-token");
     /// ```
-    ///
-    /// # Notes
-    ///
-    /// This is the `NEO_SES=` token in the cookie.
     #[inline]
     #[must_use]
     pub fn with_session(mut self, session: &str) -> Self {
@@ -126,9 +116,9 @@ impl ClientBuilder {
         self
     }
 
-    /// Sets a custom `User-Agent` header for the [`Client`].
+    /// Overrides the default `User-Agent` header.
     ///
-    /// By default, the user agent is set to (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`), but this can be overridden using this method.
+    /// Defaults to `{crate_name}/{crate_version}` if not set.
     ///
     /// # Example
     ///
@@ -143,18 +133,14 @@ impl ClientBuilder {
         Self { builder, ..self }
     }
 
-    /// Consumes the `ClientBuilder` and returns a fully-configured [`Client`].
-    ///
-    /// This method finalizes the configuration of the `ClientBuilder` and attempts to build
-    /// a `Client` based on the current settings. If there are issues with the underlying
-    /// configuration (e.g., TLS backend failure or resolver issues), an error is returned.
+    /// Consumes this [`ClientBuilder`] and returns a configured [`Client`].
     ///
     /// # Errors
     ///
-    /// This method returns a [`ClientBuilderError`] if the underlying HTTP client could not be built,
-    /// such as when TLS initialization fails or the DNS resolver cannot load the system configuration.
+    /// Returns [`ClientBuilderError`] if the underlying HTTP client could not be built,
+    /// e.g. TLS initialization failure or DNS resolver misconfiguration.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
     /// # use webtoon::platform::webtoons::{ClientBuilder, error::ClientBuilderError, Client};
@@ -173,18 +159,12 @@ impl ClientBuilder {
     }
 }
 
-/// A high-level, asynchronous client to interact with `webtoons.com`.
+/// An asynchronous client for `webtoons.com`.
 ///
-/// The `Client` is designed for efficient, reusable interactions, and internally
-/// manages connection pooling for optimal performance.
+/// Manages connection pooling internally and is cheap to clone. For custom
+/// configuration, use [`ClientBuilder`] via [`Client::builder()`].
 ///
-/// # Configuration
-///
-/// Default settings for the `Client` are tuned for general usage scenarios, but you can
-/// customize the behavior by utilizing the `Client::builder()` method, which provides
-/// advanced configuration options.
-///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use webtoon::platform::webtoons::Client;
@@ -197,18 +177,17 @@ pub struct Client {
 }
 
 impl Client {
-    /// Instantiates a new [`Client`] with the default user agent: (`$CARGO_PKG_NAME/$CARGO_PKG_VERSION`).
+    /// Creates a new [`Client`] with default settings.
     ///
-    /// This method configures a basic `Client` with standard settings. If default
-    /// configurations are sufficient, this is the simplest way to create a `Client`.
+    /// Sets the user agent to `{crate_name}/{crate_version}`. For custom configuration
+    /// or fallible construction, use [`ClientBuilder`] instead.
     ///
     /// # Panics
     ///
-    /// This function will panic if the TLS backend cannot be initialized or if the DNS resolver
-    /// fails to load the system's configuration. For a safer alternative that returns a `Result`
-    /// instead of panicking, consider using the [`ClientBuilder`] for more controlled error handling.
+    /// Panics if TLS initialization fails or the DNS resolver cannot load the system
+    /// configuration.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::Client;
@@ -224,18 +203,16 @@ impl Client {
         ClientBuilder::new().build().expect("Client::new()")
     }
 
-    /// Instantiates a new [`Client`] with a provided session token, allowing authenticated requests.
+    /// Creates a new [`Client`] with a session token for authenticated requests.
     ///
-    /// Use this method when you have an active session that you wish to reuse for API calls requiring
-    /// authentication. This allows the client to automatically include the session in requests.
+    /// For custom configuration or fallible construction, use [`ClientBuilder`] instead.
     ///
     /// # Panics
     ///
-    /// This function will panic if the TLS backend cannot be initialized or if the DNS resolver
-    /// fails to load the system's configuration. For a safer alternative that returns a `Result`
-    /// instead of panicking, consider using the [`ClientBuilder`] for more controlled error handling.
+    /// Panics if TLS initialization fails or the DNS resolver cannot load the system
+    /// configuration.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::Client;
@@ -254,12 +231,9 @@ impl Client {
             .expect("Client::with_session()")
     }
 
-    /// Returns a [`ClientBuilder`] for creating a custom-configured `Client`.
+    /// Returns a [`ClientBuilder`] for creating a custom-configured [`Client`].
     ///
-    /// The builder pattern allows for greater flexibility in configuring a `Client`.
-    /// You can specify other options by chaining methods on the builder before finalizing it with [`ClientBuilder::build()`].
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{Client, ClientBuilder};
@@ -273,27 +247,17 @@ impl Client {
 }
 
 impl Client {
-    /// Fetches info for the [`Creator`] of a given `profile`.
+    /// Returns the [`Creator`] for the given profile, if any.
     ///
-    /// The `profile` can be found from the community page URL: [`https://www.webtoons.com/p/community/en/u/w7m5o`]
+    /// The profile is the last segment of the creator's community page URL, e.g.
+    /// `w7m5o` from `https://www.webtoons.com/p/community/en/u/w7m5o`.
     ///
-    /// **NOTE**: Not all Webtoon creators have a community page. This is usually denoted by green check mark next to
-    /// their name on the Webtoon's page.
+    /// Not all webtoon creators have a community page - this is typically indicated
+    /// by a green checkmark next to their name on the webtoon's page.
     ///
-    /// # Supported & Unsupported Languages
-    ///
-    /// Some languages, such as French (`fr`), German (`de`), and Chinese (`zh-hant`), do not currently
-    /// support creator pages. As a result, this method will return an error, specifically
-    /// [`CreatorError::UnsupportedLanguage`], when a creator page is requested in these languages.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(Some(creator))`: A valid creator profile page was found, and the returned `Creator`
-    ///   can be used for further interactions.
-    /// - `Ok(None)`: No creator profile page exists for the given `profile` in the selected
-    ///   supported language. In this case, even though the language is supported, the creator
-    ///   does not have a profile page.
-    /// - [`CreatorError::InvalidCreatorProfile`]: Profile for creator exists, but for an unknown reason, does not respond with the expected normal homepage: [`example`]
+    /// Returns `Ok(None)` if no profile exists for the given slug. Returns
+    /// [`CreatorError::InvalidCreatorProfile`] if the profile exists but responds
+    /// unexpectedly.
     ///
     /// # Example
     ///
@@ -306,39 +270,32 @@ impl Client {
     /// match client.creator("w7m5o").await {
     ///     Ok(Some(creator)) => println!("Creator found: {creator:?}"),
     ///     Ok(None) => unreachable!("profile is known to exist"),
-    ///     Err(CreatorError::UnsupportedLanguage) => println!("This language does not support creator profiles."),
     ///     Err(err) => panic!("An error occurred: {err:?}"),
     /// }
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// [`https://www.webtoons.com/p/community/en/u/w7m5o`]: https://www.webtoons.com/p/community/en/u/w7m5o
-    /// [`example`]: https://www.webtoons.com/p/community/en/u/y87lz
     pub async fn creator(&self, profile: &str) -> Result<Option<Creator>, CreatorError> {
-        let Some(homepage) = creator::homepage(profile, self).await? else {
+        let client = self;
+
+        let Some(homepage) = creator::homepage(profile, client).await? else {
             return Ok(None);
         };
 
         Ok(Some(Creator {
-            client: self.clone(),
+            client: client.clone(),
             profile: Some(profile.into()),
             username: homepage.username.clone(),
             homepage: Cache::new(Some(homepage)),
         }))
     }
 
-    /// Searches for Webtoons on `webtoons.com`.
+    /// Searches for webtoons on `webtoons.com` and returns matching [`Item`]s.
     ///
-    /// This method performs a search on the Webtoons platform using the provided query string.
-    /// It returns a list of [`Item`] that match the search criteria.
+    /// Returns an empty `Vec` for an empty query. Results include both [`Original`](variant@Type::Original)
+    /// and [`Canvas`](variant@Type::Canvas) webtoons, and are not ranked or sorted.
     ///
-    /// # Notes
-    ///
-    /// - The search query is case-insensitive and will return webtoons that partially or fully match the provided string.
-    /// - The search is specific to the language provided in the `language` parameter. Only webtoons available in the chosen language will be returned.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{Client, error::Error};
@@ -346,225 +303,102 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let search = client.search("Monsters And").await?;
+    /// let results = client.search("Monsters And").await?;
     ///
-    /// for webtoon in search {
+    /// for webtoon in results {
     ///     println!("Webtoon: {}", webtoon.title());
     /// }
     /// # Ok(())
     /// # }
     /// ```
-    #[allow(clippy::too_many_lines)]
     pub async fn search(&self, query: &str) -> Result<Vec<Item>, SearchError> {
+        async fn search_by_type(
+            client: &Client,
+            query: &str,
+            r#type: Type,
+        ) -> Result<Vec<Item>, SearchError> {
+            let mut items = Vec::new();
+            let mut cursor: Option<String> = None;
+
+            let subtype = match r#type {
+                Type::Original => "WEBTOON",
+                Type::Canvas => "CHALLENGE",
+            };
+
+            loop {
+                let url = match &cursor {
+                    Some(c) => format!(
+                        "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType={subtype}&nextSize=50&language=ENGLISH&query={query}&cursor={c}"
+                    ),
+                    None => format!(
+                        "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType={subtype}&nextSize=50&language=ENGLISH&query={query}"
+                    ),
+                };
+
+                let response = client.http.get(&url).retry().send().await?;
+
+                let json = response.text().await?;
+
+                let search = serde_json::from_str::<api::search::RawSearch>(&json)
+                    .with_assumption(|| format!("failed to deserialize `webtoons.com` {subtype} search api response (structure change possible): `{json}`"))?;
+
+                let (data, next) = match r#type {
+                    Type::Original => {
+                        let list = search
+                            .result
+                            .webtoon_title_list
+                            .assumption("search result missing `webtoonTitleList` field")?;
+                        (list.data, list.pagination.next)
+                    }
+                    Type::Canvas => {
+                        let list = search
+                            .result
+                            .challenge_title_list
+                            .assumption("search result missing `challengeTitleList` field")?;
+                        (list.data, list.pagination.next)
+                    }
+                };
+
+                for item in data {
+                    items.push(Item {
+                        client: client.clone(),
+                        id: item.content_id,
+                        r#type,
+                        title: item.name,
+                        thumbnail: format!(
+                            "https://swebtoon-phinf.pstatic.net{}",
+                            item.thumbnail.path
+                        ),
+                        creator: item.extra.writer.nickname,
+                    });
+                }
+
+                match next {
+                    Some(next_cursor) => cursor = Some(next_cursor),
+                    None => break,
+                }
+            }
+
+            Ok(items)
+        }
+
+        let client = self;
+
         if query.is_empty() {
             return Ok(Vec::new());
         }
 
         let mut webtoons = Vec::with_capacity(100);
 
-        // Originals
-        {
-            // `nextSize` max is 50. Anything else is a BAD_REQUEST.
-            // `contentSubType`:
-            // - ALL
-            // - CHALLENGE
-            // - WEBTOON
-            let url = format!(
-                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language=ENGLISH&query={query}"
-            );
-
-            let response = self
-                .http
-                .get(&url)
-                .retry()
-                .send()
-                .await
-                .map_err(RequestError)?;
-
-            let json = response.text().await.map_err(RequestError)?;
-
-            let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                Ok(search) => search,
-                Err(err) => assumption!(
-                    "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                ),
-            };
-
-            let Some(originals) = search.result.webtoon_title_list else {
-                assumption!(
-                    "search result didnt have `webtoonTitleList`(originals) field in response result"
-                );
-            };
-
-            // Initial response.
-            for data in originals.data {
-                let webtoon = Item {
-                    client: self.clone(),
-                    id: data.content_id,
-                    r#type: Type::Original,
-                    title: data.name,
-                    thumbnail: format!("https://swebtoon-phinf.pstatic.net{}", data.thumbnail.path),
-                    creator: data.extra.writer.nickname,
-                };
-
-                webtoons.push(webtoon);
-            }
-
-            // Rest.
-            let mut next = originals.pagination.next;
-            while let Some(ref cursor) = next {
-                let url = format!(
-                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=WEBTOON&nextSize=50&language=ENGLISH&query={query}&cursor={cursor}"
-                );
-
-                let response = self
-                    .http
-                    .get(&url)
-                    .retry()
-                    .send()
-                    .await
-                    .map_err(RequestError)?;
-
-                let json = response.text().await.map_err(RequestError)?;
-
-                let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                    Ok(search) => search,
-                    Err(err) => assumption!(
-                        "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                    ),
-                };
-
-                let Some(originals) = search.result.webtoon_title_list else {
-                    assumption!(
-                        "search result didnt have `webtoonTitleList`(originals) field in response result"
-                    );
-                };
-
-                for data in originals.data {
-                    let webtoon = Item {
-                        client: self.clone(),
-                        id: data.content_id,
-                        r#type: Type::Original,
-                        title: data.name,
-                        thumbnail: format!(
-                            "https://swebtoon-phinf.pstatic.net{}",
-                            data.thumbnail.path
-                        ),
-                        creator: data.extra.writer.nickname,
-                    };
-
-                    webtoons.push(webtoon);
-                }
-                next = originals.pagination.next;
-            }
-        }
-
-        // Canvas
-        {
-            let url = format!(
-                "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language=ENGLISH&query={query}"
-            );
-
-            let response = self
-                .http
-                .get(&url)
-                .retry()
-                .send()
-                .await
-                .map_err(RequestError)?;
-
-            let json = response.text().await.map_err(RequestError)?;
-
-            let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                Ok(search) => search,
-                Err(err) => assumption!(
-                    "failed to deserialize `webtoon.com` canvas search api response (structure change possible): {err}\n\n{json}"
-                ),
-            };
-
-            let Some(canvas) = search.result.challenge_title_list else {
-                assumption!(
-                    "search result didnt have `challengeTitleList`(canvas) field in response result"
-                );
-            };
-
-            // Initial response.
-            for data in canvas.data {
-                let webtoon = Item {
-                    client: self.clone(),
-                    id: data.content_id,
-                    r#type: Type::Canvas,
-                    title: data.name,
-                    thumbnail: format!("https://swebtoon-phinf.pstatic.net{}", data.thumbnail.path),
-                    creator: data.extra.writer.nickname,
-                };
-
-                webtoons.push(webtoon);
-            }
-
-            // Rest.
-            let mut next = canvas.pagination.next;
-            while let Some(ref cursor) = next {
-                let url = format!(
-                    "https://www.webtoons.com/p/api/community/v1/content/TITLE/GW/search?criteria=KEYWORD_SEARCH&contentSubType=CHALLENGE&nextSize=50&language=ENGLISH&query={query}&cursor={cursor}"
-                );
-
-                let response = self
-                    .http
-                    .get(&url)
-                    .retry()
-                    .send()
-                    .await
-                    .map_err(RequestError)?;
-
-                let json = response.text().await.map_err(RequestError)?;
-
-                let search = match serde_json::from_str::<api::search::RawSearch>(&json) {
-                    Ok(search) => search,
-                    Err(err) => assumption!(
-                        "failed to deserialize `webtoon.com` originals search api response (structure change possible): {err}\n\n{json}"
-                    ),
-                };
-
-                let Some(canvas) = search.result.challenge_title_list else {
-                    assumption!(
-                        "search result didnt have `challengeTitleList`(canvas) field in response result"
-                    );
-                };
-
-                for data in canvas.data {
-                    let webtoon = Item {
-                        client: self.clone(),
-                        id: data.content_id,
-                        r#type: Type::Canvas,
-                        title: data.name,
-                        thumbnail: format!(
-                            "https://swebtoon-phinf.pstatic.net{}",
-                            data.thumbnail.path
-                        ),
-                        creator: data.extra.writer.nickname,
-                    };
-
-                    webtoons.push(webtoon);
-                }
-                next = canvas.pagination.next;
-            }
-        }
+        webtoons.extend(search_by_type(client, query, Type::Original).await?);
+        webtoons.extend(search_by_type(client, query, Type::Canvas).await?);
 
         Ok(webtoons)
     }
 
-    /// Retrieves a list of all `original` webtoons from `webtoons.com`.
+    /// Returns all `Original` webtoons from `webtoons.com/en/originals`.
     ///
-    /// This corresponds to all webtoons found at `https://www.webtoons.com/*/originals`.
-    ///
-    /// # Language Support
-    ///
-    /// The `originals` section of the Webtoons site is available in different languages, and
-    /// the `language` parameter allows you to specify which language version of the site to
-    /// scrape. This determines the set of webtoons returned in the list.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{ Client, error::Error};
@@ -580,37 +414,17 @@ impl Client {
     /// ```
     #[inline]
     pub async fn originals(&self) -> Result<Vec<Webtoon>, OriginalsError> {
-        originals::scrape(self).await
+        let client = self;
+        originals::scrape(client).await
     }
 
-    /// Retrieves a list of `canvas` webtoons from `webtoons.com`.
+    /// Returns `Canvas` webtoons from `webtoons.com/en/canvas`.
     ///
-    /// This corresponds to all webtoons found at `https://www.webtoons.com/*/canvas`.
+    /// `pages` accepts any `u16` range; an unbounded end is capped at page 100 to
+    /// avoid infinite scraping since `webtoons.com` gives no indication when pages
+    /// run out.
     ///
-    /// # Language Support
-    ///
-    /// The `canvas` section is available in multiple languages, and the `language` parameter
-    /// determines which language version of the site is scraped.
-    ///
-    /// # Pagination and Sorting
-    ///
-    /// You can specify which pages to scrape using the `pages` parameter, which accepts any
-    /// valid range (e.g., `1..5` for pages 1 through 4). The `sort` parameter allows you to
-    /// control how the results are ordered:
-    ///
-    /// - `Sort::Popularity`: Orders by read count.
-    /// - `Sort::Likes`: Orders by the number of likes.
-    /// - `Sort::Date`: Orders by the most recent updates.
-    ///
-    /// # Notes
-    ///
-    /// The list of Canvas webtoons can vary between languages, and the sorting order may impact
-    /// the results significantly.
-    ///
-    /// Due to limitations of how `webtoons.com` responds to the request, there is no way to know if the page requested
-    /// exists(No more pages). In the interest of sane defaults, an unbounded end is equal to `..100`. If not, this function would never return.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
     /// # use webtoon::platform::webtoons::{ Client, error::Error, canvas::Sort};
@@ -634,15 +448,17 @@ impl Client {
         pages: impl RangeBounds<u16> + Send,
         sort: Sort,
     ) -> Result<Vec<Webtoon>, CanvasError> {
-        canvas::scrape(self, pages, sort).await
+        let client = self;
+        canvas::scrape(client, pages, sort).await
     }
 
-    /// Constructs a [`Webtoon`] from the given `id` and [`Type`].
+    /// Returns the [`Webtoon`] with the given `id` and [`Type`], if it exists.
     ///
-    /// `canvas` and `original` have separate sets of `id`'s. This means that an `original` and a `canvas` story
-    /// could have the same numerical id. The `id`'s are unique across languages.
+    /// [`Original`](variant@Type::Original) and [`Canvas`](variant@Type::Canvas) webtoons
+    /// have separate id spaces, so the same numeric id can refer to different webtoons
+    /// depending on the type.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Type, Client};
@@ -650,30 +466,27 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let Some(webtoon) = client.webtoon(95, Type::Original).await? else {
-    ///     unreachable!("webtoon is known to exist");
-    /// };
+    /// let webtoon = client.webtoon(95, Type::Original).await?.expect("`95` exists");
     ///
     /// assert_eq!("Tower of God", webtoon.title().await?);
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, WebtoonError> {
-        Webtoon::new_with_client(id, r#type, self).await
+    pub async fn webtoon(&self, id: u32, r#type: Type) -> Result<Option<Webtoon>, ClientError> {
+        let client = self;
+        Webtoon::new_with_client(id, r#type, client).await
     }
 
-    /// Constructs a [`Webtoon`] from a given `url`.
+    /// Returns a [`Webtoon`] constructed from a `webtoons.com` URL.
     ///
-    /// # URL Structure
+    /// The URL must follow the format:
+    /// `https://www.webtoons.com/{language}/{scope}/{slug}/list?title_no={id}`
     ///
-    /// The provided `url` must follow the typical structure used by `webtoons.com`:
+    /// Unlike [`Client::webtoon()`], this does not make a network request and assumes
+    /// the webtoon exists.
     ///
-    /// - `https://www.webtoons.com/{language}/{scope}/{slug}/list?title_no={id}`
-    ///
-    /// It is assumed that the Webtoon will always exist, considering a URL is being passed.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
@@ -684,22 +497,22 @@ impl Client {
     /// let webtoon = client
     ///     .webtoon_from_url("https://www.webtoons.com/en/action/omniscient-reader/list?title_no=2154")?;
     ///
-    /// assert_eq!("Omniscient Reader",  webtoon.title().await?);
+    /// assert_eq!("Omniscient Reader", webtoon.title().await?);
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
     pub fn webtoon_from_url(&self, url: &str) -> Result<Webtoon, InvalidWebtoonUrl> {
-        Webtoon::from_url_with_client(url, self)
+        let client = self;
+        Webtoon::from_url_with_client(url, client)
     }
 
-    /// Returns a [`UserInfo`] derived from a passed in session.
+    /// Returns [`UserInfo`] for the given session token, if the session is valid.
     ///
-    /// If session is not of a logged in user, this will return `None`.
+    /// Returns `None` for an invalid or unauthenticated session. Useful for resolving
+    /// a username or profile from a session token alone.
     ///
-    /// This can be useful if you need to get the profile or username from the session alone
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use webtoon::platform::webtoons::{error::Error, Client};
@@ -707,10 +520,8 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     ///
-    /// let user = client.user_info_for_session("session").await?;
-    ///
-    /// // When no session, or an invalid session, is passed in, `is_logged_in()` will be false.
-    /// assert!(user.is_none());
+    /// // An invalid session returns `None`.
+    /// assert!(client.user_info_for_session("session").await?.is_none());
     /// # Ok(())
     /// # }
     /// ```
@@ -718,50 +529,49 @@ impl Client {
         &self,
         session: &str,
     ) -> Result<Option<UserInfo>, UserInfoError> {
-        let response = self
+        let client = self;
+
+        let response = client
             .http
             .get("https://www.webtoons.com/en/member/userInfo")
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
-        let user: UserInfo = match serde_json::from_str::<UserInfoRaw>(&response) {
-            // WARN: Must check if logged in before all other arms.
-            // If not logged in, can return directly.
-            Ok(user) if !user.is_logged_in => return Ok(None),
-            // WARN: Must check before `user.try_into`
-            // If user is logged in, then username should be `Some`.
-            Ok(user) if user.username.is_none() => assumption!(
-                "if `UserInfoRaw::is_logged_in` is true, which should be the first arm matched, then `UserInfoRaw::username` must be `Some`, yet got: {response}"
+        let Ok(user) = serde_json::from_str::<UserInfoRaw>(&response) else {
+            assumption!(
+                "failed to deserialize `userInfo` from `webtoons.com` response `{response}`"
+            )
+        };
+
+        if !user.is_logged_in {
+            return Ok(None);
+        }
+
+        assume!(
+            user.username.is_some(),
+            "`UserInfoRaw::username` should always be `Some` when `is_logged_in` is true, got: {response}"
+        );
+
+        let user: UserInfo = match (user.is_canvas_creator, &user.profile) {
+            (true, None) => assumption!(
+                "`is_canvas_creator` is true but `profile` is `None`, which should never occur: {response}"
             ),
-            Ok(user) => match (user.is_canvas_creator, &user.profile) {
-                (true, None) => assumption!(
-                    "if `UserInfo::is_canvas_creator` is true, there should always be `Some(profile)`, yet got `None`, which should only happen if session is invalid: {response}"
-                ),
-                (false, Some(profile)) => assumption!(
-                    "if `UserInfo::is_canvas_creator` is false, there should always be `None` for `profile()`, yet got `Some({profile})`, which should not be a valid combination: {response}"
-                ),
-                // Expected combination of a response.
-                (false, None) | (true, Some(_)) => user.try_into()?,
-            },
-            Err(err) => {
-                assumption!(
-                    "failed to deserialize `userInfo` from `webtoons.com` response: {err}\n\n{response}"
-                )
-            }
+            (false, Some(profile)) => assumption!(
+                "`is_canvas_creator` is false but `profile` is `Some({profile})`, which should never occur: {response}"
+            ),
+            (false, None) | (true, Some(_)) => user.try_into()?,
         };
 
         Ok(Some(user))
     }
 
-    /// Returns if the `Client` was provided a session.
+    /// Returns `true` if this [`Client`] was created with a session token.
     ///
-    /// This does **NOT** mean session is valid.
+    /// Does not validate the session - only checks that one was provided.
     ///
     /// # Example
     ///
@@ -771,29 +581,27 @@ impl Client {
     /// # async fn main() -> Result<(), Error> {
     /// let client = Client::new();
     /// assert!(!client.has_session());
+    ///
+    /// let client = Client::with_session("session");
+    /// assert!(client.has_session());
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
     #[must_use]
     pub fn has_session(&self) -> bool {
-        !self.session.is_empty()
+        let client = self;
+        !client.session.is_empty()
     }
 
-    /// Tries to validate the current session.
+    /// Returns `true` if the current session is valid, `false` if it is not.
     ///
-    /// - `true` if the session is proven valid.
-    /// - `false` if the session is proven invalid.
+    /// This is a point-in-time check - the session could be invalidated immediately
+    /// after this returns. Do not rely on this as a guarantee for subsequent calls.
     ///
-    /// <div class="warning">
+    /// If the session is invalid, then it will always remain invalid hereafter.
     ///
-    /// **This is mainly provided for a quick early return for when the circumstances allow. Any methods that use a
-    /// session should not rely on the session always being valid after this check; The session could be invalidated
-    /// after the check completes!**
-    ///
-    /// </div>
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client};
@@ -805,7 +613,8 @@ impl Client {
     /// # }
     /// ```
     pub async fn has_valid_session(&self) -> Result<bool, SessionError> {
-        match self.session.validate(self).await {
+        let client = self;
+        match client.session.validate(client).await {
             Ok(_) => Ok(true),
             Err(SessionError::InvalidSession) => Ok(false),
             Err(err) => Err(err),
@@ -814,56 +623,39 @@ impl Client {
 }
 
 impl Client {
-    pub(super) async fn originals_page(&self, day: &str) -> Result<Html, RequestError> {
+    pub(super) async fn fetch_originals_page(&self, day: &str) -> Result<Html, reqwest::Error> {
         let url = format!("https://www.webtoons.com/en/originals/{day}");
 
-        let document = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
+        let document = self.http.get(&url).retry().send().await?.text().await?;
 
         let html = Html::parse_document(&document);
 
         Ok(html)
     }
 
-    pub(super) async fn canvas_page(&self, page: u16, sort: Sort) -> Result<Html, RequestError> {
+    pub(super) async fn fetch_canvas_page(
+        &self,
+        page: u16,
+        sort: Sort,
+    ) -> Result<Html, reqwest::Error> {
         let url = format!(
             "https://www.webtoons.com/en/canvas/list?genreTab=ALL&sortOrder={sort}&page={page}"
         );
 
-        let document = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
+        let document = self.http.get(&url).retry().send().await?.text().await?;
 
         let html = Html::parse_document(&document);
 
         Ok(html)
     }
 
-    pub(super) async fn creator_page(&self, profile: &str) -> Result<Option<Html>, CreatorError> {
+    pub(super) async fn fetch_creator_page(
+        &self,
+        profile: &str,
+    ) -> Result<Option<Html>, CreatorError> {
         let url = format!("https://www.webtoons.com/p/community/en/u/{profile}");
 
-        let response = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
+        let response = self.http.get(&url).retry().send().await?;
 
         // 404 if the page does not exist (the profile does not exist).
         // 400 if the page is disabled by the creator.
@@ -871,42 +663,41 @@ impl Client {
             return Ok(None);
         }
 
-        let document = response.text().await.map_err(RequestError)?;
+        let document = response.text().await?;
 
         let html = Html::parse_document(&document);
 
         Ok(Some(html))
     }
 
-    pub(super) async fn creator_webtoons(
+    // TODO: Need to check if the profile existed as an english profile
+    pub(super) async fn fetch_creator_webtoons(
         &self,
         profile: &str,
-    ) -> Result<CreatorWebtoons, WebtoonError> {
+    ) -> Result<CreatorWebtoons, CreatorWebtoonsError> {
         let url = format!(
             "https://www.webtoons.com/p/community/api/v1/creator/{profile}/titles?language=ENGLISH"
         );
 
         // TODO: return specific error if profile is not the correct profile to use.
         // This will be matched on by the caller.
-        let response = self.http.get(url).send().await.map_err(RequestError)?;
+        let response = self.http.get(url).send().await?;
 
-        let json = response.text().await.map_err(RequestError)?;
+        let json = response.text().await?;
 
-        match serde_json::from_str::<CreatorWebtoons>(&json) {
-            Ok(creator_webtoons) => Ok(creator_webtoons),
-            Err(err) => {
-                assumption!(
-                    "failed to deserialize creator webtoons `webtoons.com` response: {err}\n\n{json}"
-                )
-            }
-        }
+        let creator_webtoon =
+            serde_json::from_str::<CreatorWebtoons>(&json).with_assumption(|| {
+                format!("failed to deserialize creator webtoons `webtoons.com` response `{json}`")
+            })?;
+
+        Ok(creator_webtoon)
     }
 
-    pub(super) async fn webtoon_page(
+    pub(super) async fn fetch_webtoon_homepage(
         &self,
         webtoon: &Webtoon,
         page: Option<u16>,
-    ) -> Result<Html, RequestError> {
+    ) -> Result<Html, reqwest::Error> {
         let id = webtoon.id;
         let scope = webtoon.scope.as_slug();
         let slug = &webtoon.slug;
@@ -917,16 +708,7 @@ impl Client {
             format!("https://www.webtoons.com/en/{scope}/{slug}/list?title_no={id}")
         };
 
-        let response = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
+        let response = self.http.get(&url).retry().send().await?.text().await?;
 
         // TODO: Check response to see if wrong profile was used and use:
         //     Err(CreatorWebtoonsError::WrongProfile)
@@ -938,12 +720,14 @@ impl Client {
 
     // TODO: If a session is valid, but does not belong to the Webtoon, then
     // should return `InvalidPermissions`.
-    pub(super) async fn episodes_dashboard(
+    pub(super) async fn fetch_episodes_dashboard(
         &self,
         webtoon: &Webtoon,
         page: u16,
     ) -> Result<Vec<DashboardEpisode>, SessionError> {
-        let session = self.session.validate(self).await?;
+        let client = self;
+
+        let session = client.session.validate(client).await?;
 
         // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
         let url = format!(
@@ -951,24 +735,25 @@ impl Client {
             id = webtoon.id
         );
 
-        let response = self
+        let response = client
             .http
             .get(&url)
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
         let episodes = api::dashboard::episodes::parse(&response)?;
 
         Ok(episodes)
     }
 
-    pub(super) async fn stats_dashboard(&self, webtoon: &Webtoon) -> Result<Html, SessionError> {
+    pub(super) async fn fetch_stats_dashboard(
+        &self,
+        webtoon: &Webtoon,
+    ) -> Result<Html, SessionError> {
         let session = self.session.validate(self).await?;
 
         // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
@@ -986,11 +771,9 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
         let html = Html::parse_document(&response);
 
@@ -998,10 +781,7 @@ impl Client {
     }
 
     #[cfg(feature = "rss")]
-    pub(super) async fn rss(
-        &self,
-        webtoon: &Webtoon,
-    ) -> Result<rss::Channel, crate::platform::webtoons::error::RssError> {
+    pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, WebtoonError> {
         use std::str::FromStr;
 
         let id = webtoon.id;
@@ -1013,23 +793,15 @@ impl Client {
 
         let url = format!("https://www.webtoons.com/en/{scope}/{slug}/rss?title_no={id}");
 
-        let response = self
-            .http
-            .get(url)
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
+        let response = self.http.get(url).send().await?.text().await?;
 
-        match rss::Channel::from_str(&response) {
-            Ok(channel) => Ok(channel),
-            Err(err) => assumption!("rss feed returned from `webtoons.com` failed to parse: {err}"),
-        }
+        let rss = rss::Channel::from_str(&response)
+            .assumption("rss feed returned from `webtoons.com` failed to parse")?;
+
+        Ok(rss)
     }
 
-    pub(super) async fn episode(
+    pub(super) async fn fetch_episode_page(
         &self,
         webtoon: &Webtoon,
         episode: u16,
@@ -1042,26 +814,20 @@ impl Client {
             "https://www.webtoons.com/*/{scope}/*/*/viewer?title_no={id}&episode_no={episode}"
         );
 
-        let response = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?;
+        let response = self.http.get(&url).retry().send().await?;
 
         if response.status() == 404 {
             return Err(EpisodeError::NotViewable);
         }
 
-        let document = response.text().await.map_err(RequestError)?;
+        let document = response.text().await?;
 
         let html = Html::parse_document(&document);
 
         Ok(html)
     }
 
-    pub(super) async fn episodes_likes(
+    pub(super) async fn fetch_episodes_likes(
         &self,
         episode: &Episode,
     ) -> Result<RawLikesResponse, LikesError> {
@@ -1076,26 +842,15 @@ impl Client {
             "https://www.webtoons.com/api/v1/like/search/counts?serviceId=LINEWEBTOON&contentIds={scope}_{webtoon}_{episode}"
         );
 
-        let response = self
-            .http
-            .get(&url)
-            .retry()
-            .send()
-            .await
-            .map_err(RequestError)?
-            .text()
-            .await
-            .map_err(RequestError)?;
+        let response = self.http.get(&url).retry().send().await?.text().await?;
 
-        match serde_json::from_str::<RawLikesResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw likes api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_likes_response = serde_json::from_str::<RawLikesResponse>(&response)
+           .with_assumption(|| format!("failed to deserialize raw likes api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_likes_response)
     }
 
-    pub(super) async fn episode_posts(
+    pub(super) async fn fetch_episode_posts(
         &self,
         episode: &Episode,
         cursor: Option<Id>,
@@ -1136,24 +891,20 @@ impl Client {
             .header("Service-Ticket-Id", "epicom")
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
-        match serde_json::from_str::<RawPostResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_post_response =    serde_json::from_str::<RawPostResponse>(&response)
+            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_post_response)
     }
 
     pub(super) async fn check_if_episode_exists(
         &self,
         episode: &Episode,
-    ) -> Result<bool, RequestError> {
+    ) -> Result<bool, reqwest::Error> {
         let scope = match episode.webtoon.scope {
             Scope::Original(_) => "w",
             Scope::Canvas => "c",
@@ -1171,13 +922,12 @@ impl Client {
             .header("Service-Ticket-Id", "epicom")
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
         Ok(response.status() != 404)
     }
 
-    pub(super) async fn post_upvotes_and_downvotes(
+    pub(super) async fn fetch_post_upvotes_and_downvotes(
         &self,
         post: &Post,
     ) -> Result<Count, PostsError> {
@@ -1209,21 +959,17 @@ impl Client {
             .header("Service-Ticket-Id", "epicom")
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
-        match serde_json::from_str::<Count>(&response) {
-            Ok(count) => Ok(count),
-            Err(err) => assumption!(
-                "failed to deserialize post upvote/downvote api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let count = serde_json::from_str::<Count>(&response)
+           .with_assumption(|| format!("failed to deserialize post upvote/downvote api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(count)
     }
 
-    pub(super) async fn replies(
+    pub(super) async fn fetch_replies_for_post(
         &self,
         post: &Post,
         cursor: Option<Id>,
@@ -1252,26 +998,21 @@ impl Client {
             .header("Service-Ticket-Id", "epicom")
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
-        match serde_json::from_str::<RawPostResponse>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize raw post api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let raw_post_response = serde_json::from_str::<RawPostResponse>(&response)
+            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(raw_post_response)
     }
 
-    pub(super) async fn user_info(
+    pub(super) async fn fetch_webtoon_user_info(
         &self,
+        session: ValidSession,
         webtoon: &Webtoon,
-    ) -> Result<WebtoonUserInfo, SessionError> {
-        let session = self.session.validate(self).await?;
-
+    ) -> Result<WebtoonUserInfo, UserInfoError> {
         let id = webtoon.id;
 
         let url = match webtoon.r#type() {
@@ -1289,32 +1030,22 @@ impl Client {
             .header("Cookie", format!("NEO_SES={session}"))
             .retry()
             .send()
-            .await
-            .map_err(RequestError)?
+            .await?
             .text()
-            .await
-            .map_err(RequestError)?;
+            .await?;
 
-        match serde_json::from_str::<WebtoonUserInfo>(&response) {
-            Ok(response) => Ok(response),
-            Err(err) => assumption!(
-                "failed to deserialize webtoon user info api response from `webtoons.com` response: {err}\n\n{response}"
-            ),
-        }
+        let webtoon_user_info =  serde_json::from_str::<WebtoonUserInfo>(&response)
+            .with_assumption(|| format!("failed to deserialize webtoon user info api response from `webtoons.com` response `{response}`"))?;
+
+        Ok(webtoon_user_info)
     }
 
     #[cfg(feature = "download")]
-    pub(super) async fn download_panel(&self, url: &reqwest::Url) -> Result<Vec<u8>, RequestError> {
-        let bytes = self
-            .http
-            .get(url.as_str())
-            .send()
-            .await
-            .map_err(RequestError)?
-            .bytes()
-            .await
-            .map_err(RequestError)?;
-
+    pub(super) async fn download_panel(
+        &self,
+        url: &reqwest::Url,
+    ) -> Result<Vec<u8>, reqwest::Error> {
+        let bytes = self.http.get(url.as_str()).send().await?.bytes().await?;
         Ok(bytes.to_vec())
     }
 }
@@ -1325,6 +1056,11 @@ impl Default for Client {
     }
 }
 
+/// A session token that has been verified as valid by `webtoons.com`.
+///
+/// Obtained via [`Session::validate()`]; cannot be constructed directly. Note that
+/// validity is only guaranteed at the time of the check - the session may be
+/// invalidated at any point afterward (TOCTOU).
 pub(crate) struct ValidSession(Arc<str>);
 
 impl Display for ValidSession {
@@ -1333,6 +1069,10 @@ impl Display for ValidSession {
     }
 }
 
+/// The session token used for authenticated requests.
+///
+/// Wraps an optional `NEO_SES` cookie value. A `None` inner value means no session
+/// was provided; `Some` means one was, but it may still be invalid.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Session(Option<Arc<str>>);
 
@@ -1342,6 +1082,10 @@ impl Session {
         Self(Some(Arc::from(session)))
     }
 
+    /// Validates the session against `webtoons.com`, returning a [`ValidSession`] if successful.
+    ///
+    /// Returns [`SessionError::NoSessionProvided`] if no session was set, or
+    /// [`SessionError::InvalidSession`] if the session is rejected by the platform.
     pub async fn validate(&self, client: &Client) -> Result<ValidSession, SessionError> {
         let Some(session) = &self.0 else {
             return Err(SessionError::NoSessionProvided);
@@ -1354,6 +1098,7 @@ impl Session {
         Ok(ValidSession(session.clone()))
     }
 
+    /// Returns `true` if no session was provided or the session string is empty.
     #[inline]
     fn is_empty(&self) -> bool {
         self.0.as_ref().is_none_or(|session| session.is_empty())
@@ -1361,7 +1106,7 @@ impl Session {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

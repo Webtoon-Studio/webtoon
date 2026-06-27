@@ -10,7 +10,11 @@ use crate::{
             episode::{AdStatus, Episode, Published},
         },
     },
-    stdx::{cache::Cache, error::assumption, math::MathExt},
+    stdx::{
+        cache::Cache,
+        error::{assume, assume_matches, assumption},
+        math::MathExt,
+    },
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
@@ -28,9 +32,9 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     )]
     let mut episodes: HashSet<Episode> = HashSet::new();
 
-    let dashboard_episodes = webtoon.client.episodes_dashboard(webtoon, 1).await?;
+    let dashboard_episodes = webtoon.client.fetch_episodes_dashboard(webtoon, 1).await?;
 
-    assumption!(
+    assume!(
         dashboard_episodes.len() <= usize::from(MAX_EPISODES_PER_PAGE),
         "`webtoons.com` episode dashboard was expected to have a max of 10 per page, but had: {}",
         dashboard_episodes.len()
@@ -49,16 +53,16 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         let published = match episode.published.map(DateTime::from_timestamp_millis) {
             Some(Some(published)) => Some(Published::from(published)),
             Some(None) => assumption!(
-                "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
+                "`webtoons.com` should always return a valid unix millisecond timestamp, got: `{:?}`",
                 episode.published
             ),
             None => None,
         };
 
         if matches!(episode.dashboard_status, DashboardStatus::Published) {
-            assumption!(
-                published.is_some_and(|published| published.year() >= 2014),
-                "if an episode is published, then it published year must be at least 2014"
+            assume_matches!(
+                published, Some(date) if date.year() >= 2014,
+                "if an episode is published, then its published year must be at least 2014"
             );
         }
 
@@ -80,7 +84,10 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     }
 
     for page in 2..=pages {
-        let dashboard_episodes = webtoon.client.episodes_dashboard(webtoon, page).await?;
+        let dashboard_episodes = webtoon
+            .client
+            .fetch_episodes_dashboard(webtoon, page)
+            .await?;
 
         for episode in dashboard_episodes {
             let published = match episode.published.map(DateTime::from_timestamp_millis) {
@@ -117,21 +124,13 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
-    match u16::try_from(episodes.len()) {
-        Ok(_) => {}
-        Err(err) => {
-            assumption!(
-                "`webtoons.com` Webtoons should never have more than 65,535 episodes: {err}\n\ngot: {}",
-                episodes.len()
-            )
-        }
-    }
+    assume!(
+        u16::try_from(episodes.len()).is_ok(),
+        "`webtoons.com` Webtoons should never have more than 65,535 episodes, had `{}`",
+        episodes.len()
+    );
 
-    let episodes = {
-        let mut episodes: Vec<Episode> = episodes.into_iter().collect();
-        episodes.sort_unstable_by_key(Episode::number);
-        episodes
-    };
+    let episodes: Vec<Episode> = episodes.into_iter().collect();
 
     Ok(episodes)
 }

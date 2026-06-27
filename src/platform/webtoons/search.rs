@@ -1,8 +1,8 @@
 //! Module representing `webtoons.com` search.
 
 use crate::{
-    platform::webtoons::{Client, Type, Webtoon, error::WebtoonError},
-    stdx::error::assumption,
+    platform::webtoons::{Client, Type, Webtoon, error::ClientError},
+    stdx::error::Assume,
 };
 
 /// Represents a single item in the search result.
@@ -52,12 +52,12 @@ impl Item {
     }
 
     /// Turns a search result into a [`Webtoon`].
-    pub async fn into_webtoon(self) -> Result<Webtoon, WebtoonError> {
-        let Some(webtoon) = self.client.webtoon(self.id, self.r#type).await? else {
-            assumption!(
-                "`webtoons.com` search should only return visible, existing series. Getting `None` means the webtoon is private or nonexistent, so it should never appear in search results."
-            );
-        };
+    pub async fn into_webtoon(self) -> Result<Webtoon, ClientError> {
+        let webtoon = self
+            .client
+            .webtoon(self.id, self.r#type)
+            .await?
+            .assumption("`webtoons.com` search should only return visible, existing series")?;
 
         Ok(webtoon)
     }

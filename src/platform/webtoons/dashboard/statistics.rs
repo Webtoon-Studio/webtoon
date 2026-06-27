@@ -2,7 +2,7 @@ use scraper::{Html, Selector};
 
 use crate::{
     platform::webtoons::{Webtoon, error::SessionError},
-    stdx::error::{Assume, AssumeFor, Assumption, assumption},
+    stdx::error::{Assume, Assumption, assume},
 };
 
 #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Default)]
@@ -29,7 +29,7 @@ pub struct Previous {
 }
 
 pub async fn scrape(webtoon: &Webtoon) -> Result<Stats, SessionError> {
-    let html = webtoon.client.stats_dashboard(webtoon).await?;
+    let html = webtoon.client.fetch_stats_dashboard(webtoon).await?;
 
     // TODO: For now only need subscribers from here, but could do the others as well.
     Ok(Stats {
@@ -57,7 +57,7 @@ fn subscribers(html: &Html) -> Result<u32, Assumption> {
         .next()
         .assumption("`.col3>p` was found on `webtoons.com` Webtoon stats dashboard, which should have text that describes a category(Subscribers), but no text was present in element")?;
 
-        assumption!(
+        assume!(
             category == "Subscribers",
             "expected to find `Subscribers` category on `webtoons.com` stats dashboard at `.col3>p`, but instead found: `{category}`"
         );
@@ -89,10 +89,10 @@ fn subscribers(html: &Html) -> Result<u32, Assumption> {
                 .assumption("on `webtoons.com` Webtoon homepage, a million subscribers is always represented as a decimal value, with an `M` suffix, eg. `1.3M`, and so should always split on `.`")?;
 
             let millions = millionth.parse::<u32>()
-                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}: {err}"))?;
+                .with_assumption(|| format!("`on the `webtoons.com` Webtoon homepage, the millions part of the subscribers count should always fit in a `u32`, got: {millionth}"))?;
 
             let hundred_thousands = hundred_thousandth.parse::<u32>()
-                .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}: {err}"))?;
+                .with_assumption(|| format!("`on the `webtoons.com` Webtoon homepage, the hundred thousands part of the subscribers count should always fit in a `u32`, got: {hundred_thousandth}"))?;
 
             (millions * 1_000_000) + (hundred_thousands * 100_000)
         }
@@ -106,7 +106,7 @@ fn subscribers(html: &Html) -> Result<u32, Assumption> {
         count => count
             .replace(',', "")
             .parse::<u32>()
-            .assumption_for(|err| format!("`on the `webtoons.com` Webtoon homepage, subscribers count should always fit in a `u32`, got: {count}: {err}"))?,
+            .with_assumption(|| format!("`on the `webtoons.com` Webtoon homepage, subscribers count should always fit in a `u32`, got: {count}"))?,
     };
 
     Ok(subscribers)
