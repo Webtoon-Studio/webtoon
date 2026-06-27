@@ -512,7 +512,12 @@ mod iter {
                             .webtoon
                             .client
                             // Gets `is_top/isPinned` info.
-                            .episode_posts(self.episode, None, 10, PinRepresentation::Distinct)
+                            .fetch_episode_posts(
+                                self.episode,
+                                None,
+                                10,
+                                PinRepresentation::Distinct,
+                            )
                             .await?;
 
                         assume!(
@@ -535,7 +540,7 @@ mod iter {
                         .episode
                         .webtoon
                         .client
-                        .episode_posts(self.episode, None, 100, PinRepresentation::None)
+                        .fetch_episode_posts(self.episode, None, 100, PinRepresentation::None)
                         .await?;
 
                     for post in response.result.posts {
@@ -553,7 +558,12 @@ mod iter {
                             .episode
                             .webtoon
                             .client
-                            .episode_posts(self.episode, Some(cursor), 100, PinRepresentation::None)
+                            .fetch_episode_posts(
+                                self.episode,
+                                Some(cursor),
+                                100,
+                                PinRepresentation::None,
+                            )
                             .await?;
 
                         for post in response.result.posts {
@@ -1025,7 +1035,7 @@ impl Post {
                 .webtoon
                 .client
                 // Gets `is_top/isPinned` info.
-                .episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
+                .fetch_episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
                 .await?;
 
             assume!(
@@ -1078,7 +1088,7 @@ impl Post {
             .episode
             .webtoon
             .client
-            .post_upvotes_and_downvotes(self)
+            .fetch_post_upvotes_and_downvotes(self)
             .await?;
 
         let mut upvotes = 0;
@@ -1114,7 +1124,12 @@ impl Post {
         )]
         let mut replies = HashSet::new();
 
-        let response = self.episode.webtoon.client.replies(self, None, 100).await?;
+        let response = self
+            .episode
+            .webtoon
+            .client
+            .fetch_replies_for_post(self, None, 100)
+            .await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
 
@@ -1129,7 +1144,7 @@ impl Post {
                 .episode
                 .webtoon
                 .client
-                .replies(self, Some(cursor), 100)
+                .fetch_replies_for_post(self, Some(cursor), 100)
                 .await?;
 
             for reply in response.result.posts {

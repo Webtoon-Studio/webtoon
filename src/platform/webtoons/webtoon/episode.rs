@@ -414,7 +414,7 @@ impl Episode {
         let client = &self.webtoon.client;
 
         let response = client
-            .episode_posts(episode, None, 1, PinRepresentation::None)
+            .fetch_episode_posts(episode, None, 1, PinRepresentation::None)
             .await?;
 
         let comments = response.result.active_root_post_count;
@@ -729,7 +729,7 @@ impl Episode {
         let html = self
             .webtoon
             .client
-            .episode(&self.webtoon, self.number)
+            .fetch_episode_page(&self.webtoon, self.number)
             .await?;
 
         if only_viewable_on_app(&html)? {

@@ -32,7 +32,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     )]
     let mut episodes: HashSet<Episode> = HashSet::new();
 
-    let dashboard_episodes = webtoon.client.episodes_dashboard(webtoon, 1).await?;
+    let dashboard_episodes = webtoon.client.fetch_episodes_dashboard(webtoon, 1).await?;
 
     assume!(
         dashboard_episodes.len() <= usize::from(MAX_EPISODES_PER_PAGE),
@@ -84,7 +84,10 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     }
 
     for page in 2..=pages {
-        let dashboard_episodes = webtoon.client.episodes_dashboard(webtoon, page).await?;
+        let dashboard_episodes = webtoon
+            .client
+            .fetch_episodes_dashboard(webtoon, page)
+            .await?;
 
         for episode in dashboard_episodes {
             let published = match episode.published.map(DateTime::from_timestamp_millis) {

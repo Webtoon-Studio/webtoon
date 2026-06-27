@@ -41,7 +41,7 @@ macro_rules! assume {
 /// # Examples
 ///
 /// ```rust,ignore
-/// // Pattern only — no binding needed
+/// // Pattern only - no binding needed
 /// assume_matches!(value, Some(_), "expected Some");
 ///
 /// // With binding
@@ -143,7 +143,7 @@ pub(crate) use assume;
 pub(crate) use assume_matches;
 pub(crate) use assumption;
 
-/// A violated internal invariant — always indicates a bug in the library.
+/// A violated internal invariant - always indicates a bug in the library.
 ///
 /// If you encounter this error, please open an issue. It is not actionable from
 /// user code and can only be resolved by an internal fix.
@@ -164,7 +164,7 @@ impl From<String> for Assumption {
 
 /// Attaches an [`Assumption`] context message to an `Option` or `Result`.
 ///
-/// Analogous to `.context()` in `anyhow` — use `.assumption()` for a static
+/// Analogous to `.context()` in `anyhow` - use `.assumption()` for a static
 /// message and `.with_assumption()` when the message needs to be constructed
 /// lazily.
 pub trait Assume<T> {

@@ -38,7 +38,7 @@ pub(super) async fn scrape(
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
 
     for page in start..end {
-        let html = client.canvas_page(page, sort).await?;
+        let html = client.fetch_canvas_page(page, sort).await?;
 
         for card in html.select(&selector) {
             let href = card.attr("href").assumption(
