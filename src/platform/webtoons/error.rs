@@ -1,31 +1,14 @@
 //! Errors that can happen when interacting with `webtoons.com`.
 #![allow(missing_docs)]
 
-use thiserror::Error;
-
 #[cfg(feature = "download")]
 pub use _inner::SavePanelError;
 
 pub use _inner::{
     CanvasError, ClientBuilderError, ClientError, CreatorError, CreatorWebtoonsError, EpisodeError,
-    EpisodesError, Error, LikesError, OriginalsError, PostsError, SearchError, SessionError,
-    SubscribersError, UserInfoError, ViewsError, WebtoonError,
+    EpisodesError, Error, InvalidWebtoonUrl, LikesError, OriginalsError, PostsError, SearchError,
+    SessionError, SubscribersError, UserInfoError, ViewsError, WebtoonError,
 };
-
-/// Represents an invalid `webtoons.com` Webtoon homepage URL.
-///
-/// Given how exact the format is, and the unlikely nature of something actionable
-/// being done, this error is merely a message carrier that says what expectations
-/// were violated.
-#[derive(Debug, Error)]
-#[error("{0}")]
-pub struct InvalidWebtoonUrl(String);
-
-impl InvalidWebtoonUrl {
-    pub(crate) fn new(msg: impl Into<String>) -> Self {
-        Self(msg.into())
-    }
-}
 
 mod _inner {
     use crate::{platform::webtoons::webtoon::post::id::ParsePostIdError, stdx::error::Assumption};
@@ -102,6 +85,23 @@ mod _inner {
             #[display("only the english `webtoons.com` is supported")]
             UnsupportedLanguage
         } || Internal || Network
+
+        /// Represents an invalid `webtoons.com` Webtoon homepage URL.
+        ///
+        /// Given how exact the format is, and the unlikely nature of something actionable
+        /// being done, this error is merely a message carrier that says what expectations
+        /// were violated.
+        InvalidWebtoonUrl := {
+            /// Unsupported language.
+            #[display("only the english `webtoons.com` is supported")]
+            UnsupportedLanguage,
+            /// Url had an unexpected layout.
+            #[display("`{url}` was malformed: {reason}")]
+            Malformed{
+                url: String,
+                reason: String,
+            },
+        }
 
         // ---------------------------------------------------------------------
 
