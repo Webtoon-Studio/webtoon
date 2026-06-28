@@ -273,7 +273,7 @@ async fn english_original_episode_with_alternate_reader() {
 }
 
 #[tokio::test]
-async fn englsh_canvas_posts() {
+async fn english_canvas_posts() {
     let client = match std::env::var("WEBTOON_SESSION") {
         Ok(session) if !session.is_empty() => Client::with_session(&session),
         _ => Client::new(),
@@ -297,7 +297,7 @@ async fn englsh_canvas_posts() {
 }
 
 #[tokio::test]
-async fn englsh_original_posts() {
+async fn english_original_posts() {
     let client = match std::env::var("WEBTOON_SESSION") {
         Ok(session) if !session.is_empty() => Client::with_session(&session),
         _ => Client::new(),
@@ -756,4 +756,236 @@ async fn only_english_webtoons_com_supported() {
     let webtoon = client
         .webtoon_from_url("https://www.webtoons.com/de/drama/high-society/list?title_no=7418");
     assert_matches!(webtoon, Err(InvalidWebtoonUrl::UnsupportedLanguage));
+}
+
+#[tokio::test]
+async fn webtoon_from_url_errors_on_malformed_url() {
+    let client = Client::new();
+    assert!(client.webtoon_from_url("not-a-url").is_err());
+    // missing title_no
+    assert!(
+        client
+            .webtoon_from_url("https://www.webtoons.com/en/fantasy/tower-of-god/list")
+            .is_err()
+    );
+    // empty title_no
+    assert!(
+        client
+            .webtoon_from_url("https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=")
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn webtoon_returns_none_for_nonexistent_id() {
+    let client = Client::new();
+    let webtoon = client.webtoon(1, Type::Original).await.unwrap();
+    assert!(webtoon.is_none());
+}
+
+#[tokio::test]
+async fn canvas_webtoon_has_no_banner() {
+    let client = Client::new();
+    let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
+    assert!(webtoon.banner().await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn original_webtoon_has_no_thumbnail() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    assert!(webtoon.thumbnail().await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn canvas_webtoon_has_no_schedule() {
+    let client = Client::new();
+    let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
+    assert!(webtoon.schedule().await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn completed_webtoon_is_completed() {
+    let client = Client::new();
+    let webtoon = client.webtoon(93, Type::Original).await.unwrap().unwrap();
+    assert!(webtoon.is_completed().await.unwrap());
+}
+
+#[tokio::test]
+async fn ongoing_webtoon_is_not_completed() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    assert!(!webtoon.is_completed().await.unwrap());
+}
+
+#[tokio::test]
+async fn episode_returns_none_for_nonexistent_number() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(u16::MAX).await.unwrap();
+    assert!(episode.is_none());
+}
+
+#[tokio::test]
+async fn episode_number_matches_requested() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    assert_eq!(1, episode.number());
+}
+
+#[tokio::test]
+async fn hidden_episode_title_returns_not_viewable() {
+    use webtoon::platform::webtoons::error::EpisodeError;
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    // Known hidden episode.
+    let episode = webtoon.episode(221).await.unwrap().unwrap();
+    assert_matches!(episode.title().await, Err(EpisodeError::NotViewable));
+}
+
+#[tokio::test]
+async fn episode_with_season_in_title_parses_correctly() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(652).await.unwrap().unwrap();
+    assert_eq!(Some(3), episode.season().await.unwrap());
+}
+
+#[tokio::test]
+async fn episode_without_season_returns_none() {
+    let client = Client::new();
+    let webtoon = client.webtoon(5515, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    assert_eq!(None, episode.season().await.unwrap());
+}
+
+#[tokio::test]
+async fn first_episode_matches_episode_one() {
+    let client = Client::new();
+    let webtoon = client.webtoon(4176, Type::Original).await.unwrap().unwrap();
+    let first = webtoon.first_episode().await.unwrap();
+    assert_eq!(1, first.number());
+    assert!(first.published().is_some());
+}
+
+#[tokio::test]
+async fn alternate_reader_episode_has_no_length() {
+    let client = Client::new();
+    let webtoon = client.webtoon(4784, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    assert_eq!(None, episode.length().await.unwrap());
+}
+
+#[tokio::test]
+async fn episode_views_are_none_without_session() {
+    let client = Client::new();
+    let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
+    let mut episodes = webtoon.episodes().await.unwrap();
+    episodes.sort_unstable_by_key(|e| e.number());
+    if let Some(episode) = episodes.first() {
+        assert!(episode.views().is_none());
+    }
+}
+
+#[tokio::test]
+async fn episode_published_is_none_from_single_episode_fetch() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let episode = webtoon.episode(1).await.unwrap().unwrap();
+    assert!(episode.published().is_none());
+}
+
+#[tokio::test]
+async fn episode_published_is_some_from_episodes_list() {
+    let client = Client::new();
+    let webtoon = client.webtoon(87, Type::Original).await.unwrap().unwrap();
+    let mut episodes = webtoon.episodes().await.unwrap();
+    episodes.sort_unstable_by_key(|e| e.number());
+    if let Some(episode) = episodes.first() {
+        assert!(episode.published().is_some());
+        assert!(episode.published().unwrap().year() >= 2014);
+    }
+}
+
+#[tokio::test]
+async fn canvas_single_page_returns_results() {
+    let client = Client::new();
+    let webtoons = client.canvas(1..=1, Sort::Popularity).await.unwrap();
+    assert!(!webtoons.is_empty());
+    assert!(webtoons.len() == 20);
+}
+
+#[tokio::test]
+async fn has_session_false_without_session() {
+    let client = Client::new();
+    assert!(!client.has_session());
+}
+
+#[tokio::test]
+async fn has_session_true_with_session() {
+    let client = Client::with_session("any-value");
+    assert!(client.has_session());
+}
+
+#[tokio::test]
+async fn invalid_session_is_not_valid() {
+    let client = Client::with_session("not-a-real-session");
+    assert!(!client.has_valid_session().await.unwrap());
+}
+
+#[tokio::test]
+async fn creator_returns_none_for_nonexistent_profile() {
+    let client = Client::new();
+    let creator = client
+        .creator("this-profile-does-not-exist-xyz123")
+        .await
+        .unwrap();
+    assert!(creator.is_none());
+}
+
+#[tokio::test]
+async fn korean_creator_has_no_profile() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let creators = webtoon.creators().await.unwrap();
+    if let [creator] = creators.as_slice() {
+        assert!(creator.profile().is_none());
+        assert!(creator.id().await.unwrap().is_none());
+        assert!(creator.followers().await.unwrap().is_none());
+        assert!(creator.has_patreon().await.unwrap().is_none());
+        assert!(creator.webtoons().await.unwrap().is_none());
+    } else {
+        unreachable!("Tower of God should have one creator");
+    }
+}
+
+#[tokio::test]
+async fn rss_episodes_have_published_dates() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let rss = webtoon.rss().await.unwrap();
+    for episode in rss.episodes() {
+        assert!(episode.published().is_some());
+        assert!(episode.published().unwrap().year() >= 2014);
+    }
+}
+
+#[tokio::test]
+async fn rss_episodes_are_not_empty() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let rss = webtoon.rss().await.unwrap();
+    assert!(!rss.episodes().is_empty());
+}
+
+#[tokio::test]
+async fn rss_thumbnail_starts_with_expected_host() {
+    let client = Client::new();
+    let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
+    let rss = webtoon.rss().await.unwrap();
+    assert!(
+        rss.thumbnail()
+            .starts_with("https://swebtoon-phinf.pstatic.net"),
+    );
 }
