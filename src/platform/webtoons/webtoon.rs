@@ -18,6 +18,7 @@ use super::originals::Schedule;
 use super::{Client, creator::Creator};
 use crate::platform::webtoons::webtoon::episode::Episode;
 use crate::platform::webtoons::webtoon::homepage::Homepage;
+use crate::stdx::error::{assume_matches, assumption};
 use crate::{
     platform::webtoons::{
         error::{
@@ -832,7 +833,7 @@ impl Webtoon {
         client: &Client,
     ) -> Result<Option<Self>, ClientError> {
         let url = format!(
-            "https://www.webtoons.com/en/{}/*/list?title_no={id}",
+            "https://www.webtoons.com/*/{}/*/list?title_no={id}",
             match r#type {
                 Type::Original => "*",
                 Type::Canvas => "canvas",
@@ -848,10 +849,15 @@ impl Webtoon {
 
         let url = response.url();
 
-        // TODO: Need to validate that webtoon is English.
-        let (scope, slug, _) = parse_url(url).with_assumption(|| {
-            format!("`webtoons.com` returned an unexpected url format: `{url}`")
-        })?;
+        let (scope, slug, _) = match parse_url(url) {
+            Ok(parts) => parts,
+            Err(InvalidWebtoonUrl::UnsupportedLanguage) => {
+                return Err(ClientError::UnsupportedLanguage);
+            }
+            Err(err) => {
+                assumption!("`webtoons.com` returned an unexpected url format for `{url}`: {err}")
+            }
+        };
 
         let webtoon = Self {
             client: client.clone(),
@@ -870,9 +876,10 @@ impl Webtoon {
         client: &Client,
     ) -> Result<Self, InvalidWebtoonUrl> {
         let Ok(url) = url::Url::parse(url) else {
-            return Err(InvalidWebtoonUrl::new(
-                "failed to parse provided url: not a valid url",
-            ));
+            return Err(InvalidWebtoonUrl::Malformed {
+                url: url.to_owned(),
+                reason: String::from("invalid url schema"),
+            });
         };
 
         let (scope, slug, id) = parse_url(&url)?;
@@ -891,72 +898,84 @@ impl Webtoon {
 
 #[inline]
 fn parse_url(url: &url::Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
-    let mut segments = url.path_segments().ok_or_else(|| {
-        InvalidWebtoonUrl::new(format!(
-            "a `webtoons.com` Webtoon url should have path segments (`/`); this url ({url}) did not"
-        ))
-    })?;
+    let Some(mut segments) = url.path_segments() else {
+        return Err(InvalidWebtoonUrl::Malformed {
+            url: url.to_string(),
+            reason: String::from(
+                "a `webtoons.com` Webtoon url should have path segments (`/`); this url did not",
+            ),
+        });
+    };
 
-    match segments.next() {
-        Some("en") => {}
-        Some(lang) => {
-            return Err(InvalidWebtoonUrl::new(format!(
-                "found an unexpected language ({lang}) in provided `webtoons.com` url"
-            )));
-        }
-        None => {
-            return Err(InvalidWebtoonUrl::new(
-                "url has path segments but failed to extract the first segment, which should be a language: e.g. `en`",
-            ));
-        }
-    }
+    assume_matches!(
+        segments.next(),
+        Some("en"),
+        InvalidWebtoonUrl::UnsupportedLanguage
+    );
 
-    let scope = segments
-            .next()
-            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a second segment representing the scope, e.g. `canvas`, `fantasy`"))?;
+    let Some(scope) = segments.next() else {
+        return Err(InvalidWebtoonUrl::Malformed {
+            url: url.to_string(),
+            reason: String::from(
+                "provided url didn't have a second segment representing the scope, e.g. `canvas`, `fantasy`",
+            ),
+        });
+    };
 
-    let scope = Scope::from_str(scope).map_err(|err| {
-        InvalidWebtoonUrl::new(format!(
-            "found an unexpected scope in provided `webtoons.com` url: {err}"
-        ))
+    let scope = Scope::from_str(scope).map_err(|err| InvalidWebtoonUrl::Malformed {
+        url: url.to_string(),
+        reason: format!("found an unexpected scope in provided `webtoons.com` url: {err}"),
     })?;
 
     let slug = segments
             .next()
-            .ok_or_else(|| InvalidWebtoonUrl::new("provided url didn't have a third segment representing the slug, e.g. `tower-of-god`"))?
+            .ok_or_else(|| InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: String::from("provided url didn't have a third segment representing the slug, e.g. `tower-of-god`"),
+            })?
             .to_string();
 
-    let id = url.query().ok_or_else(|| {
-        InvalidWebtoonUrl::new(
+    let id = url.query().ok_or_else(|| InvalidWebtoonUrl::Malformed {
+        url: url.to_string(),
+        reason: String::from(
             "a valid `webtoons.com` Webtoon url should have a `title_no` query, but none was found",
-        )
+        ),
     })?;
 
     let id = match id.split_once('=') {
         Some(("title_no", "")) => {
-            return Err(InvalidWebtoonUrl::new(
-                "provided url had a `title_no` query but nothing after the `=`",
-            ));
+            return Err(InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: String::from(
+                    "provided url had a `title_no` query but nothing after the `=`",
+                ),
+            });
         }
-        Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => {
-            id.parse::<u32>().map_err(|_err| {
-                InvalidWebtoonUrl::new("the `title_no` value was too large to fit in a `u32`")
-            })?
-        }
+        Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => id
+            .parse::<u32>()
+            .map_err(|err| InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: format!("the `title_no` value was too large to fit in a `u32`: {err}"),
+            })?,
         Some(("title_no", _)) => {
-            return Err(InvalidWebtoonUrl::new(
-                "provided url had a `title_no` query but the value was not a valid digit",
-            ));
+            return Err(InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: String::from(
+                    "provided url had a `title_no` query but the value was not a valid digit",
+                ),
+            });
         }
         Some(_) => {
-            return Err(InvalidWebtoonUrl::new(
-                "provided url did not have a `title_no` query",
-            ));
+            return Err(InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: String::from("provided url did not have a `title_no` query"),
+            });
         }
         None => {
-            return Err(InvalidWebtoonUrl::new(
-                "`title_no` should always have a `=` separator",
-            ));
+            return Err(InvalidWebtoonUrl::Malformed {
+                url: url.to_string(),
+                reason: String::from("`title_no` should always have a `=` separator"),
+            });
         }
     };
 

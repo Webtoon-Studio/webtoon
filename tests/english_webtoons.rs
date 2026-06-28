@@ -1,3 +1,5 @@
+use std::assert_matches;
+
 use webtoon::platform::webtoons::{
     Client, Type,
     canvas::Sort,
@@ -741,3 +743,17 @@ async fn english_canvas_creator_page_is_disabled_for_community_policy_violation(
 //         _ => unreachable!(),
 //     }
 // }
+
+#[tokio::test]
+async fn only_english_webtoons_com_supported() {
+    use webtoon::platform::webtoons::error::{ClientError, InvalidWebtoonUrl};
+
+    let client = Client::new();
+
+    let webtoon = client.webtoon(7418, Type::Original).await;
+    assert_matches!(webtoon, Err(ClientError::UnsupportedLanguage));
+
+    let webtoon = client
+        .webtoon_from_url("https://www.webtoons.com/de/drama/high-society/list?title_no=7418");
+    assert_matches!(webtoon, Err(InvalidWebtoonUrl::UnsupportedLanguage));
+}
