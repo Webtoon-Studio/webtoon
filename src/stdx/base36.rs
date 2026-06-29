@@ -1,15 +1,15 @@
-#![allow(clippy::expect_used)]
-
 use std::{fmt::Display, num::ParseIntError, ops::Add, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
+/// A base-36 encoded unsigned integer, using digits `0-9` and `a-z`.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy, Hash)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct Base36(u32);
 
 impl Base36 {
+    /// Creates a `Base36` from a raw `u32`. Only available in tests.
     #[cfg(test)]
     pub fn new(n: u32) -> Self {
         Self(n)
@@ -19,18 +19,14 @@ impl Base36 {
 impl Add for Base36 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        let mut this = self;
-        this.0 += rhs.0;
-        this
+        Self(self.0 + rhs.0)
     }
 }
 
 impl Add<u32> for Base36 {
     type Output = Self;
     fn add(self, rhs: u32) -> Self::Output {
-        let mut this = self;
-        this.0 += rhs;
-        this
+        Self(self.0 + rhs)
     }
 }
 
@@ -39,7 +35,6 @@ impl FromStr for Base36 {
 
     fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
         let num = u32::from_str_radix(s, 36)?;
-
         Ok(Self(num))
     }
 }
@@ -47,33 +42,26 @@ impl FromStr for Base36 {
 impl Display for Base36 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut num = self.0;
-        let mut buffer = ['\0'; 128];
 
-        let mut len = 0;
+        let mut digits = ['\0'; 7];
+        let mut idx = 0;
 
         loop {
-            assert!(
-                len < buffer.len(),
-                "a proper `u32` to a base36 `char` conversion would never loop more than the stack allocated array len"
-            );
-
-            let codepoint = num % 36;
-            num /= 36;
-
-            *buffer
-                .get_mut(len)
-                .expect("index must be valid due to assertion above") =
-                std::char::from_digit(codepoint, 36).expect("base36 digit must always be valid");
-
-            len += 1;
+            if let Some(digit) = char::from_digit(num % 36, 36)
+                && let Some(ch) = digits.get_mut(idx)
+            {
+                *ch = digit;
+                idx += 1;
+                num /= 36;
+            }
 
             if num == 0 {
                 break;
             }
         }
 
-        for c in buffer.iter().take(len).rev() {
-            write!(f, "{c}")?;
+        for ch in digits.iter().take(idx).rev() {
+            write!(f, "{ch}")?;
         }
 
         Ok(())
@@ -105,66 +93,90 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
-    fn should_format_u32_to_base_36() {
-        {
-            let num = Base36(0);
-            pretty_assertions::assert_str_eq!("0", num.to_string());
-        }
-        {
-            let num = Base36(9);
-            pretty_assertions::assert_str_eq!("9", num.to_string());
-        }
-        {
-            let num = Base36(10);
-            pretty_assertions::assert_str_eq!("a", num.to_string());
-        }
-        {
-            let num = Base36(35);
-            pretty_assertions::assert_str_eq!("z", num.to_string());
-        }
-        {
-            let num = Base36(23812);
-            pretty_assertions::assert_str_eq!("idg", num.to_string());
-        }
-        {
-            let num = Base36(u32::MAX);
-            pretty_assertions::assert_str_eq!("1z141z3", num.to_string());
+    fn base36_display_zero() {
+        assert_eq!("0", Base36(0).to_string());
+    }
+
+    #[test]
+    fn base36_display_single_digit() {
+        assert_eq!("9", Base36(9).to_string());
+    }
+
+    #[test]
+    fn base36_display_first_alpha_digit() {
+        assert_eq!("a", Base36(10).to_string());
+    }
+
+    #[test]
+    fn base36_display_last_single_digit() {
+        assert_eq!("z", Base36(35).to_string());
+    }
+
+    #[test]
+    fn base36_display_multi_digit() {
+        assert_eq!("idg", Base36(23812).to_string());
+    }
+
+    #[test]
+    fn base36_display_u32_max() {
+        assert_eq!("1z141z3", Base36(u32::MAX).to_string());
+    }
+
+    #[test]
+    fn base36_parse_zero() {
+        assert_eq!(Base36(0), "0".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_single_digit() {
+        assert_eq!(Base36(9), "9".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_first_alpha_digit() {
+        assert_eq!(Base36(10), "a".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_last_single_digit() {
+        assert_eq!(Base36(35), "z".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_multi_digit() {
+        assert_eq!(Base36(23812), "idg".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_post_id_example() {
+        assert_eq!(Base36(49), "1d".parse::<Base36>().unwrap());
+    }
+
+    #[test]
+    fn base36_parse_errors_on_invalid_input() {
+        assert!("!@#".parse::<Base36>().is_err());
+        assert!("".parse::<Base36>().is_err());
+    }
+
+    #[test]
+    fn base36_roundtrip() {
+        for n in [0, 9, 10, 35, 23812, u32::MAX] {
+            let encoded = Base36(n).to_string();
+            let decoded: Base36 = encoded.parse().unwrap();
+            assert_eq!(Base36(n), decoded, "roundtrip failed for {n}");
         }
     }
 
     #[test]
-    fn should_parse_base_36_from_str() {
-        {
-            let num: Base36 = "0".parse().unwrap();
+    fn base36_add_base36() {
+        assert_eq!(Base36(3), Base36(1) + Base36(2));
+    }
 
-            pretty_assertions::assert_eq!(num, 0);
-        }
-        {
-            let num: Base36 = "9".parse().unwrap();
-
-            pretty_assertions::assert_eq!(num, 9);
-        }
-        {
-            let num: Base36 = "a".parse().unwrap();
-
-            pretty_assertions::assert_eq!(num, 10);
-        }
-        {
-            let num: Base36 = "z".parse().unwrap();
-
-            pretty_assertions::assert_eq!(num, 35);
-        }
-        {
-            let num: Base36 = "idg".parse().unwrap();
-
-            pretty_assertions::assert_eq!(num, 23812);
-        }
-        {
-            let num: Base36 = "1d".parse().unwrap();
-
-            pretty_assertions::assert_eq!(num, 49);
-        }
+    #[test]
+    fn base36_add_u32() {
+        assert_eq!(Base36(3), Base36(1) + 2u32);
     }
 }

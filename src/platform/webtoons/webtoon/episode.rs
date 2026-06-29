@@ -711,11 +711,6 @@ impl Episode {
             webtoon: webtoon.clone(),
             number,
             title: Cache::empty(),
-            // NOTE: Published date is unavailable from a single episode page.
-            // The only sources are the dashboard and the webtoon episode list,
-            // but caching the full episode list for a single lookup would be
-            // slow and require a larger refactor. Returns `None` until a better
-            // solution is found.
             published: None,
             length: Cache::empty(),
             thumbnail: Cache::empty(),
@@ -729,9 +724,10 @@ impl Episode {
     }
 
     async fn scrape(&self) -> Result<(), EpisodeError> {
-        let html = self
-            .webtoon
-            .client
+        let episode = self;
+        let client = &self.webtoon.client;
+
+        let html = client
             .fetch_episode_page(&self.webtoon, self.number)
             .await?;
 
@@ -739,11 +735,11 @@ impl Episode {
             return Err(EpisodeError::NotViewable);
         }
 
-        self.title.insert(title(&html)?);
-        self.thumbnail.insert(thumbnail(&html, self.number)?);
-        self.length.insert(length(&html)?);
-        self.note.insert(note(&html)?);
-        self.panels.insert(panels(&html, self.number)?);
+        episode.title.insert(title(&html)?);
+        episode.thumbnail.insert(thumbnail(&html, episode.number)?);
+        episode.length.insert(length(&html)?);
+        episode.note.insert(note(&html)?);
+        episode.panels.insert(panels(&html, episode.number)?);
 
         Ok(())
     }

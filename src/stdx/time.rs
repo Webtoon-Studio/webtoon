@@ -1,5 +1,9 @@
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
 
+/// A date or full datetime value, used to represent varying precision of publish times.
+///
+/// `Date` carries only year/month/day; `DateTime` carries full UTC precision.
+/// Time components return `None` for `Date` values.
 #[derive(Debug, Clone, Copy)]
 pub enum DateOrDateTime {
     Date(NaiveDate),

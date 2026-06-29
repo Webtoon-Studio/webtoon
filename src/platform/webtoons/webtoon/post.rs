@@ -1564,7 +1564,9 @@ pub enum Reaction {
 }
 
 pub(crate) enum PinRepresentation {
+    /// Do not include top comments in API response.
     None,
+    /// To include top comments in API response.
     Distinct,
 }
 

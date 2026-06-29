@@ -1,46 +1,51 @@
 use reqwest::{RequestBuilder, Response};
 use std::time::Duration;
 
+/// The default `User-Agent` header value, formatted as `{crate_name}/{crate_version}`.
 pub static DEFAULT_USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
+/// Wraps a [`RequestBuilder`] with automatic retry logic on failure or rate limiting.
 pub struct Retry(RequestBuilder);
 
 impl Retry {
     pub async fn send(self) -> Result<Response, reqwest::Error> {
-        let mut tries = 10;
+        let mut tries: u32 = 10;
         let mut wait = fastrand::u64(1..=5);
 
         loop {
-            #[allow(clippy::expect_used, reason = "if `RequestBuilder` fails to clone, it means we are working on streams, which is not the assumption of operation!")]
-            let request = self.0.try_clone()
-                .expect("`RequestBuilder` should only fail to clone when working with streams/readers, and we only do standard requests");
+            #[allow(
+                clippy::expect_used,
+                reason = "only fails for streams; we only do standard requests"
+            )]
+            let request = self
+                .0
+                .try_clone()
+                .expect("`RequestBuilder` should only fail to clone when working with streams");
 
-            match request.send().await {
-                Ok(response) if response.status() == 429 && tries > 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    tries -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-                Err(_) if tries > 0 => {
-                    tokio::time::sleep(Duration::from_secs(wait)).await;
-                    tries -= 1;
-                    wait += 3;
-                    wait += fastrand::u64(1..=5);
-                }
-                Ok(response) => return Ok(response),
+            let should_retry = match request.send().await {
+                Err(_) if tries > 0 => true,
                 Err(err) => return Err(err),
+                Ok(response) if response.status() == 429 && tries > 0 => true,
+                Ok(response) => return Ok(response),
+            };
+
+            if should_retry {
+                tokio::time::sleep(Duration::from_secs(wait)).await;
+                tries -= 1;
+                wait += 3 + fastrand::u64(1..=5);
             }
         }
     }
 }
 
-pub trait IRetry {
+/// Extension trait for adding retry behavior to [`RequestBuilder`].
+pub trait RequestExt {
+    /// Wraps this [`RequestBuilder`] in a [`Retry`] that retries on failure or `429` responses.
     fn retry(self) -> Retry;
 }
 
-impl IRetry for RequestBuilder {
+impl RequestExt for RequestBuilder {
     fn retry(self) -> Retry {
         Retry(self)
     }

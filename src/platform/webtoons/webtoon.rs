@@ -30,7 +30,7 @@ use crate::{
     },
     stdx::{
         cache::{Cache, Store},
-        http::IRetry,
+        http::RequestExt,
     },
 };
 use core::fmt::{self, Debug};
@@ -346,7 +346,7 @@ impl Webtoon {
                     // A missing or invalid session falls back to the homepage scrape below.
                     && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
                     && let valid_session = session?
-                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && let user = client.fetch_webtoon_user_info(&valid_session, webtoon).await?
                     && user.is_webtoon_creator() =>
             {
                 let episodes = dashboard::analytics::episodes(webtoon).await?;
@@ -402,7 +402,7 @@ impl Webtoon {
                     // A missing or invalid session falls back to the homepage scrape below.
                     && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
                     && let valid_session = session?
-                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && let user = client.fetch_webtoon_user_info(&valid_session, webtoon).await?
                     && user.is_webtoon_creator()
                     // HACK: There is the new analytics page that has subscribers
                     // but in looking, it doesn't really seem to match the displayed
@@ -620,7 +620,7 @@ impl Webtoon {
                     // A missing or invalid session falls back to the homepage scrape below.
                     && !matches!(session, Err(SessionError::NoSessionProvided | SessionError::InvalidSession))
                     && let valid_session = session?
-                    && let user = client.fetch_webtoon_user_info(valid_session, webtoon).await?
+                    && let user = client.fetch_webtoon_user_info(&valid_session, webtoon).await?
                     && user.is_webtoon_creator() =>
             {
                 Ok(dashboard::analytics::episodes(webtoon).await?)

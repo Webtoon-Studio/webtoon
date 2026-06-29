@@ -13,11 +13,11 @@ use crate::{
     stdx::{
         cache::Cache,
         error::{assume, assume_matches, assumption},
-        math::MathExt,
     },
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
+#[expect(unused)]
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     // TODO: This might be more robust if this was calculated dynamically, but
     // there isn't really a nice was of doing this.
@@ -46,7 +46,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         // This gets the highest numerical episode number and calculates what page it
         // would be in, given max episodes per page value. This gives us how many
         // pages we need to go through.
-        [first, ..] => first.metadata.number.in_bucket_of(MAX_EPISODES_PER_PAGE),
+        [first, ..] => first.metadata.number.div_ceil(MAX_EPISODES_PER_PAGE),
     };
 
     for episode in dashboard_episodes {

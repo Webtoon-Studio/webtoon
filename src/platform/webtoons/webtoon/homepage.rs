@@ -16,7 +16,6 @@ use crate::{
     stdx::{
         cache::Cache,
         error::{Assume, Assumption, assume, assumption},
-        math::MathExt,
     },
 };
 
@@ -567,6 +566,13 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
     // This is needed as there can be varying amounts: 9 or 10, for example.
     let episodes_per_page = {
         let count = html.select(&selector).count();
+
+        // WHY:
+        // Page and episode counts on `webtoons.com` start at 1; an empty page must be page 1.
+        if count == 0 {
+            return Ok(1);
+        }
+
         u16::try_from(count)
             .assumption("episodes per page count should be able to fit within a `u16`")?
     };
@@ -594,7 +600,7 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
 
     assume!(episode > 0, "`webtoons.com` episode count starts at 1");
 
-    Ok(episode.in_bucket_of(episodes_per_page))
+    Ok(episode.div_ceil(episodes_per_page))
 }
 
 #[inline]
