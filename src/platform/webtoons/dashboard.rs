@@ -1,2 +1,2 @@
+pub mod analytics;
 pub mod episodes;
-pub mod statistics;

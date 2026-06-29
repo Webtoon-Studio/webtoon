@@ -19,7 +19,7 @@ use crate::{
     platform::webtoons::{
         client::api::{
             creator_webtoons::CreatorWebtoons,
-            dashboard::episodes::DashboardEpisode,
+            dashboard::{analytics::SeriesAnalytics, episodes::DashboardEpisode},
             likes::RawLikesResponse,
             posts::{Count, RawPostResponse},
             user_info::UserInfoRaw,
@@ -750,22 +750,20 @@ impl Client {
         Ok(episodes)
     }
 
-    pub(super) async fn fetch_stats_dashboard(
+    pub(super) async fn fetch_series_analytics(
         &self,
         webtoon: &Webtoon,
-    ) -> Result<Html, SessionError> {
-        let session = self.session.validate(self).await?;
-
-        // TODO: setup test to ensure that challenge doesn't change to something like `canvas`
-        let scope = match webtoon.scope {
-            Scope::Canvas => "challenge",
-            Scope::Original(_) => "*",
-        };
+        page: u16,
+    ) -> Result<SeriesAnalytics, SessionError> {
         let id = webtoon.id;
 
-        let url = format!(r"https://www.webtoons.com/en/{scope}/titleStat?titleNo={id}");
+        let session = self.session.validate(self).await?;
 
-        let response = self
+        let url = format!(
+            "https://www.webtoons.com/en/api/v1/creators/analytics/episodes?titleNo={id}&page={page}&pageSize=100"
+        );
+
+        let json = self
             .http
             .get(&url)
             .header("Cookie", format!("NEO_SES={session}"))
@@ -775,9 +773,12 @@ impl Client {
             .text()
             .await?;
 
-        let html = Html::parse_document(&response);
+        let series_analytics =
+            serde_json::from_str::<SeriesAnalytics>(&json).with_assumption(|| {
+                format!("failed to deserialize episode analytics `webtoons.com` response: `{json}`")
+            })?;
 
-        Ok(html)
+        Ok(series_analytics)
     }
 
     #[cfg(feature = "rss")]
