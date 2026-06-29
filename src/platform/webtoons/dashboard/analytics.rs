@@ -1,6 +1,6 @@
 use crate::{
     platform::webtoons::{Webtoon, error::SessionError, webtoon::episode::Episode},
-    stdx::error::{Assumption, assume},
+    stdx::error::Assumption,
 };
 
 pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
@@ -23,7 +23,7 @@ pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         }
     }
 
-    assume!(
+    debug_assert!(
         episodes.len() == count,
         "total episodes should match the episode count from the dashboard"
     );

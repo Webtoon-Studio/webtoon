@@ -54,7 +54,8 @@ impl UserInfo {
     #[inline]
     #[must_use]
     pub fn is_canvas_creator(&self) -> bool {
-        self.is_canvas_creator
+        let user = self;
+        user.is_canvas_creator
     }
 
     /// Returns the users' username.
@@ -78,7 +79,8 @@ impl UserInfo {
     #[inline]
     #[must_use]
     pub fn username(&self) -> &str {
-        self.username.as_str()
+        let user = self;
+        user.username.as_str()
     }
 
     /// Returns the profile segment for `webtoons.com/*/creator/{profile}`.
@@ -104,7 +106,8 @@ impl UserInfo {
     #[inline]
     #[must_use]
     pub fn profile(&self) -> Option<&str> {
-        self.profile.as_deref()
+        let user = self;
+        user.profile.as_deref()
     }
 }
 

@@ -2,16 +2,16 @@
 
 use super::Episode;
 use crate::{
-    platform::webtoons::{Webtoon, error::PostsError, webtoon::post::id::Id},
+    platform::webtoons::{Webtoon, error::PostsError},
     stdx::{
         cache::{Cache, Store},
-        error::assume,
+        error::{Assume, Assumption, assume_matches},
     },
 };
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
+use id::Id;
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
-use thiserror::Error;
 
 /// A single top-level comment left on an [`Episode`].
 ///
@@ -312,15 +312,14 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn is_top(&self) -> bool {
-        let comment = &self.0;
+        let comment = &self.0.id();
+        let episode = &self.0.episode;
 
-        let Store::Value(top_comments) = comment.episode.top_comments.get() else {
-            unreachable!("`top_comments` should be cached from the initial posts request");
+        let Store::Value(top_comments) = episode.top_comments.get() else {
+            unreachable!("`top_comments` should be cached from the initial posts' request");
         };
 
-        top_comments
-            .into_iter()
-            .any(|top| top.is_some_and(|top| top.id() == comment.id()))
+        top_comments.contains(comment)
     }
 
     /// Returns `true` if this [`Comment`] has been deleted.
@@ -431,8 +430,12 @@ impl From<Post> for Comment {
 pub use iter::Comments;
 
 mod iter {
-    use super::{Comment, Episode, Id, Post, PostsError};
-    use crate::{platform::webtoons::webtoon::post::PinRepresentation, stdx::error::assume};
+    use std::collections::VecDeque;
+
+    use arrayvec::ArrayVec;
+
+    use super::{Comment, Episode, Id, PinRepresentation, Post, PostsError};
+    use crate::stdx::error::assume;
 
     /// Internal state machine for the [`Comments`] iterator.
     ///
@@ -473,7 +476,7 @@ mod iter {
     #[must_use = "iterators are lazy and do nothing unless consumed"]
     pub struct Comments<'e> {
         episode: &'e Episode,
-        buf: Vec<Post>,
+        posts: VecDeque<Post>,
         cursor: Option<Id>,
         state: State,
     }
@@ -487,10 +490,8 @@ mod iter {
         pub(crate) fn new(episode: &'e Episode) -> Self {
             Self {
                 episode,
-                // WHY:
-                // The max amount of posts returned from the API at once is 100.
-                // There are at most `3` pinned comments.
-                buf: Vec::with_capacity(103),
+                // MAGIC: `100`: The max amount of posts returned from the API at once is 100.
+                posts: VecDeque::with_capacity(100),
                 cursor: None,
                 state: State::Start,
             }
@@ -503,63 +504,60 @@ mod iter {
         /// - `Ok(None)` when all comments have been exhausted.
         /// - `Err(PostsError)` if a network or parsing error occurs.
         pub async fn next(&mut self) -> Result<Option<Comment>, PostsError> {
-            match self.state {
+            let iter = self;
+
+            let episode = iter.episode;
+            let client = &iter.episode.webtoon.client;
+            let posts = &mut iter.posts;
+
+            match iter.state {
+                State::Finished => return Ok(None),
                 State::Start => {
-                    // Cache top posts.
-                    {
-                        let response = self
-                            .episode
-                            .webtoon
-                            .client
-                            // Gets `is_top/isPinned` info.
-                            .fetch_episode_posts(
-                                self.episode,
-                                None,
-                                10,
-                                PinRepresentation::Distinct,
-                            )
-                            .await?;
+                    let response = client
+                        // MAGIC: `Distinct`: includes `is_top/isPinned` metadata.
+                        .fetch_episode_posts(episode, None, 10, PinRepresentation::Distinct)
+                        .await?;
 
-                        assume!(
-                            response.result.tops.len() < 4,
-                            "there should only be at most 3 top comments on `webtoons.com` episode"
-                        );
+                    let count = response.result.tops.len();
 
-                        let mut top_comments = [None, None, None];
+                    assume!(
+                        count < 4,
+                        "there should only be at most 3 top comments on `webtoons.com` episode"
+                    );
 
-                        for (idx, comment) in response.result.tops.into_iter().enumerate() {
-                            if let Some(top) = top_comments.get_mut(idx) {
-                                *top = Some(Comment(Post::try_from((self.episode, comment))?));
-                            }
-                        }
+                    let mut top_comments = ArrayVec::new();
 
-                        self.episode.top_comments.insert(top_comments);
+                    for post in response.result.tops {
+                        let top_comment = Post::try_from((episode, post))?;
+                        top_comments.push(top_comment.id());
                     }
 
-                    let response = self
-                        .episode
-                        .webtoon
-                        .client
-                        .fetch_episode_posts(self.episode, None, 100, PinRepresentation::None)
+                    debug_assert_eq!(
+                        top_comments.len(),
+                        count,
+                        "all top comments from the response should have been pushed"
+                    );
+
+                    episode.top_comments.insert(top_comments);
+
+                    // Fetch the first page of comments.
+                    let response = client
+                        .fetch_episode_posts(episode, None, 100, PinRepresentation::None)
                         .await?;
 
                     for post in response.result.posts {
-                        self.buf.push(Post::try_from((self.episode, post))?);
+                        posts.push_back(Post::try_from((episode, post))?);
                     }
 
-                    self.cursor = response.result.pagination.next;
+                    iter.cursor = response.result.pagination.next;
 
-                    self.buf.reverse();
-                    self.state = State::Streaming;
+                    iter.state = State::Streaming;
                 }
-                State::Streaming if self.buf.is_empty() => {
-                    if let Some(cursor) = self.cursor {
-                        let response = self
-                            .episode
-                            .webtoon
-                            .client
+                State::Streaming if posts.is_empty() => {
+                    if let Some(cursor) = iter.cursor {
+                        let response = client
                             .fetch_episode_posts(
-                                self.episode,
+                                episode,
                                 Some(cursor),
                                 100,
                                 PinRepresentation::None,
@@ -567,33 +565,32 @@ mod iter {
                             .await?;
 
                         for post in response.result.posts {
-                            self.buf.push(Post::try_from((self.episode, post))?);
+                            posts.push_back(Post::try_from((episode, post))?);
                         }
 
-                        self.buf.reverse();
-                        self.cursor = response.result.pagination.next;
+                        iter.cursor = response.result.pagination.next;
                     }
                 }
                 State::Streaming => {}
-                State::Finished => return Ok(None),
             }
 
-            // If no comments were gotten, then finish.
-            if self.buf.is_empty() {
-                self.state = State::Finished;
+            if posts.is_empty() {
+                iter.state = State::Finished;
                 return Ok(None);
             }
 
-            Ok(self.buf.pop().map(Comment))
+            Ok(posts.pop_front().map(Comment))
         }
 
         /// Consumes the iterator and returns the oldest visible [`Comment`] on the episode, if any.
         ///
         /// Returns `Err` if an error occurs during iteration.
-        pub async fn last(mut self) -> Result<Option<Comment>, PostsError> {
+        pub async fn last(self) -> Result<Option<Comment>, PostsError> {
+            let mut iter = self;
+
             let mut last = None;
 
-            while let Some(comment) = self.next().await? {
+            while let Some(comment) = iter.next().await? {
                 last = Some(comment);
             }
 
@@ -990,131 +987,74 @@ impl Post {
     #[inline]
     #[must_use]
     pub fn poster(&self) -> &Poster {
-        &self.poster
+        let post = self;
+        &post.poster
     }
 
     #[inline]
     #[must_use]
     pub fn id(&self) -> Id {
-        self.id
+        let post = self;
+        post.id
     }
 
     #[inline]
     #[must_use]
     pub fn parent_id(&self) -> Id {
-        self.parent_id
+        let post = self;
+        post.parent_id
     }
 
     #[inline]
     #[must_use]
     pub fn body(&self) -> &Body {
-        &self.body
+        let post = self;
+        &post.body
     }
 
     #[inline]
     #[must_use]
     pub fn upvotes(&self) -> u32 {
-        self.upvotes
+        let post = self;
+        post.upvotes
     }
 
     #[inline]
     #[must_use]
     pub fn downvotes(&self) -> u32 {
-        self.downvotes
-    }
-
-    #[expect(dead_code)]
-    pub async fn is_top(&self) -> Result<bool, PostsError> {
-        if let Store::Value(top_comments) = self.episode.top_comments.get() {
-            Ok(top_comments
-                .into_iter()
-                .any(|comment| comment.is_some_and(|top| top.id() == self.id())))
-        } else {
-            let response = self
-                .episode
-                .webtoon
-                .client
-                // Gets `is_top/isPinned` info.
-                .fetch_episode_posts(&self.episode, None, 1, PinRepresentation::Distinct)
-                .await?;
-
-            assume!(
-                response.result.tops.len() < 4,
-                "there should only be at most 3 top comments on `webtoons.com` episode"
-            );
-
-            let mut top_comments = [None, None, None];
-
-            for (idx, comment) in response.result.tops.into_iter().enumerate() {
-                if let Some(top) = top_comments.get_mut(idx) {
-                    *top = Some(Comment(Self::try_from((&self.episode, comment))?));
-                }
-            }
-
-            let is_top = top_comments
-                .iter()
-                .any(|comment| comment.as_ref().is_some_and(|top| top.id() == self.id()));
-
-            self.episode.top_comments.insert(top_comments);
-
-            Ok(is_top)
-        }
+        let post = self;
+        post.downvotes
     }
 
     #[inline]
     #[must_use]
     pub fn is_deleted(&self) -> bool {
-        self.is_deleted
+        let post = self;
+        post.is_deleted
     }
 
     #[inline]
     #[must_use]
     pub fn episode(&self) -> u16 {
-        self.episode.number()
+        let post = self;
+        post.episode.number()
     }
 
     #[inline]
     #[must_use]
     pub fn posted(&self) -> i64 {
-        self.posted.timestamp_millis()
-    }
-
-    #[expect(
-        dead_code,
-        reason = "directly gets a posts upvotes and downvotes via a request and so far we just use the data initially gotten"
-    )]
-    pub async fn upvotes_and_downvotes(&self) -> Result<(u32, u32), PostsError> {
-        let response = self
-            .episode
-            .webtoon
-            .client
-            .fetch_post_upvotes_and_downvotes(self)
-            .await?;
-
-        let mut upvotes = 0;
-        let mut downvotes = 0;
-
-        assume!(
-            response.result.emotions.len() < 3,
-            "`webtoons.com` post api should only have either upvotes or downvotes, yet had three items: {:?}",
-            response.result.emotions
-        );
-
-        for emotion in response.result.emotions {
-            if emotion.emotion_id == "like" {
-                upvotes = emotion.count;
-            } else {
-                downvotes = emotion.count;
-            }
-        }
-
-        Ok((upvotes, downvotes))
+        let post = self;
+        post.posted.timestamp_millis()
     }
 
     pub async fn replies(&self) -> Result<Vec<Reply>, PostsError> {
+        let post = self;
+        let episode = &self.episode;
+        let client = &self.episode.webtoon.client;
+
         // PERF:
         // No need to make a network request when there are no replies to fetch.
-        if self.replies == 0 {
+        if post.replies == 0 {
             return Ok(Vec::new());
         }
 
@@ -1124,31 +1064,23 @@ impl Post {
         )]
         let mut replies = HashSet::new();
 
-        let response = self
-            .episode
-            .webtoon
-            .client
-            .fetch_replies_for_post(self, None, 100)
-            .await?;
+        let response = client.fetch_replies_for_post(post, None, 100).await?;
 
         let mut next: Option<Id> = response.result.pagination.next;
 
         // Add first replies
         for reply in response.result.posts {
-            replies.insert(Self::try_from((&self.episode, reply))?);
+            replies.insert(Self::try_from((episode, reply))?);
         }
 
         // Get rest if any
         while let Some(cursor) = next {
-            let response = self
-                .episode
-                .webtoon
-                .client
-                .fetch_replies_for_post(self, Some(cursor), 100)
+            let response = client
+                .fetch_replies_for_post(post, Some(cursor), 100)
                 .await?;
 
             for reply in response.result.posts {
-                replies.replace(Self::try_from((&self.episode, reply))?);
+                replies.replace(Self::try_from((episode, reply))?);
             }
 
             next = response.result.pagination.next;
@@ -1166,7 +1098,8 @@ impl Post {
     #[inline]
     #[must_use]
     pub fn reply_count(&self) -> u32 {
-        self.replies
+        let post = self;
+        post.replies
     }
 }
 
@@ -1238,104 +1171,71 @@ impl Sticker {
     #[inline]
     #[must_use]
     pub fn id(&self) -> String {
-        match self.version {
+        let sticker = self;
+        match sticker.version {
             Some(version) => {
                 format!(
                     "{}_{:03}-v{version}-{}",
-                    self.pack, self.pack_number, self.id
+                    sticker.pack, sticker.pack_number, sticker.id
                 )
             }
             None => {
-                format!("{}_{:03}-{}", self.pack, self.pack_number, self.id)
+                format!("{}_{:03}-{}", sticker.pack, sticker.pack_number, sticker.id)
             }
         }
     }
 }
 
-/// Represents an error that can happen when parsing a string to a [`Sticker`].
-#[derive(Debug, Error)]
-#[error("Failed to parse `{0}` into `Sticker`: {1}")]
-pub struct ParseStickerError(String, String);
-
 impl FromStr for Sticker {
-    type Err = ParseStickerError;
+    type Err = Assumption;
 
     fn from_str(id: &str) -> Result<Self, Self::Err> {
-        // "wt_001-v2-1"
-        // "wt, 001-v2-1"
-        let Some((pack, rest)) = id.split_once('_') else {
-            return Err(ParseStickerError(
-                id.to_string(),
-                "Sticker format was not expected: expected to have `_` but did not".to_string(),
-            ));
-        };
+        // "wt_001-v2-1" -> (`wt`, `001-v2-1`)
+        let (pack, rest) = id
+            .split_once('_')
+            .assumption("sticker id should contain `_` separating pack name from the rest")?;
 
         let mut parts = rest.split('-');
 
-        let pack_number = match parts.next() {
-            Some(part) => match part.parse() {
-                Ok(ok) => ok,
-                Err(err) => {
-                    return Err(ParseStickerError(
-                        id.to_string(),
-                        format!(
-                            "Sticker pack number couldn't be parsed into a number: {err} `{part}`"
-                        ),
-                    ));
-                }
-            },
-            None => {
-                return Err(ParseStickerError(
-                    id.to_string(),
-                    "Sticker id doesn't have an expected pack number".to_string(),
-                ));
+        let pack_number = parts
+            .next()
+            .assumption("sticker id should have a pack number after `_`")?
+            .parse()
+            .assumption("sticker pack number should be a valid `u16`")?;
+
+        let next = parts
+            .next()
+            .assumption("sticker id should have at least one more part after the pack number")?;
+
+        let (version, id) = match next {
+            v if v.starts_with('v') => {
+                let version = v
+                    .trim_start_matches('v')
+                    .parse::<u16>()
+                    .assumption("sticker version should be a valid `u16`")?;
+                let sticker_id = parts
+                    .next()
+                    .assumption("sticker id should have an id part after the version")?
+                    .parse::<u16>()
+                    .assumption("sticker id should be a valid `u16`")?;
+                (Some(version), sticker_id)
+            }
+            id => {
+                let sticker_id = id
+                    .parse::<u16>()
+                    .assumption("sticker id should be a valid `u16`")?;
+                (None, sticker_id)
             }
         };
 
-        let mut version: Option<u16> = None;
-        let input = id;
-        let mut id = 0;
-
-        if let Some(part) = parts.next() {
-            if part.starts_with('v') {
-                version = match part.trim_start_matches('v').parse::<u16>() {
-                    Ok(ok) => Some(ok),
-                    Err(err) => {
-                        return Err(ParseStickerError(
-                            input.to_string(),
-                            format!(
-                                "Sticker version couldn't be parsed into a number: {err} `{part}`"
-                            ),
-                        ));
-                    }
-                };
-            } else {
-                id = match part.parse::<u16>() {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        return Err(ParseStickerError(
-                            input.to_string(),
-                            format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
-                        ));
-                    }
-                };
-            }
-        }
-
-        if let Some(part) = parts.next() {
-            id = match part.parse::<u16>() {
-                Ok(ok) => ok,
-                Err(err) => {
-                    return Err(ParseStickerError(
-                        input.to_string(),
-                        format!("Sticker id couldn't be parsed into a number: {err} `{part}`"),
-                    ));
-                }
-            };
-        }
+        assume_matches!(
+            parts.next(),
+            None,
+            "all parts of sticker id should have been consumed"
+        );
 
         let sticker = Self {
-            pack: pack.to_string(),
+            pack: pack.to_owned(),
             pack_number,
             version,
             id,
@@ -1573,37 +1473,17 @@ pub(crate) enum PinRepresentation {
 pub mod id {
     //! Module representing the post id format on `webtoons.com`.
 
-    use crate::stdx::base36::Base36;
+    use crate::stdx::{
+        base36::Base36,
+        error::{Assume, Assumption, assume_matches, assumption},
+    };
     use serde::{Deserialize, Serialize};
     use std::{
         cmp::Ordering,
+        debug_assert_matches,
         fmt::{Debug, Display},
-        num::ParseIntError,
         str::FromStr,
     };
-    use thiserror::Error;
-
-    // TODO: Make just a tuple struct that takes a `String`.
-    /// Error parsing a post [`Id`].
-    #[derive(Error, Debug)]
-    pub enum ParsePostIdError {
-        /// The id string did not match the expected format.
-        #[error("failed to parse `{id}` into `Id`: {context}")]
-        InvalidFormat {
-            /// The original id string that failed to parse.
-            id: String,
-            /// A description of why parsing failed.
-            context: String,
-        },
-        /// A numeric component of the id could not be parsed.
-        #[error("failed to parse `{id}` into `Id`: {error}")]
-        ParseNumber {
-            /// The original id string that failed to parse.
-            id: String,
-            /// The underlying parse error.
-            error: ParseIntError,
-        },
-    }
 
     /// A unique identifier for a post or reply on a [`Webtoon`](crate::platform::webtoons::webtoon::Webtoon) episode.
     ///
@@ -1611,15 +1491,6 @@ pub mod id {
     /// the webtoon type, webtoon id, episode number, post position (Base36), and
     /// optionally a reply position (Base36). IDs with lower post/reply values were
     /// posted earlier.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use webtoon::platform::webtoons::webtoon::post::id::{Id, ParsePostIdError};
-    /// # use std::str::FromStr;
-    /// let id = Id::from_str("GW-epicom:0-w_95_1-1d-z")?;
-    /// # Ok::<(), ParsePostIdError>(())
-    /// ```
     #[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
     #[serde(try_from = "String")]
     #[serde(into = "String")]
@@ -1633,191 +1504,111 @@ pub mod id {
     }
 
     impl FromStr for Id {
-        type Err = ParsePostIdError;
+        type Err = Assumption;
 
-        #[allow(clippy::too_many_lines)]
+        #[inline]
         fn from_str(str: &str) -> Result<Self, Self::Err> {
-            // In some instances a string can be prefixed like `1:3595:`. We only
-            // care about the part after, so if we encounter multiple `:`, we trim
-            // the prefix off.
-            //
-            // NOTE: Its still unknown what this prefix means.
-            let g = str.chars().position(|ch| ch == 'G').ok_or_else(|| {
-                ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context:
-                        "a `G` should always exist within a posts id, even if it just that it starts with `GW`"
-                            .to_string(),
-                }
-            })?;
-
-            // Split `GW-epicom:0-w_95_1-1d-z` to `GW-epicom` and `0-w_95_1-1d-z`.
-            let mut halves = str
-                // In slice so that we always start with `GW-epicom`.
-                .get(g..)
-                .ok_or_else(|| ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "`G` in `GW-epicom` index was out of bounds, when it should never be"
-                        .to_string(),
-                })?
-                .split(':');
-
-            // Check that the id starts with `GW-epicom`, as this is the only known prefix.
-            if let Some(prefix) = halves.next()
-                && prefix != "GW-epicom"
-            {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: format!(
-                        "splitting on `:` for an id should have a prefix of `GW-epicom` but had, `{prefix}`",
-                    ),
-                });
+            #[derive(Debug)]
+            enum Parse {
+                Tag,
+                PageId,
+                Post,
+                Reply,
             }
 
-            // get `0-w_95_1-1d-z`
-            let id = halves
-                .next()
-                .ok_or_else(|| ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "there was no right-hand part after splitting on `:`".to_string(),
-                })?;
+            let id = match str.split_once("GW-epicom") {
+                Some((_, id)) if !id.is_empty() => id.trim_start_matches(':'),
+                Some(_) => assumption!(
+                    "splitting on `GW-epicom` should yield a suffix that is never empty: `{str}`"
+                ),
+                None => assumption!("`GW-epicom` should always be part of a posts' id: `{str}`"),
+            };
 
-            if id.is_empty() {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "split on `:` resulted in expected `GW-epicom` prefix, but there was nothing to the right of it, resulting in an empty id".to_string(),
-                });
-            }
+            let mut tag = None;
+            let mut scope = None;
+            let mut webtoon = None;
+            let mut episode = None;
+            let mut post = None;
+            let mut reply = None;
+
+            let mut state = Parse::Tag;
 
             // split `0-w_95_1-1d-z` to `0` `w_95_1` `1d` `z`
-            let mut parts = id.split('-');
+            for part in id.split('-') {
+                match state {
+                    Parse::Tag => {
+                        tag = Some(part.parse::<u32>().assumption("")?);
+                        state = Parse::PageId;
+                    }
+                    Parse::PageId => {
+                        // split `w_95_1` to `w` `95` `1`
+                        let mut page_id = part.split('_');
 
-            let Some(first) = parts.next() else {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "splitting on `-` should yield at least 3 parts, but trying to get the first(tag) element resulted on `None`".to_string(),
-                });
-            };
+                        scope = match page_id.next() {
+                            Some("w") => Some(Scope::W),
+                            Some("c") => Some(Scope::C),
+                            Some(s) => assumption!("should be `w` or `c`, found: {s}"),
+                            None => assumption!("page id should consist of 3 parts: {part}"),
+                        };
 
-            let tag: u32 = first.parse().map_err(|err| ParsePostIdError::ParseNumber {
-                id: str.to_owned(),
-                error: err,
-            })?;
+                        webtoon = match page_id.next() {
+                            Some(webtoon) => Some(webtoon.parse::<u32>().assumption("")?),
+                            None => assumption!("page id should consist of 3 parts: {part}"),
+                        };
 
-            let Some(page_id) = parts.next() else {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "splitting on `-` should yield at least 3 parts, but trying to get the second(page id) element resulted on `None`".to_string(),
-                });
-            };
+                        episode = match page_id.next() {
+                            Some(episode) => Some(episode.parse::<u16>().assumption("")?),
+                            None => assumption!("page id should consist of 3 parts: {part}"),
+                        };
 
-            // split `w_95_1` to `w` `95` `1`
-            let mut page_id_parts = page_id.split('_');
+                        assume_matches!(
+                            page_id.next(),
+                            None,
+                            "`page_id` should only have 3 parts: {part}"
+                        );
 
-            let scope = match page_id_parts.next() {
-                Some("w") => Scope::W,
-                Some("c") => Scope::C,
-                Some(s) => {
-                    return Err(ParsePostIdError::InvalidFormat {
-                        id: str.to_owned(),
-                        context: format!(
-                            r"page id should only have a scope of either `w` or `c`, but found: {s}",
-                        ),
-                    });
+                        state = Parse::Post;
+                    }
+                    Parse::Post => {
+                        post = Some(
+                            part.parse::<Base36>()
+                                .assumption("Id post number should be in base36")?,
+                        );
+                        state = Parse::Reply;
+                    }
+                    Parse::Reply => {
+                        // This can only be reached if there is a reply part in
+                        // the id, so we can wrap in `Some` unconditionally.
+                        reply = Some(
+                            part.parse::<Base36>()
+                                .assumption("Id reply number should be in base36")?,
+                        );
+                    }
                 }
-                None => {
-                    return Err(ParsePostIdError::InvalidFormat {
-                        id: str.to_owned(),
-                        context: format!(
-                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a scope as the first element",
-                        ),
-                    });
-                }
-            };
-
-            // parse `95` to `u32`
-            let webtoon = match page_id_parts.next() {
-                Some(webtoon) => {
-                    webtoon
-                        .parse::<u32>()
-                        .map_err(|err| ParsePostIdError::ParseNumber {
-                            id: str.to_owned(),
-                            error: err,
-                        })?
-                }
-                None => {
-                    return Err(ParsePostIdError::InvalidFormat {
-                        id: str.to_owned(),
-                        context: format!(
-                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a webtoon id as the second element",
-                        ),
-                    });
-                }
-            };
-
-            // parse `1` to u16
-            let episode = match page_id_parts.next() {
-                Some(episode) => {
-                    episode
-                        .parse::<u16>()
-                        .map_err(|err| ParsePostIdError::ParseNumber {
-                            id: str.to_owned(),
-                            error: err,
-                        })?
-                }
-                None => {
-                    return Err(ParsePostIdError::InvalidFormat {
-                        id: str.to_owned(),
-                        context: format!(
-                            r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but `{page_id}` didn't have a episode number as the third element",
-                        ),
-                    });
-                }
-            };
-
-            if let Some(unknown) = page_id_parts.next() {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: format!(
-                        r"page id should consist of 3 parts, (w|c)_(\d+)_(\d+), but found `{unknown}` as part of `{page_id}`, after the expected end",
-                    ),
-                });
             }
 
-            let Some(second) = parts.next() else {
-                return Err(ParsePostIdError::InvalidFormat {
-                    id: str.to_owned(),
-                    context: "splitting on `-` should yield at least 3 parts, but trying to get the second(post number) element resulted on `None`".to_string(),
-                });
-            };
-
-            // parse `1d` to `Base36`
-            let post = second
-                .parse::<Base36>()
-                .map_err(|err| ParsePostIdError::ParseNumber {
-                    id: str.to_owned(),
-                    error: err,
-                })?;
-
-            // if exists parse `z` to `Base36`
-            let reply = parts
-                .next()
-                .map(|reply| {
-                    reply
-                        .parse::<Base36>()
-                        .map_err(|err| ParsePostIdError::ParseNumber {
-                            id: str.to_owned(),
-                            error: err,
-                        })
-                })
-                .transpose()?;
+            debug_assert_matches!(
+                state,
+                Parse::Reply,
+                "Id parsing should always end on a parsing reply state"
+            );
 
             let id = Self {
-                tag,
-                scope,
-                webtoon,
-                episode,
-                post,
+                tag: tag.with_assumption(|| {
+                    format!("`tag` in post Id should have been populated: `{str}`")
+                })?,
+                scope: scope.with_assumption(|| {
+                    format!("`scope` in post Id should have been populated: `{str}`")
+                })?,
+                webtoon: webtoon.with_assumption(|| {
+                    format!("`webtoon` in post Id should have been populated: `{str}`")
+                })?,
+                episode: episode.with_assumption(|| {
+                    format!("`episode` in post Id should have been populated: `{str}`")
+                })?,
+                post: post.with_assumption(|| {
+                    format!("`post` in post Id should have been populated: `{str}`")
+                })?,
                 reply,
             };
 
@@ -1892,8 +1683,10 @@ pub mod id {
     impl PartialOrd for Id {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             // If not a post on the same webtoons' episode then return `None`.
-            // Cannot add `self.tag != other.tag` as its still unknown how this number increments, but given that the other
-            // checks are enough to know if the post is on the same Webtoon and the same episode it should be fine.
+            // Cannot add `self.tag != other.tag` as its still unknown how this
+            // number increments, but given that the other checks are enough to
+            // know if the post is on the same Webtoon and the same episode it
+            // should be fine.
             if self.scope != other.scope
                 || self.webtoon != other.webtoon
                 || self.episode != other.episode
@@ -1922,7 +1715,7 @@ pub mod id {
     }
 
     impl TryFrom<String> for Id {
-        type Error = ParsePostIdError;
+        type Error = Assumption;
 
         fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
             Self::from_str(&value)

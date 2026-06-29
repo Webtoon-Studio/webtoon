@@ -135,7 +135,7 @@ impl FromStr for Schedule {
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "DAILY" => Ok(Self::Daily),
+            "DAILY" | "EVERYDAY" => Ok(Self::Daily),
             "COMPLETED" => Ok(Self::Completed),
             _ => Weekday::from_str(s).map(Self::Weekday),
         }
@@ -184,6 +184,7 @@ mod tests {
     #[test]
     fn schedule_parses_daily() {
         assert_eq!(Schedule::from_str("DAILY").unwrap(), Schedule::Daily);
+        assert_eq!(Schedule::from_str("EVERYDAY").unwrap(), Schedule::Daily);
     }
 
     #[test]
