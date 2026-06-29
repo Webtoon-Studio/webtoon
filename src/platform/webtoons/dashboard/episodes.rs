@@ -17,6 +17,7 @@ use crate::{
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 
+#[expect(unused)]
 pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     // TODO: This might be more robust if this was calculated dynamically, but
     // there isn't really a nice was of doing this.
