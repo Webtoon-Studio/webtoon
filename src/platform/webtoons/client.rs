@@ -38,7 +38,7 @@ use crate::{
     stdx::{
         cache::Cache,
         error::{Assume, assume, assumption},
-        http::{DEFAULT_USER_AGENT, IRetry},
+        http::{DEFAULT_USER_AGENT, RequestExt},
     },
 };
 use scraper::Html;

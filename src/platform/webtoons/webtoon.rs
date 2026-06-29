@@ -30,7 +30,7 @@ use crate::{
     },
     stdx::{
         cache::{Cache, Store},
-        http::IRetry,
+        http::RequestExt,
     },
 };
 use core::fmt::{self, Debug};
