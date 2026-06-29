@@ -21,7 +21,7 @@ use crate::{
             creator_webtoons::CreatorWebtoons,
             dashboard::{analytics::SeriesAnalytics, episodes::DashboardEpisode},
             likes::RawLikesResponse,
-            posts::{Count, RawPostResponse},
+            posts::RawPostResponse,
             user_info::UserInfoRaw,
             webtoon_user_info::WebtoonUserInfo,
         },
@@ -947,50 +947,6 @@ impl Client {
             .await?;
 
         Ok(response.status() != 404 && response.status().is_success())
-    }
-
-    pub(super) async fn fetch_post_upvotes_and_downvotes(
-        &self,
-        post: &Post,
-    ) -> Result<Count, PostsError> {
-        let client = self;
-
-        let scope = match post.episode.webtoon.scope {
-            Scope::Original(_) => "w",
-            Scope::Canvas => "c",
-        };
-        let webtoon = post.episode.webtoon.id;
-        let episode = post.episode.number;
-
-        let id = post.id;
-
-        let url = format!(
-            "https://www.webtoons.com/p/api/community/v2/reaction/post_like/channel/{scope}_{webtoon}_{episode}/content/{id}/emotion/count",
-        );
-
-        let request = match client.session.validate(client).await {
-            Ok(session) => client
-                .http
-                .get(&url)
-                .header("Cookie", format!("NEO_SES={session}")),
-            Err(SessionError::NoSessionProvided) => client.http.get(&url),
-            Err(SessionError::InvalidSession) => return Err(PostsError::InvalidSession),
-            Err(SessionError::Internal(err)) => return Err(err.into()),
-            Err(SessionError::RequestFailed(err)) => return Err(err.into()),
-        };
-
-        let response = request
-            .header("Service-Ticket-Id", "epicom")
-            .retry()
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        let count = serde_json::from_str::<Count>(&response)
-           .with_assumption(|| format!("failed to deserialize post upvote/downvote api response from `webtoons.com` response `{response}`"))?;
-
-        Ok(count)
     }
 
     pub(super) async fn fetch_replies_for_post(
