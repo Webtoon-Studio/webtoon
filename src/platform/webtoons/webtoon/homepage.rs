@@ -77,47 +77,56 @@ impl Homepage {
 
     #[inline]
     pub(crate) fn title(&self) -> &str {
-        &self.title
+        let homepage = self;
+        &homepage.title
     }
 
     #[inline]
     pub(crate) fn creators(&self) -> &[Creator] {
-        &self.creators
+        let homepage = self;
+        &homepage.creators
     }
 
     #[inline]
     pub(crate) fn genres(&self) -> &[Genre] {
-        &self.genres
+        let homepage = self;
+        &homepage.genres
     }
 
     #[inline]
     pub(crate) fn summary(&self) -> &str {
-        &self.summary
+        let homepage = self;
+        &homepage.summary
     }
 
     #[inline]
     pub(crate) fn views(&self) -> u64 {
-        self.views
+        let homepage = self;
+        homepage.views
     }
 
     #[inline]
     pub(crate) fn subscribers(&self) -> u32 {
-        self.subscribers
+        let homepage = self;
+        homepage.subscribers
     }
 
     #[inline]
     pub(crate) fn schedule(&self) -> Option<&Schedule> {
-        self.schedule.as_ref()
+        let homepage = self;
+        homepage.schedule.as_ref()
     }
 
     #[inline]
     pub(crate) fn thumbnail(&self) -> Option<&str> {
-        self.thumbnail.as_ref().map(|url| url.as_str())
+        let homepage = self;
+        homepage.thumbnail.as_ref().map(|url| url.as_str())
     }
 
     #[inline]
     pub(crate) fn banner(&self) -> Option<&str> {
-        self.banner.as_ref().map(Url::as_str)
+        let homepage = self;
+        homepage.banner.as_ref().map(Url::as_str)
     }
 }
 

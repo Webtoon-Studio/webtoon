@@ -237,20 +237,16 @@ async fn english_original_episode_with_normal_reader() {
 async fn english_canvas_episode_with_normal_reader() {
     let client = Client::new();
 
-    let webtoon = client
-        .webtoon(1082723, Type::Canvas)
-        .await
-        .unwrap()
-        .unwrap();
+    let webtoon = client.webtoon(255097, Type::Canvas).await.unwrap().unwrap();
 
     let episode = webtoon
-        .episode(10)
+        .episode(301)
         .await
         .unwrap()
-        .expect("No episode for given number");
+        .expect("episode should exist");
 
-    assert_eq!("EPISODE 2 PART 3", episode.title().await.unwrap());
-    assert_eq!(Some(26860), episode.length().await.unwrap());
+    assert_eq!("Chapter 265: Go Time", episode.title().await.unwrap());
+    assert_eq!(Some(65796), episode.length().await.unwrap());
 }
 
 #[tokio::test]
@@ -727,22 +723,19 @@ async fn english_canvas_creator_page_is_disabled_for_community_policy_violation(
     }
 }
 
-// TODO: Story completed, need to find a new one.
-// #[tokio::test]
-// async fn english_webtoon_everyday_is_daily_schedule() {
-//     let client = Client::new();
+#[tokio::test]
+async fn english_webtoon_everyday_is_daily_schedule() {
+    let client = Client::new();
 
-//     let webtoon = client
-//         .webtoon_from_url(
-//             "https://www.webtoons.com/en/romance/goodbye-my-juliet/list?title_no=9870",
-//         )
-//         .unwrap();
+    let webtoon = client
+        .webtoon_from_url("https://www.webtoons.com/en/action/tomb-raider-king/list?title_no=10204")
+        .unwrap();
 
-//     match webtoon.schedule().await.unwrap() {
-//         Some(Schedule::Daily) => {}
-//         _ => unreachable!(),
-//     }
-// }
+    match webtoon.schedule().await.unwrap() {
+        Some(Schedule::Daily) => {}
+        _ => unreachable!(),
+    }
+}
 
 #[tokio::test]
 async fn only_english_webtoons_com_supported() {

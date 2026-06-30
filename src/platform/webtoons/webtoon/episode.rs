@@ -1,7 +1,7 @@
 //! Module containing things related to an episode on `webtoons.com`.
 
 use super::{Webtoon, post::PinRepresentation};
-use crate::platform::webtoons::webtoon::post::{Comment, Comments};
+use crate::platform::webtoons::webtoon::post::{Comments, id::Id};
 use crate::stdx::cache::{Cache, Store};
 use crate::stdx::error::{Assume, Assumption, assume, assumption};
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
     },
     stdx::time::DateOrDateTime,
 };
+use arrayvec::ArrayVec;
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
@@ -55,7 +56,7 @@ pub struct Episode {
     pub(crate) ad_status: Option<AdStatus>,
     pub(crate) published_status: Option<PublishedStatus>,
     pub(crate) panels: Cache<Vec<Panel>>,
-    pub(crate) top_comments: Cache<[Option<Comment>; 3]>,
+    pub(crate) top_comments: Cache<ArrayVec<Id, 3>>,
 }
 
 impl std::fmt::Debug for Episode {
@@ -459,7 +460,8 @@ impl Episode {
     /// ```
     #[inline]
     pub fn posts(&self) -> Comments<'_> {
-        Comments::new(self)
+        let episode = self;
+        Comments::new(episode)
     }
 
     /// Returns a list of panels for this [`Episode`].
@@ -671,7 +673,10 @@ impl Episode {
     pub async fn download(&self) -> Result<DownloadedPanels, EpisodeError> {
         use tokio::sync::Semaphore;
 
-        let mut panels = self.panels().await?;
+        let episode = self;
+        let client = &self.webtoon.client;
+
+        let mut panels = episode.panels().await?;
 
         // TODO: Can get rid of this? Think this is the only `sync` dep from tokio being used.
         // PERF: Download N panels at a time. Without this it will be a sequential.
@@ -686,7 +691,7 @@ impl Episode {
                 .await
                 .assumption("failed to acquire `Episode::download` sepmahore")?;
 
-            panel.download(&self.webtoon.client).await?;
+            panel.download(client).await?;
 
             drop(semaphore);
 
@@ -986,7 +991,7 @@ fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
         })?,
     };
 
-    // assumption!(
+    // assume!(
     //     // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
     //     // TODO: found canvas `903679` episode 1 which has 1365.3333333333333, so unsure how we want to handle this, as it breaks the stated limits.
     //     height <= 1280,
@@ -1068,49 +1073,56 @@ impl Published {
     #[inline]
     #[must_use]
     pub fn day(&self) -> u32 {
-        self.0.day()
+        let published = &self.0;
+        published.day()
     }
 
     /// Returns the month. Always available regardless of precision.
     #[inline]
     #[must_use]
     pub fn month(&self) -> u32 {
-        self.0.month()
+        let published = &self.0;
+        published.month()
     }
 
     /// Returns the year. Always available regardless of precision.
     #[inline]
     #[must_use]
     pub fn year(&self) -> i32 {
-        self.0.year()
+        let published = &self.0;
+        published.year()
     }
 
     /// Returns the hour in 24-hour format, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn hour(&self) -> Option<u32> {
-        self.0.hour()
+        let published = &self.0;
+        published.hour()
     }
 
     /// Returns the minute, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn minute(&self) -> Option<u32> {
-        self.0.minute()
+        let published = &self.0;
+        published.minute()
     }
 
     /// Returns the second, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn second(&self) -> Option<u32> {
-        self.0.second()
+        let published = &self.0;
+        published.second()
     }
 
     /// Returns the Unix timestamp in non-leap seconds since `1970-01-01 00:00:00 UTC`, or `None` for date-only values.
     #[inline]
     #[must_use]
     pub fn timestamp(&self) -> Option<i64> {
-        self.0.timestamp()
+        let published = &self.0;
+        published.timestamp()
     }
 }
 
@@ -1219,8 +1231,10 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             url,
             episode,
             // Panels are 1-indexed.
-            number: u16::try_from(number + 1)
-                .assumption("`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode, this would be ridiculous")?,
+            number: u16::try_from(number + 1) //
+                .assumption(
+                    "`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode",
+                )?,
             height: height(img)?,
             width: width(img)?,
             ext,
@@ -1334,17 +1348,18 @@ impl DownloadedPanels {
         P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
-
         tokio::fs::create_dir_all(path).await?;
 
-        let first = self
+        let panels = self;
+
+        let first = panels
             .images
             .first()
             .assumption("`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!")?;
 
         let episode = first.episode;
-        let width = self.width;
-        let height = self.height;
+        let width = panels.width;
+        let height = panels.height;
 
         let path = path.join(episode.to_string()).with_extension("png");
 
@@ -1354,7 +1369,7 @@ impl DownloadedPanels {
 
         let mut offset = 0;
 
-        for panel in &self.images {
+        for panel in &panels.images {
             let bytes = panel.bytes.as_slice();
 
             let image =  image::load_from_memory(bytes)
@@ -1410,10 +1425,11 @@ impl DownloadedPanels {
         P: AsRef<std::path::Path> + Send,
     {
         let path = path.as_ref();
-
         tokio::fs::create_dir_all(path).await?;
 
-        for panel in &self.images {
+        let panels = self;
+
+        for panel in &panels.images {
             let name = format!("{}-{}", panel.episode, panel.number);
             let path = path.join(name).with_extension(&panel.ext);
 

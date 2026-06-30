@@ -20,42 +20,49 @@ impl Item {
     #[inline]
     #[must_use]
     pub fn id(&self) -> u32 {
-        self.id
+        let webtoon = self;
+        webtoon.id
     }
 
     /// Returns the [`Type`] of the Webtoon: `Original` or `Canvas`:
     #[inline]
     #[must_use]
     pub fn r#type(&self) -> Type {
-        self.r#type
+        let webtoon = self;
+        webtoon.r#type
     }
 
     /// Returns the title of the Webtoon.
     #[inline]
     #[must_use]
     pub fn title(&self) -> &str {
-        &self.title
+        let webtoon = self;
+        &webtoon.title
     }
 
     /// Returns the thumbnail of the Webtoon.
     #[inline]
     #[must_use]
     pub fn thumbnail(&self) -> &str {
-        &self.thumbnail
+        let webtoon = self;
+        &webtoon.thumbnail
     }
 
     /// Returns the name of the creator for the Webtoon.
     #[inline]
     #[must_use]
     pub fn creator(&self) -> &str {
-        &self.creator
+        let webtoon = self;
+        &webtoon.creator
     }
 
     /// Turns a search result into a [`Webtoon`].
     pub async fn into_webtoon(self) -> Result<Webtoon, ClientError> {
-        let webtoon = self
-            .client
-            .webtoon(self.id, self.r#type)
+        let webtoon = self;
+        let client = webtoon.client;
+
+        let webtoon = client
+            .webtoon(webtoon.id, webtoon.r#type)
             .await?
             .assumption("`webtoons.com` search should only return visible, existing series")?;
 
