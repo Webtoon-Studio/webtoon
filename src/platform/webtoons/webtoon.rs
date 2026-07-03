@@ -5,6 +5,7 @@ mod homepage;
 pub mod episode;
 pub mod post;
 
+use assumptions::{assume_matches, assumption};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -19,7 +20,6 @@ use super::{Client, creator::Creator};
 use crate::platform::webtoons::dashboard;
 use crate::platform::webtoons::webtoon::episode::Episode;
 use crate::platform::webtoons::webtoon::homepage::Homepage;
-use crate::stdx::error::{assume_matches, assumption};
 use crate::{
     platform::webtoons::{
         error::{

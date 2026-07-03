@@ -1,15 +1,13 @@
 //! Module representing a webtoons RSS feed.
 
+use assumptions::{Assume, Assumption, assume};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::str::FromStr;
 use url::Url;
 
 use crate::{
     platform::webtoons::{creator::Creator, error::WebtoonError, webtoon::episode::Published},
-    stdx::{
-        cache::Cache,
-        error::{Assume, Assumption, assume},
-    },
+    stdx::cache::Cache,
 };
 
 use super::{

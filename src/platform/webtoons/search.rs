@@ -1,9 +1,8 @@
 //! Module representing `webtoons.com` search.
 
-use crate::{
-    platform::webtoons::{Client, Type, Webtoon, error::ClientError},
-    stdx::error::Assume,
-};
+use assumptions::Assume;
+
+use crate::platform::webtoons::{Client, Type, Webtoon, error::ClientError};
 
 /// Represents a single item in the search result.
 pub struct Item {

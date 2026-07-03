@@ -3,11 +3,9 @@
 use super::Episode;
 use crate::{
     platform::webtoons::{Webtoon, error::PostsError},
-    stdx::{
-        cache::{Cache, Store},
-        error::{Assume, Assumption, assume_matches},
-    },
+    stdx::cache::{Cache, Store},
 };
+use assumptions::{Assume, Assumption, assume_matches};
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
 use id::Id;
@@ -433,9 +431,9 @@ mod iter {
     use std::collections::VecDeque;
 
     use arrayvec::ArrayVec;
+    use assumptions::assume;
 
     use super::{Comment, Episode, Id, PinRepresentation, Post, PostsError};
-    use crate::stdx::error::assume;
 
     /// Internal state machine for the [`Comments`] iterator.
     ///
@@ -1473,10 +1471,8 @@ pub(crate) enum PinRepresentation {
 pub mod id {
     //! Module representing the post id format on `webtoons.com`.
 
-    use crate::stdx::{
-        base36::Base36,
-        error::{Assume, Assumption, assume_matches, assumption},
-    };
+    use crate::stdx::base36::Base36;
+    use assumptions::{Assume, Assumption, assume_matches, assumption};
     use serde::{Deserialize, Serialize};
     use std::{
         cmp::Ordering,

@@ -11,7 +11,7 @@ pub use _inner::{
 };
 
 mod _inner {
-    use crate::stdx::error::Assumption;
+    use assumptions::Assumption;
     use error_set::error_set;
 
     error_set! {

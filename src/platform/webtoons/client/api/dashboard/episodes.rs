@@ -1,12 +1,12 @@
+use assumptions::{Assumption, assumption};
 use serde::Deserialize;
 use std::hash::Hash;
 
-use crate::{
-    platform::webtoons::dashboard::episodes::DashboardStatus,
-    stdx::error::{Assumption, assumption},
-};
+use crate::platform::webtoons::dashboard::episodes::DashboardStatus;
 
-pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Assumption> {
+type Type = Assumption;
+
+pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Type> {
     const START: &str = "dashboardEpisodeList: ";
     const END: char = ',';
 

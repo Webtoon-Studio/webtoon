@@ -3,11 +3,9 @@
 use super::{Client, Webtoon, error::CreatorError};
 use crate::{
     platform::webtoons::error::{ClientError, CreatorWebtoonsError},
-    stdx::{
-        cache::{Cache, Store},
-        error::{Assume, Assumption, assume, assumption},
-    },
+    stdx::cache::{Cache, Store},
 };
+use assumptions::{Assume, Assumption, assume, assumption};
 use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};

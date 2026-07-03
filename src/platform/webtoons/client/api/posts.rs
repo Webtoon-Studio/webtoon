@@ -8,11 +8,9 @@ use crate::{
             post::{Body, Flare, Giphy, Post, Poster, Reaction, Sticker, id::Id},
         },
     },
-    stdx::{
-        cache::Cache,
-        error::{Assume, assume},
-    },
+    stdx::cache::Cache,
 };
+use assumptions::{Assume, assume};
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
