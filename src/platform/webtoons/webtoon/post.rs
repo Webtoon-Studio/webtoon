@@ -520,7 +520,7 @@ mod iter {
 
                     assume!(
                         count < 4,
-                        "there should only be at most 3 top comments on `webtoons.com` episode"
+                        "`webtoons.com` episode should have at most 3 top comments, got: {count}"
                     );
 
                     let mut top_comments = ArrayVec::new();
@@ -1191,37 +1191,37 @@ impl FromStr for Sticker {
         // "wt_001-v2-1" -> (`wt`, `001-v2-1`)
         let (pack, rest) = id
             .split_once('_')
-            .assumption("sticker id should contain `_` separating pack name from the rest")?;
+            .with_assumption(||format!("sticker id from `webtoons.com` should contain `_` separating pack name from rest, got: `{id}`"))?;
 
         let mut parts = rest.split('-');
 
         let pack_number = parts
             .next()
-            .assumption("sticker id should have a pack number after `_`")?
+            .with_assumption(|| format!("sticker id from `webtoons.com` should have a pack number after `_`, got: `{id}`"))?
             .parse()
-            .assumption("sticker pack number should be a valid `u16`")?;
+            .with_assumption(|| format!("sticker pack number from `webtoons.com` should be parseable as a `u16`, got: `{id}`"))?;
 
         let next = parts
             .next()
-            .assumption("sticker id should have at least one more part after the pack number")?;
+            .with_assumption(|| format!("sticker id from `webtoons.com` should have at least one part after the pack number, got: `{id}`"))?;
 
         let (version, id) = match next {
             v if v.starts_with('v') => {
                 let version = v
                     .trim_start_matches('v')
                     .parse::<u16>()
-                    .assumption("sticker version should be a valid `u16`")?;
+                    .with_assumption(|| format!("sticker version from `webtoons.com` should be parseable as a `u16`, got: `{v}`"))?;
                 let sticker_id = parts
                     .next()
-                    .assumption("sticker id should have an id part after the version")?
+                    .with_assumption(|| format!("sticker id from `webtoons.com` should have an id part after the version, got: `{id}`"))?
                     .parse::<u16>()
-                    .assumption("sticker id should be a valid `u16`")?;
+                    .with_assumption(||format!("sticker id part from `webtoons.com` should be parseable as a `u16`, got: `{id}`"))?;
                 (Some(version), sticker_id)
             }
             id => {
                 let sticker_id = id
                     .parse::<u16>()
-                    .assumption("sticker id should be a valid `u16`")?;
+                    .with_assumption(|| format!("sticker id part from `webtoons.com` should be parseable as a `u16`, got: `{id}`"))?;
                 (None, sticker_id)
             }
         };
@@ -1229,7 +1229,7 @@ impl FromStr for Sticker {
         assume_matches!(
             parts.next(),
             None,
-            "all parts of sticker id should have been consumed"
+            "sticker id from `webtoons.com` should have no remaining parts after parsing, got: `{id}`"
         );
 
         let sticker = Self {
@@ -1514,10 +1514,10 @@ pub mod id {
 
             let id = match str.split_once("GW-epicom") {
                 Some((_, id)) if !id.is_empty() => id.trim_start_matches(':'),
-                Some(_) => assumption!(
-                    "splitting on `GW-epicom` should yield a suffix that is never empty: `{str}`"
-                ),
-                None => assumption!("`GW-epicom` should always be part of a posts' id: `{str}`"),
+                Some(_) => {
+                    assumption!("`GW-epicom` suffix in post id should never be empty, got: `{str}`")
+                }
+                None => assumption!("post id should always contain `GW-epicom`, got: `{str}`"),
             };
 
             let mut tag = None;
@@ -1533,7 +1533,7 @@ pub mod id {
             for part in id.split('-') {
                 match state {
                     Parse::Tag => {
-                        tag = Some(part.parse::<u32>().assumption("")?);
+                        tag = Some(part.parse::<u32>().with_assumption(|| format!( "tag part of post id from `webtoons.com` should be parseable as a `u32`, got: `{part}`"))?);
                         state = Parse::PageId;
                     }
                     Parse::PageId => {
@@ -1543,24 +1543,28 @@ pub mod id {
                         scope = match page_id.next() {
                             Some("w") => Some(Scope::W),
                             Some("c") => Some(Scope::C),
-                            Some(s) => assumption!("should be `w` or `c`, found: {s}"),
-                            None => assumption!("page id should consist of 3 parts: {part}"),
+                            Some(s) => assumption!(
+                                "scope part of post id from `webtoons.com` should be `w` or `c`, got: `{s}`"
+                            ),
+                            None => assumption!(
+                                "page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"
+                            ),
                         };
 
                         webtoon = match page_id.next() {
-                            Some(webtoon) => Some(webtoon.parse::<u32>().assumption("")?),
-                            None => assumption!("page id should consist of 3 parts: {part}"),
+                            Some(webtoon) => Some(webtoon.parse::<u32>().with_assumption(||format!("webtoon part of post id from `webtoons.com` should be parseable as a `u32`, got: `{webtoon}`"))?),
+                            None => assumption!("page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"),
                         };
 
                         episode = match page_id.next() {
-                            Some(episode) => Some(episode.parse::<u16>().assumption("")?),
-                            None => assumption!("page id should consist of 3 parts: {part}"),
+                            Some(episode) => Some(episode.parse::<u16>().with_assumption(||format!("episode part of post id from `webtoons.com` should be parseable as a `u16`, got: `{episode}`"))?),
+                            None => assumption!("page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"),
                         };
 
                         assume_matches!(
                             page_id.next(),
                             None,
-                            "`page_id` should only have 3 parts: {part}"
+                            "page id part of post id from `webtoons.com` should have exactly 3 parts, got extra: `{part}`"
                         );
 
                         state = Parse::Post;
@@ -1568,7 +1572,7 @@ pub mod id {
                     Parse::Post => {
                         post = Some(
                             part.parse::<Base36>()
-                                .assumption("Id post number should be in base36")?,
+                                .with_assumption(||format!("post number in post id from `webtoons.com` should be parseable as base36, got: `{part}`"))?,
                         );
                         state = Parse::Reply;
                     }
@@ -1577,7 +1581,7 @@ pub mod id {
                         // the id, so we can wrap in `Some` unconditionally.
                         reply = Some(
                             part.parse::<Base36>()
-                                .assumption("Id reply number should be in base36")?,
+                                .with_assumption(||format!("reply number in post id from `webtoons.com` should be parseable as base36, got: `{part}`"))?,
                         );
                     }
                 }
@@ -1590,21 +1594,11 @@ pub mod id {
             );
 
             let id = Self {
-                tag: tag.with_assumption(|| {
-                    format!("`tag` in post Id should have been populated: `{str}`")
-                })?,
-                scope: scope.with_assumption(|| {
-                    format!("`scope` in post Id should have been populated: `{str}`")
-                })?,
-                webtoon: webtoon.with_assumption(|| {
-                    format!("`webtoon` in post Id should have been populated: `{str}`")
-                })?,
-                episode: episode.with_assumption(|| {
-                    format!("`episode` in post Id should have been populated: `{str}`")
-                })?,
-                post: post.with_assumption(|| {
-                    format!("`post` in post Id should have been populated: `{str}`")
-                })?,
+                tag: tag.expect("`tag` should be populated by the parsing loop"),
+                scope: scope.expect("`scope` should be populated by the parsing loop"),
+                webtoon: webtoon.expect("`webtoon` should be populated by the parsing loop"),
+                episode: episode.expect("`episode` should be populated by the parsing loop"),
+                post: post.expect("`post` should be populated by the parsing loop"),
                 reply,
             };
 

@@ -34,7 +34,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
 
     assume!(
         dashboard_episodes.len() <= usize::from(MAX_EPISODES_PER_PAGE),
-        "`webtoons.com` episode dashboard was expected to have a max of 10 per page, but had: {}",
+        "`webtoons.com` episode dashboard page should have at most {MAX_EPISODES_PER_PAGE} episodes, got: {}",
         dashboard_episodes.len()
     );
 
@@ -51,7 +51,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         let published = match episode.published.map(DateTime::from_timestamp_millis) {
             Some(Some(published)) => Some(Published::from(published)),
             Some(None) => assumption!(
-                "`webtoons.com` should always return a valid unix millisecond timestamp, got: `{:?}`",
+                "`webtoons.com` episode dashboard should always return a valid unix millisecond timestamp, got: `{:?}`",
                 episode.published
             ),
             None => None,
@@ -60,7 +60,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         if matches!(episode.dashboard_status, DashboardStatus::Published) {
             assume_matches!(
                 published, Some(date) if date.year() >= 2014,
-                "if an episode is published, then its published year must be at least 2014"
+                "`webtoons.com` published episode should have a publish year of 2014 or later"
             );
         }
 
@@ -91,7 +91,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
             let published = match episode.published.map(DateTime::from_timestamp_millis) {
                 Some(Some(published)) => Some(Published::from(published)),
                 Some(None) => assumption!(
-                    "`webtoons.com` should always return a valid unix millisecond timestamp, got: {:?}",
+                    "`webtoons.com` episode dashboard should always return a valid unix millisecond timestamp, got: `{:?}`",
                     episode.published
                 ),
                 None => None,
@@ -124,7 +124,7 @@ pub async fn scrape(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
 
     assume!(
         u16::try_from(episodes.len()).is_ok(),
-        "`webtoons.com` Webtoons should never have more than 65,535 episodes, had `{}`",
+        "`webtoons.com` Webtoon should not have more than 65,535 episodes, got: {}",
         episodes.len()
     );
 

@@ -9,7 +9,7 @@ use thiserror::Error;
 
 pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsError> {
     let selector = Selector::parse("ul.webtoon_list>li>a") //
-        .assumption("`ul.webtoon_list>li>a` should be a valid selector")?;
+        .expect("`ul.webtoon_list>li>a` should be a valid selector");
 
     let days = [
         "monday",
@@ -32,12 +32,13 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
 
     for html in documents {
         for card in html.select(&selector) {
-            let href = card
-                .attr("href")
-                .assumption("html on `webtoons.com` Originals page should always have Webtoon card elements with `href` attributes in their `a` tag")?;
+            let href = card.attr("href").assumption(
+                "`a` tag on `webtoons.com` Originals page should always have an `href` attribute",
+            )?;
 
-            let webtoon =  Webtoon::from_url_with_client(href, client)
-                .assumption("urls gotten from `webtoons.com` Originals page should be valid urls for making a `Webtoon`")?;
+            let webtoon = Webtoon::from_url_with_client(href, client).assumption(
+                "url found on `webtoons.com` Originals page should be parseable as a `Webtoon`",
+            )?;
 
             webtoons.push(webtoon);
         }
@@ -45,7 +46,7 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
 
     assume!(
         !webtoons.is_empty(),
-        "after scraping `webtoons.com` Originals page, there should be at least some Webtoons that were found"
+        "`webtoons.com` Originals page should have at least one webtoon card"
     );
 
     Ok(webtoons)

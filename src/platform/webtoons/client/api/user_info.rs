@@ -1,4 +1,3 @@
-use assumptions::{Assume, Assumption};
 use serde::Deserialize;
 
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
@@ -110,17 +109,17 @@ impl UserInfo {
     }
 }
 
-impl TryFrom<UserInfoRaw> for UserInfo {
-    type Error = Assumption;
-    fn try_from(user: UserInfoRaw) -> Result<Self, Self::Error> {
-        let username = user.username
-            .assumption("`UserInfoRaw::username` was `None`, and when using `try_from|into`, should be checked beforehand that it is `Some`")?;
+impl From<UserInfoRaw> for UserInfo {
+    fn from(user: UserInfoRaw) -> Self {
+        let username = user
+            .username
+            .expect("`UserInfoRaw::username` should be `Some` before calling `try_from`");
 
-        Ok(Self {
+        Self {
             is_canvas_creator: user.is_canvas_creator,
             username,
             profile: user.profile,
-        })
+        }
     }
 }
 

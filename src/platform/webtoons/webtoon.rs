@@ -13,6 +13,7 @@ use thiserror::Error;
 pub mod rss;
 #[cfg(feature = "rss")]
 use rss::Rss;
+use url::Url;
 
 use super::error::WebtoonError;
 use super::originals::Schedule;
@@ -392,6 +393,10 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
+    #[allow(
+        clippy::todo,
+        reason = "its unknown how we should handle the new dashboard information"
+    )]
     pub async fn subscribers(&self) -> Result<u32, SubscribersError> {
         let webtoon = self;
         let client = &self.client;
@@ -849,15 +854,13 @@ impl Webtoon {
             return Ok(None);
         }
 
-        let url = response.url();
-
-        let (scope, slug, _) = match parse_url(url) {
+        let (scope, slug, _) = match parse_url(response.url()) {
             Ok(parts) => parts,
             Err(InvalidWebtoonUrl::UnsupportedLanguage) => {
                 return Err(ClientError::UnsupportedLanguage);
             }
             Err(err) => {
-                assumption!("`webtoons.com` returned an unexpected url format for `{url}`: {err}")
+                assumption!("all URLs returned from `webtoons.com` should be valid URLs: {err}")
             }
         };
 
@@ -877,11 +880,14 @@ impl Webtoon {
         url: &str,
         client: &Client,
     ) -> Result<Self, InvalidWebtoonUrl> {
-        let Ok(url) = url::Url::parse(url) else {
-            return Err(InvalidWebtoonUrl::Malformed {
-                url: url.to_owned(),
-                reason: String::from("invalid url schema"),
-            });
+        let url = match Url::parse(url) {
+            Ok(url) => url,
+            Err(err) => {
+                return Err(InvalidWebtoonUrl::Malformed {
+                    url: url.to_owned(),
+                    reason: err.to_string(),
+                });
+            }
         };
 
         let (scope, slug, id) = parse_url(&url)?;
@@ -899,7 +905,7 @@ impl Webtoon {
 }
 
 #[inline]
-fn parse_url(url: &url::Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
+fn parse_url(url: &Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
     let Some(mut segments) = url.path_segments() else {
         return Err(InvalidWebtoonUrl::Malformed {
             url: url.to_string(),

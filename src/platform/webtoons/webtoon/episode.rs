@@ -11,7 +11,7 @@ use crate::{
     stdx::time::DateOrDateTime,
 };
 use arrayvec::ArrayVec;
-use assumptions::{Assume, Assumption, assume, assumption};
+use assumptions::{Assume, Assumption, assume, assume_matches, assumption};
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
@@ -158,9 +158,9 @@ impl Episode {
                 episode.scrape().await?;
                 match episode.title.get() {
                     Store::Value(title) => Ok(title),
-                    Store::Empty => assumption!(
-                        "`webtoons.com` episode `title` should have been populated with `episode.scrape()`; this should never be `Empty`"
-                    ),
+                    Store::Empty => {
+                        unreachable!("`episode.title` should be populated after `episode.scrape()`")
+                    }
                 }
             }
         }
@@ -193,7 +193,7 @@ impl Episode {
     pub async fn season(&self) -> Result<Option<u8>, EpisodeError> {
         let episode = self;
         let title = episode.title().await?;
-        Ok(season(&title)?)
+        Ok(season(&title))
     }
 
     /// Returns the creator's note for this [`Episode`], if any.
@@ -228,9 +228,9 @@ impl Episode {
                 episode.scrape().await?;
                 match episode.note.get() {
                     Store::Value(note) => Ok(note),
-                    Store::Empty => assumption!(
-                        "`webtoons.com` episode `note` should have been populated with `self.scrape`, and thus should never be `Empty`"
-                    ),
+                    Store::Empty => {
+                        unreachable!("`episode.note` should be populated after `episode.scrape()`")
+                    }
                 }
             }
         }
@@ -267,8 +267,8 @@ impl Episode {
                 episode.scrape().await?;
                 match episode.length.get() {
                     Store::Value(length) => Ok(length),
-                    Store::Empty => assumption!(
-                        "`webtoons.com` episode `length` should have been populated with `episode.scrape`, and thus should never be `Empty`"
+                    Store::Empty => unreachable!(
+                        "`episode.length` should be populated after `episode.scrape()`"
                     ),
                 }
             }
@@ -377,7 +377,7 @@ impl Episode {
             .result
             .contents
             .first()
-            .assumption("`contents` field in `webtoons.com` likes api response was empty")?;
+            .assumption("`contents` field in `webtoons.com` likes API response should have at least one element")?;
 
         let likes = contents
             .reactions
@@ -494,8 +494,8 @@ impl Episode {
                 episode.scrape().await?;
                 match episode.panels.get() {
                     Store::Value(panels) => Ok(panels),
-                    Store::Empty => assumption!(
-                        "`webtoons.com` episode `panels` should have been populated with `episode.scrape`, and thus should never be `Empty`"
+                    Store::Empty => unreachable!(
+                        "`episode.panels` should be populated after `episode.scrape()`"
                     ),
                 }
             }
@@ -532,8 +532,8 @@ impl Episode {
                 episode.scrape().await?;
                 match episode.thumbnail.get() {
                     Store::Value(thumbnail) => Ok(thumbnail.to_string()),
-                    Store::Empty => assumption!(
-                        "`webtoons.com` episode `thumbnail` should have been populated with `self.scrape`, and thus should never be `Empty`"
+                    Store::Empty => unreachable!(
+                        "`episode.thumbnail` should be populated after `episode.scrape()`"
                     ),
                 }
             }
@@ -670,6 +670,10 @@ impl Episode {
     /// # }
     /// ```
     #[cfg(feature = "download")]
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "a Semaphore not being able to close is an internal logic error, and caught in CI"
+    )]
     pub async fn download(&self) -> Result<DownloadedPanels, EpisodeError> {
         use tokio::sync::Semaphore;
 
@@ -689,7 +693,7 @@ impl Episode {
             let semaphore = semaphore
                 .acquire()
                 .await
-                .assumption("failed to acquire `Episode::download` sepmahore")?;
+                .expect("semaphore should not be closed during `Episode::download`");
 
             panel.download(client).await?;
 
@@ -736,7 +740,7 @@ impl Episode {
             .fetch_episode_page(&self.webtoon, self.number)
             .await?;
 
-        if only_viewable_on_app(&html)? {
+        if only_viewable_on_app(&html) {
             return Err(EpisodeError::NotViewable);
         }
 
@@ -756,7 +760,7 @@ impl Episode {
     }
 }
 
-pub(crate) fn season(title: &str) -> Result<Option<u8>, Assumption> {
+pub(crate) fn season(title: &str) -> Option<u8> {
     let patterns = [
         r"\[Season (?P<season>\d+)\]",
         r"\[S(?P<season>\d+)\]",
@@ -765,16 +769,16 @@ pub(crate) fn season(title: &str) -> Result<Option<u8>, Assumption> {
     ];
 
     for pattern in patterns {
-        let regex = Regex::new(pattern).assumption("season regex should be valid")?;
+        let regex = Regex::new(pattern).expect("all regex in `patterns` should be valid");
         if let Some(capture) = regex.captures(title) {
             let season = capture["season"]
                 .parse::<u8>()
-                .assumption(r"regex matched `\d+` so should be parsable as `u8`")?;
-            return Ok(Some(season));
+                .expect(r"regex matched `\d+` so should be parsable as `u8`");
+            return Some(season);
         }
     }
 
-    Ok(None)
+    None
 }
 
 impl Hash for Episode {
@@ -836,19 +840,19 @@ impl From<DashboardStatus> for PublishedStatus {
 
 fn title(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse("div.subj_info>.subj_episode") //
-        .assumption("`div.subj_info>.subj_episode` should be a valid selector")?;
+        .expect("`div.subj_info>.subj_episode` should be a valid selector");
 
     let title = html
         .select(&selector)
         .next()
-        .assumption("`.subj_episode`(title) is missing on `webtoons.com` episode page")?
+        .assumption("`.subj_episode` element should be present on `webtoons.com` episode page")?
         .text()
         .next()
-        .assumption("`.subj_episode`(title) was found on `webtoons.com` episode page, but no text was present")?;
+        .assumption("`.subj_episode` element on `webtoons.com` episode page should contain text")?;
 
     assume!(
         !title.is_empty(),
-        "`webtoons.com` episode title on episode page should never be empty"
+        "`webtoons.com` episode title should never be empty"
     );
 
     Ok(html_escape::decode_html_entities(title).to_string())
@@ -860,12 +864,12 @@ fn length(html: &Html) -> Result<Option<u32>, Assumption> {
     // also have the potential to be a whole number, with no `.`. This is true
     // for both height and width.
 
-    if is_audio_reader(html)? {
+    if is_audio_reader(html) {
         return Ok(None);
     }
 
     let selector = Selector::parse(r"img._images") //
-        .assumption("`img._images` should be a valid selector")?;
+        .expect("`img._images` should be a valid selector");
 
     let mut length = 0;
 
@@ -878,19 +882,20 @@ fn length(html: &Html) -> Result<Option<u32>, Assumption> {
 
 fn note(html: &Html) -> Result<Option<String>, Assumption> {
     let selector = Selector::parse(r".creator_note>.author_text") //
-        .assumption("`.creator_note>.author_text` should be a valid selector")?;
+        .expect("`.creator_note>.author_text` should be a valid selector");
 
     let Some(selection) = html.select(&selector).next() else {
         return Ok(None);
     };
 
-    let note = selection.text().next().assumption(
-        "`.author_text` on `webtoons.com` episode page was found, but no text was present",
-    )?;
+    let note = selection
+        .text()
+        .next()
+        .assumption("`.author_text` element on `webtoons.com` episode page should contain text")?;
 
     assume!(
         !note.is_empty(),
-        "if creator `note` is present on `webtoons.com` episode page, then it must not be empty"
+        "`.author_text` element on `webtoons.com` episode page should never be empty"
     );
 
     Ok(Some(html_escape::decode_html_entities(note).to_string()))
@@ -899,13 +904,14 @@ fn note(html: &Html) -> Result<Option<String>, Assumption> {
 fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
     let selector =
         Selector::parse(r"div.episode_lst>div.episode_cont>ul>li") //
-            .assumption(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector")?;
+            .expect(r"`div.episode_lst>div.episode_cont>ul>li` should be a valid selector");
 
     for li in html.select(&selector) {
         let data_episode_no =  li
             .attr("data-episode-no")
-            .assumption("`data-episode-no`(episodes next/prev list) attribute is missing on `webtoons.com` episode page, `li` should always have one")?
-            .parse::<u16>().assumption("`data-episode-no` should always be able to parse into a `u16`")?;
+            .assumption("`li` element on `webtoons.com` episode page should always have a `data-episode-no` attribute")?
+            .parse::<u16>()
+            .assumption("`data-episode-no` attribute on `webtoons.com` episode page should be parseable as a `u16`")?;
 
         // We look through all the episodes until we find the current one.
         if data_episode_no != episode {
@@ -913,81 +919,77 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
         }
 
         let selector = Selector::parse("a>span.thmb>img._thumbnailImages")
-            .assumption("`a>span.thmb>img._thumbnailImages` should be a valid selector")?;
+            .expect("`a>span.thmb>img._thumbnailImages` should be a valid selector");
 
         let url = li
             .select(&selector)
             .next()
-            .assumption(
-                "`img._thumbnailImages`(thumbnail) is missing in `webtoons.com` episode page, should have at least one, even if only for the currently viewed episode",
-            )?
+            .assumption("`img._thumbnailImages` element should be present in `webtoons.com` episode page `li`")?
             .attr("data-url")
-            .assumption("`data-url` is missing, `img._thumbnailimages` should always have one on `webtoons.com` episode page")?;
+            .assumption("`img._thumbnailImages` element on `webtoons.com` episode page should always have a `data-url` attribute")?;
 
         let mut thumbnail = Url::parse(url).with_assumption(|| {
-            format!("urls found on `webtoons.com` episode page should always be valid urls: {url}")
+            format!("url found on `webtoons.com` episode page should be parseable as a valid url: `{url}`")
         })?;
 
         thumbnail
             // This host doesn't need a `referer` header to see the image.
             .set_host(Some("swebtoon-phinf.pstatic.net"))
-            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
+            .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 
         return Ok(thumbnail);
     }
 
     assumption!(
-        "`webtoons.com` episode page should always have at least one thumbnail url on it, even if just for the currently viewed episode"
+        "`webtoons.com` episode page should have a thumbnail for the currently viewed episode"
     );
 }
 
 #[inline]
-fn is_audio_reader(html: &Html) -> Result<bool, Assumption> {
+fn is_audio_reader(html: &Html) -> bool {
     let selector = Selector::parse("button#soundControl")
-        .assumption("`button#soundControl` should be a valid selector")?;
+        .expect("`button#soundControl` should be a valid selector");
 
     // If `<button ... id="soundControl"` exists, then it is an audio reader
-    Ok(html.select(&selector).next().is_some())
+    html.select(&selector).next().is_some()
 }
 
 #[inline]
-fn only_viewable_on_app(html: &Html) -> Result<bool, Assumption> {
+fn only_viewable_on_app(html: &Html) -> bool {
     let selector = Selector::parse("div.publishing_wrap>img.qrcode")
-        .assumption("`div.publishing_wrap>img.qrcode` should be a valid selector")?;
+        .expect("`div.publishing_wrap>img.qrcode` should be a valid selector");
 
     // If QR exists, then episode can only be viewed on the app.
-    Ok(html.select(&selector).next().is_some())
+    html.select(&selector).next().is_some()
 }
 
 fn height(img: ElementRef<'_>) -> Result<u32, Assumption> {
     let value = img
         .value()
         .attr("height")
-        .assumption("`height` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+        .assumption("`img._images` element on `webtoons.com` episode page should always have a `height` attribute")?;
 
     let height = match value {
         float if let Some((int, fract)) = float.split_once('.') => {
             assume!(
                 !fract.is_empty(),
-                "if there was a float, the fractional component should not be empty: `1.`"
+                "fractional component of float height should not be empty, got: `{float}`"
             );
             assume!(
                 fract.chars().all(|ch| ch.is_ascii_digit()),
-                "fraction component of a float should only contain digits"
+                "fractional component of float height should only contain digits, got: `{fract}`"
             );
 
             // TODO: Fractional pixel values are truncated. This could cause slight overlap
             // when compositing panels into a single image, but there's no clean solution
             // until we know how common large fractional values are (e.g. `1365.3333...`).
             int.parse::<u32>().with_assumption(|| {
-                format!(
-                    "failed to parse integer part `{int}` of float height `{value}` into a `u32`"
-                )
+                    format!("integer part of float height on `webtoons.com` episode page should be parseable as a `u32`, got: `{int}`")
             })?
         }
         // Height can also be a whole number: `1280`.
         height => height.parse::<u32>().with_assumption(|| {
-            format!("failed to parse whole-number height `{height}` into a `u32`")
+            format!("whole-number height on `webtoons.com` episode page should be parseable as a `u32`, got: `{height}`")
         })?,
     };
 
@@ -1006,28 +1008,26 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
     let value = img
         .value()
         .attr("width")
-        .assumption("`width` attribute is missing in `img._images` on `webtoons.com` episode page, and should always have one")?;
+        .assumption("`img._images` element on `webtoons.com` episode page should always have a `width` attribute")?;
 
     let width = match value {
         float if let Some((int, fract)) = float.split_once('.') => {
             assume!(
                 !fract.is_empty(),
-                "if there was a float, the fractional component should not be empty: `1.`"
+                "fractional component of float width should not be empty, got: `{float}`"
             );
             assume!(
                 fract.chars().all(|ch| ch.is_ascii_digit()),
-                "fractional component of a float should only contain digits"
+                "fractional component of float width should only contain digits, got: `{fract}`"
             );
 
             int.parse::<u32>().with_assumption(|| {
-                format!(
-                    "failed to parse integer part `{int}` of float width `{value}` into a `u32`"
-                )
+                format!("integer part of float width on `webtoons.com` episode page should be parseable as a `u32`, got: `{int}`")
             })?
         }
         // Width can also be a whole number: `800`.
         width => width.parse::<u32>().with_assumption(|| {
-            format!("failed to parse whole-number width `{width}` into a `u32`")
+            format!("whole-number width on `webtoons.com` episode page should be parseable as a `u32`, got: `{width}`")
         })?,
     };
 
@@ -1035,7 +1035,7 @@ fn width(img: ElementRef<'_>) -> Result<u32, Assumption> {
         // NOTE: from `webtoons.com` episode upload page: `maximum dimensions, 800x1280px`.
         // TODO: There is a stated limit, but with height as an example, this, too, could be violated on the site.
         width <= 800,
-        "`webtoons.com` enforces strict limits of `800` pixels in width"
+        "`webtoons.com` episode panel width should be at most 800px, got: {width}"
     );
 
     Ok(width)
@@ -1181,12 +1181,12 @@ impl Panel {
 }
 
 fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
-    if is_audio_reader(html)? {
+    if is_audio_reader(html) {
         return Ok(Vec::new());
     }
 
     let selector = Selector::parse(r"img._images") //
-        .assumption("`img._images` should be a valid selector")?;
+        .expect("`img._images` should be a valid selector");
 
     let mut panels = Vec::new();
 
@@ -1198,43 +1198,38 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             // If we do not clean these, then the parsing of the `ext` will fail
             // as the part after the `#` will be part of fragment, not the path.
             .map(html_escape::decode_html_entities)
-            .assumption("`data-url` is missing, `img._images` should always have one on `webtoons.com` episode page")?;
+            .assumption("`img._images` element on `webtoons.com` episode page should always have a `data-url` attribute")?;
 
         let mut url = Url::parse(&data_url).with_assumption(|| {
-            format!(
-                "urls found on `webtoons.com` episode page should always be valid urls: {data_url}"
-            )
+            format!("url found on `webtoons.com` episode page should be parseable as a valid url: `{data_url}`")
         })?;
 
         // This host doesn't need a `referer` header to see the image.
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
-            .assumption("`swebtoon-phinf.pstatic.net` should be a valid host")?;
+            .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 
         let ext =  url
             .path()
             .split('.')
             .next_back()
             .map(|ext| ext.to_owned())
-            .with_assumption(|| format!("`webtoons.com` episode page panel image urls should end in an extension, got `{url}`"))?;
+            .with_assumption(|| format!("`webtoons.com` episode page panel image url should have a file extension, got: `{url}`"))?;
 
         // NOTE:
-        // `gif` is a supported format in some instances, despite wording
-        // that states only JPEG and PNG are accepted.
-        assume!(
-            ["jpeg", "JPEG", "png", "PNG", "jpg", "JPG", "gif", "GIF"]
-                .into_iter()
-                .any(|format| format == ext),
-            "`webtoons.com` limits the image formats to just JPEG(`jpeg`, `jpg`), PNG(`png`), and GIF(`gif`, `GIF`), but found `{ext}`"
+        // `gif` is a supported format in some instances, despite `webtoons.com`
+        // wording that states only JPEG and PNG are accepted.
+        assume_matches!(
+            ext.as_str(),
+            "jpeg" | "JPEG" | "png" | "PNG" | "jpg" | "JPG" | "gif" | "GIF",
+            "`webtoons.com` episode panel image should be jpeg, png, or gif"
         );
 
         panels.push(Panel {
             url,
             episode,
             // Panels are 1-indexed.
-            number: u16::try_from(number + 1) //
-                .assumption(
-                    "`webtoons.com` episodes shouldn't have more than 65,536 panels for an episode",
-                )?,
+            number: u16::try_from(number + 1)
+                .assumption("`webtoons.com` episode should not have more than 65,535 panels")?,
             height: height(img)?,
             width: width(img)?,
             ext,
@@ -1244,7 +1239,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 
     assume!(
         !panels.is_empty(),
-        "episodes on `webtoons.com` must have at least one panel on its viewer, platform doesnt let you create an episode without at least one"
+        "`webtoons.com` episode should have at least one panel"
     );
 
     Ok(panels)
@@ -1343,6 +1338,10 @@ impl DownloadedPanels {
     /// # Ok(())
     /// # }
     /// ```
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "should only panic if internal logic is wrong, and should be checked in CI"
+    )]
     pub async fn save_single<P>(&self, path: P) -> Result<(), SavePanelError>
     where
         P: AsRef<std::path::Path> + Send,
@@ -1355,7 +1354,7 @@ impl DownloadedPanels {
         let first = panels
             .images
             .first()
-            .assumption("`webtoons.com` episodes cannot have 0 panels; there must be at least one! This invariant should have been caught when getting the panels in the first place!")?;
+            .expect("`DownloadedPanels::images` should never be empty");
 
         let episode = first.episode;
         let width = panels.width;
@@ -1372,8 +1371,9 @@ impl DownloadedPanels {
         for panel in &panels.images {
             let bytes = panel.bytes.as_slice();
 
-            let image =  image::load_from_memory(bytes)
-                .assumption("`webtoons.com` panel image formats should all be supported by `image`, with its `png` and `jpeg` features")?;
+            let image = image::load_from_memory(bytes).assumption(
+                "`webtoons.com` episode panel image should be loadable by the `image` crate",
+            )?;
 
             for (x, y, pixels) in image.pixels() {
                 single.put_pixel(x, y + offset, pixels);
@@ -1384,13 +1384,12 @@ impl DownloadedPanels {
 
         match tokio::task::spawn_blocking(move || single.save_with_format(path, ImageFormat::Png))
             .await
-            .assumption(
-                "failed to join tokio handle trying to save single `webtoons.com` image to disk",
-            )? {
+            .expect("tokio task saving episode image to disk should not panic")
+        {
             Ok(()) => Ok(()),
             Err(image::ImageError::IoError(err)) => Err(SavePanelError::IoError(err)),
-            Err(err) => assumption!(
-                "got unexpected `image::ImageError`, when only expected to get `IoError` when saving image to disk: {err}"
+            Err(err) => unreachable!(
+                "saving episode image to disk should only produce `IoError`, got: `{err}`"
             ),
         }
     }

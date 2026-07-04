@@ -267,7 +267,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
             .reactions
             .first()
             .assumption(
-                "`reactions` field in `webtoons.com` raw post response didn't have a 0th element",
+                "`reactions` field in `webtoons.com` post API response should have at least one element",
             )?
             .emotions
             .as_slice();
@@ -291,7 +291,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
 
         assume!(
             !(liked && disliked),
-            "user cannot both have liked *and* disliked a post on `webtoons.com`; either or, neither, but not both"
+            "a user should not be able to both like and dislike a post on `webtoons.com` at the same time"
         );
 
         // The way `webtoons.com` keeps track of a like or dislike guarantees(?): they are mutually exclusive.
@@ -302,7 +302,7 @@ impl TryFrom<(&Episode, RawPost)> for Post {
         };
 
         let posted = DateTime::from_timestamp_millis(post.created_at)
-            .with_assumption(|| format!("timestamps returned from `webtoons.com` posts api should always be a valid unix millisecond timestamp, got `{}`", post.created_at))? ;
+            .with_assumption(|| format!("`webtoons.com` post API timestamp should be a valid unix millisecond timestamp, got: `{}`", post.created_at))? ;
 
         let mut webtoons = Vec::new();
         let mut super_like: Option<u32> = None;
@@ -313,17 +313,17 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                 Section::Giphy { data, .. } => {
                     assume!(
                         giphy_or_sticker.is_none(),
-                        "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
+                        "a post on `webtoons.com` should only ever have one flare at a time"
                     );
                     giphy_or_sticker = Some(Flare::Giphy(Giphy::new(data.giphy_id.clone())));
                 }
                 Section::Sticker { data, .. } => {
                     let sticker = Sticker::from_str(&data.sticker_id)
-                        .with_assumption(|| format!( "`webtoons.com` post sticker id (returned from `webtoons.com`) should always be a valid id `{}`", data.sticker_id))?;
+                        .with_assumption(|| format!("`webtoons.com` post sticker id should be parseable as a valid `Sticker`: `{}`", data.sticker_id))?;
 
                     assume!(
                         giphy_or_sticker.is_none(),
-                        "should always be `None`, as only one kind of flare can be added to a post at once. If this is `Some`, then that means there was multiple flares, and now we must handle that"
+                        "a post on `webtoons.com` should only ever have one flare at a time"
                     );
 
                     giphy_or_sticker = Some(Flare::Sticker(sticker));
@@ -338,13 +338,13 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                     };
 
                     let url =  url::Url::parse("https://www.webtoons.com")
-                        .assumption("`https://www.webtoons.com` should be a valid url")?
+                        .assumption("`https://www.webtoons.com` should be a valid base url")?
                         .join(path)
-                        .with_assumption(|| format!("`https://www.webtoons.com` should join with `episode_list_path` (returned by `webtoons.com`) to create a valid url `{path}`"))?;
+                        .with_assumption(|| format!("`episode_list_path` returned by `webtoons.com` should be joinable with the base url to form a valid url: `{path}`"))?;
 
                     let webtoon = client
                         .webtoon_from_url(url.as_str())
-                        .with_assumption(|| format!("url formed by joining known good base with returned data from `webtoons.com` should always yield a valid Webtoon homepage url `{url}`"))?;
+                        .with_assumption(|| format!("url formed from `webtoons.com` episode list path should be parseable as a `Webtoon` homepage url: `{url}`"))?;
 
                     webtoons.push(webtoon);
                 }

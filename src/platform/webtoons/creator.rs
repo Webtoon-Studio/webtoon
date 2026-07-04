@@ -53,10 +53,10 @@ impl Debug for Creator {
         debug.field("profile", profile).field("username", username);
 
         if let Store::Value(Some(Homepage {
+            username: _,
             followers,
             has_patreon,
             id,
-            ..
         })) = homepage.get()
         {
             debug
@@ -239,7 +239,7 @@ impl Creator {
             future::try_join_all(response.result.titles.iter().map(|webtoon| async {
                 let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, client).await {
                     Ok(Some(webtoon)) => webtoon,
-                    Ok(None) => assumption!("`webtoons.com` creator homepage's webtoons API should return valid id's for existing and public webtoons"),
+                    Ok(None) => assumption!("`webtoons.com` creator webtoons API should only return ids for existing, public webtoons"),
                     Err(err) => return Err(err),
                 };
                 Ok::<Webtoon, ClientError>(webtoon)
@@ -293,28 +293,29 @@ pub(super) async fn homepage(
         return Ok(None);
     };
 
-    if is_invalid(&html)? {
+    if is_invalid(&html) {
         return Err(CreatorError::InvalidCreatorProfile);
     }
 
     // QUESTION:
     // Is this worth making an `CreatorError::DisabledHomepage` error for this?
     // It's not really actionable, so in theory `None` should be fine?
-    if is_disabled_for_community_violation(&html)? {
+    if is_disabled_for_community_violation(&html) {
         return Ok(None);
     }
 
     Ok(Some(Homepage {
         username: username(&html)?,
         followers: followers(&html)?,
-        has_patreon: has_patreon(&html)?,
+        has_patreon: has_patreon(&html),
         id: id(&html)?,
     }))
 }
 
+#[inline]
 fn username(html: &Html) -> Result<String, Assumption> {
     let selector = Selector::parse(r#"head>meta[name="author"]"#)
-        .assumption(r#"`head>meta[name="author"]` should be a valid selector"#)?;
+        .expect(r#"`head>meta[name="author"]` should be a valid selector"#);
 
     if let Some(element) = html.select(&selector).next()
         && let Some(name) = element.value().attr("content")
@@ -323,12 +324,14 @@ fn username(html: &Html) -> Result<String, Assumption> {
     }
 
     assumption!(
-        r#"did not find `head>meta[name="author"]` on `webtoons.com` creator homepage html"#
+        r#"`head>meta[name="author"]` should be present on `webtoons.com` creator homepage"#
     );
 }
 
+#[inline]
 fn followers(html: &Html) -> Result<u32, Assumption> {
-    let selector = Selector::parse("span").assumption("`span` should be a valid selector")?;
+    let selector = Selector::parse("span") //
+        .expect("`span` should be a valid selector");
 
     if let Some(element) = html
         .select(&selector)
@@ -345,16 +348,18 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
         let count = element
             .text()
             .next()
-            .assumption("follower count element on `weboons.com` creator homepage was empty")?
+            .assumption(
+                "follower count element on `webtoons.com` creator homepage should not be empty",
+            )?
             .replace(',', "");
 
         return count
                     .parse::<u32>()
-                    .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should always be either plain digits, or digits and commas, but got: {count}"));
+                    .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should be plain digits or digits with commas, got: `{count}`"));
     }
 
     assumption!(
-        "did not find any class that starts with `CreatorBriefMetric_count` on `webtoons.com` creator homepage html"
+        "second `CreatorBriefMetric_count` span should be present on `webtoons.com` creator homepage"
     );
 }
 
@@ -368,8 +373,10 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
 //
 // Going the other way, however, is generally not possible. Luckily this shouldn't
 // be needed.
+#[inline]
 fn id(html: &Html) -> Result<String, Assumption> {
-    let selector = Selector::parse("script").assumption("`script` should be a valid selector")?;
+    let selector = Selector::parse("script") //
+        .expect("`script` should be a valid selector");
 
     for element in html.select(&selector) {
         if let Some(inner) = element.text().next()
@@ -378,7 +385,7 @@ fn id(html: &Html) -> Result<String, Assumption> {
             let id  = inner
                 .get(idx..)
                 .assumption(
-                    "`find` should point to start of `webtoons.com` creator homepage `creatorId`, so should never be out of bounds",
+                    "index from `find(\"creatorId\")` should always be a valid byte boundary in `webtoons.com` creator homepage script",
                 )?
                 // `creatorId\":\"n5z4d\"` -> `\":\"n5z4d\"`
                 .trim_start_matches("creatorId")
@@ -399,19 +406,19 @@ fn id(html: &Html) -> Result<String, Assumption> {
     }
 
     assumption!(
-        "failed to find `creatorId` in script tag on english `webtoons.com` Creator homepage html"
+        "should always find `creatorId` in script tag in `webtoons.com` Creator homepage html"
     )
 }
 
-fn has_patreon(html: &Html) -> Result<bool, Assumption> {
-    let selector = Selector::parse("img").assumption("`img` should be a valid selector")?;
+#[inline]
+#[must_use]
+fn has_patreon(html: &Html) -> bool {
+    let selector = Selector::parse("img") //
+        .expect("`img` should be a valid selector");
 
-    let has_patreon = html
-        .select(&selector)
+    html.select(&selector)
         .filter_map(|element| element.value().attr("alt"))
-        .any(|alt| alt == "PATREON");
-
-    Ok(has_patreon)
+        .any(|alt| alt == "PATREON")
 }
 
 // When a URL is invalid, the `webtoons.com` returns a 404. This can happen
@@ -424,13 +431,13 @@ fn has_patreon(html: &Html) -> Result<bool, Assumption> {
 //
 // https://www.webtoons.com/p/community/en/u/y87lz
 #[inline]
-fn is_invalid(html: &Html) -> Result<bool, Assumption> {
+#[must_use]
+fn is_invalid(html: &Html) -> bool {
     let selector = Selector::parse("p") //
-        .assumption("`p` should be a valid selector")?;
+        .expect("`p` should be a valid selector");
 
     // Element(<p class="ErrorPage_text__FQYij">) => { Text("Invalid creator profile.") }
-    let is_invalid = html
-        .select(&selector)
+    html.select(&selector)
         .find(|element| {
             element
                 .attr("class")
@@ -441,9 +448,7 @@ fn is_invalid(html: &Html) -> Result<bool, Assumption> {
                 .text()
                 .next()
                 .is_some_and(|text| text == "Invalid creator profile.")
-        });
-
-    Ok(is_invalid)
+        })
 }
 
 // When a creator page is disabled due to community policy violations, `webtoons.com`
@@ -452,17 +457,16 @@ fn is_invalid(html: &Html) -> Result<bool, Assumption> {
 //
 // https://www.webtoons.com/p/community/en/u/_o2pgx6
 #[inline]
-fn is_disabled_for_community_violation(html: &Html) -> Result<bool, Assumption> {
+#[must_use]
+fn is_disabled_for_community_violation(html: &Html) -> bool {
     let selector = Selector::parse("p") //
-        .assumption("`p` should be a valid selector")?;
+        .expect("`p` should be a valid selector");
 
-    let is_disabled = html.select(&selector).any(|element| {
+    html.select(&selector).any(|element| {
         element.text().next().is_some_and(|text| {
             text.starts_with(
                 "This account has been disabled because it didn’t follow our community policy.",
             )
         })
-    });
-
-    Ok(is_disabled)
+    })
 }

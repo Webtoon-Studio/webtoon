@@ -38,7 +38,7 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Type> {
 
     if let Some(line) = line.find(|line| line.starts_with(START) && line.ends_with(END)) {
         assumption!(
-            "only one line on episode dashboard should start with `{START}` and end with `{END}`, yet found: `{line}` "
+            "`webtoons.com` episode dashboard should have exactly one line starting with `{START}` and ending with `{END}`, got a second: `{line}`"
         )
     }
 
@@ -46,13 +46,13 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Type> {
         match serde_json::from_str::<Vec<DashboardEpisode>>(&json) {
             Ok(episodes) => return Ok(episodes),
             Err(err) => assumption!(
-                "failed to deserialize `dashboardEpisodeList` json from `webtoons.com` episode dashboard: {err}\n\n{json}"
+                "`dashboardEpisodeList` on `webtoons.com` episode dashboard should be deserializable as `Vec<DashboardEpisode>`: {err} {json}"
             ),
         }
     }
 
     assumption!(
-        "failed to find line that starts with `{START}` and ends with `{END}` on `webtoons.com` episode dashboard:\n\n{html}"
+        "`webtoons.com` episode dashboard should have a line starting with `{START}` and ending with `{END}`: {html}"
     );
 }
 

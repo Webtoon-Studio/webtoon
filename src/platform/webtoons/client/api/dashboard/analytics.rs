@@ -46,9 +46,10 @@ impl TryFrom<(&Webtoon, Episode)> for crate::platform::webtoons::webtoon::episod
             number: episode.number,
             title: Cache::new(episode.title),
             published: Some(Published::from(
-                DateTime::from_timestamp_millis(episode.published).assumption(
-                    "timestamp returned by `webtoons.com` should always be a valid Unix timestamp",
-                )?,
+                DateTime::from_timestamp_millis(episode.published) //
+                    .assumption(
+                        "timestamps returned by `webtoons.com` should be valid Unix timestamps",
+                    )?,
             )),
             views: Some(episode.views.unwrap_or_default()),
 
