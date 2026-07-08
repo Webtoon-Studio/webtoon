@@ -343,21 +343,20 @@ impl Client {
                 let json = response.text().await?;
 
                 let search = serde_json::from_str::<api::search::RawSearch>(&json)
-                    .with_assumption(|| format!("failed to deserialize `webtoons.com` {subtype} search api response (structure change possible): `{json}`"))?;
+                    .with_assumption(|| format!("`webtoons.com` {subtype} search API response should be deserializable as `RawSearch`: `{json}`"))?;
 
                 let (data, next) = match r#type {
                     Type::Original => {
-                        let list = search
-                            .result
-                            .webtoon_title_list
-                            .assumption("search result missing `webtoonTitleList` field")?;
+                        let list = search.result.webtoon_title_list.assumption(
+                            "`webtoonTitleList` field should be present in WEBTOON search result",
+                        )?;
                         (list.data, list.pagination.next)
                     }
                     Type::Canvas => {
                         let list = search
                             .result
                             .challenge_title_list
-                            .assumption("search result missing `challengeTitleList` field")?;
+                            .assumption("`challengeTitleList` field should be present in CHALLENGE search result")?;
                         (list.data, list.pagination.next)
                     }
                 };
@@ -534,7 +533,7 @@ impl Client {
     ) -> Result<Option<UserInfo>, UserInfoError> {
         let client = self;
 
-        let response = client
+        let json = client
             .http
             .get("https://www.webtoons.com/en/member/userInfo")
             .header("Cookie", format!("NEO_SES={session}"))
@@ -544,9 +543,9 @@ impl Client {
             .text()
             .await?;
 
-        let Ok(user) = serde_json::from_str::<UserInfoRaw>(&response) else {
+        let Ok(user) = serde_json::from_str::<UserInfoRaw>(&json) else {
             assumption!(
-                "failed to deserialize `userInfo` from `webtoons.com` response `{response}`"
+                "`webtoons.com` `userInfo` response should be deserializable as `UserInfoRaw`: `{json}`"
             )
         };
 
@@ -556,17 +555,17 @@ impl Client {
 
         assume!(
             user.username.is_some(),
-            "`UserInfoRaw::username` should always be `Some` when `is_logged_in` is true, got: {response}"
+            "`UserInfoRaw::username` should be `Some` when `is_logged_in` is true: `{json}`"
         );
 
-        let user: UserInfo = match (user.is_canvas_creator, &user.profile) {
-            (true, None) => assumption!(
-                "`is_canvas_creator` is true but `profile` is `None`, which should never occur: {response}"
-            ),
+        let user = match (user.is_canvas_creator, &user.profile) {
+            (true, None) => {
+                assumption!("`profile` should be `Some` when `is_canvas_creator` is true: `{json}`")
+            }
             (false, Some(profile)) => assumption!(
-                "`is_canvas_creator` is false but `profile` is `Some({profile})`, which should never occur: {response}"
+                "`profile` should be `None` when `is_canvas_creator` is false, got `Some({profile})`: `{json}`"
             ),
-            (false, None) | (true, Some(_)) => user.try_into()?,
+            (false, None) | (true, Some(_)) => UserInfo::from(user),
         };
 
         Ok(Some(user))
@@ -628,13 +627,9 @@ impl Client {
 impl Client {
     pub(super) async fn fetch_originals_page(&self, day: &str) -> Result<Html, reqwest::Error> {
         let client = self;
-
         let url = format!("https://www.webtoons.com/en/originals/{day}");
-
         let document = client.http.get(&url).retry().send().await?.text().await?;
-
         let html = Html::parse_document(&document);
-
         Ok(html)
     }
 
@@ -697,7 +692,7 @@ impl Client {
 
         let creator_webtoons = serde_json::from_str::<CreatorWebtoons>(&json) //
             .with_assumption(|| {
-                format!("failed to deserialize creator webtoons `webtoons.com` response: `{json}`")
+                format!("`webtoons.com` creator webtoons response should be deserializable as `CreatorWebtoons`: `{json}`")
             })?;
 
         Ok(creator_webtoons)
@@ -786,7 +781,7 @@ impl Client {
 
         let series_analytics = serde_json::from_str::<SeriesAnalytics>(&json) //
             .with_assumption(|| {
-                format!("failed to deserialize episode analytics `webtoons.com` response: `{json}`")
+                 format!("`webtoons.com` series analytics response should be deserializable as `SeriesAnalytics`: `{json}`")
             })?;
 
         Ok(series_analytics)
@@ -809,8 +804,9 @@ impl Client {
 
         let response = client.http.get(url).send().await?.text().await?;
 
-        let rss = rss::Channel::from_str(&response)
-            .assumption("rss feed returned from `webtoons.com` failed to parse")?;
+        let rss = rss::Channel::from_str(&response).assumption(
+            "rss feed returned from `webtoons.com` should be parseable as a valid RSS channel",
+        )?;
 
         Ok(rss)
     }
@@ -863,7 +859,7 @@ impl Client {
         let response = client.http.get(&url).retry().send().await?.text().await?;
 
         let raw_likes_response = serde_json::from_str::<RawLikesResponse>(&response)
-           .with_assumption(|| format!("failed to deserialize raw likes api response from `webtoons.com` response `{response}`"))?;
+           .with_assumption(|| format!("`webtoons.com` likes API response should be deserializable as `RawLikesResponse`: `{response}`"))?;
 
         Ok(raw_likes_response)
     }
@@ -916,7 +912,7 @@ impl Client {
             .await?;
 
         let raw_post_response =    serde_json::from_str::<RawPostResponse>(&response)
-            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+            .with_assumption(|| format!("`webtoons.com` post API response should be deserializable as `RawPostResponse`: `{response}`"))?;
 
         Ok(raw_post_response)
     }
@@ -946,6 +942,7 @@ impl Client {
             .send()
             .await?;
 
+        // TODO: This can return false if status is 500, for example, which is wrong.
         Ok(response.status() != 404 && response.status().is_success())
     }
 
@@ -984,7 +981,7 @@ impl Client {
             .await?;
 
         let raw_post_response = serde_json::from_str::<RawPostResponse>(&response)
-            .with_assumption(|| format!("failed to deserialize raw post api response from `webtoons.com` response `{response}`"))?;
+            .with_assumption(|| format!("`webtoons.com` post API response should be deserializable as `RawPostResponse`: `{response}`"))?;
 
         Ok(raw_post_response)
     }
@@ -1018,7 +1015,7 @@ impl Client {
             .await?;
 
         let webtoon_user_info =  serde_json::from_str::<WebtoonUserInfo>(&response)
-            .with_assumption(|| format!("failed to deserialize webtoon user info api response from `webtoons.com` response: `{response}`"))?;
+            .with_assumption(|| format!("`webtoons.com` webtoon user info API response should be deserializable as `WebtoonUserInfo`: `{response}`"))?;
 
         Ok(webtoon_user_info)
     }

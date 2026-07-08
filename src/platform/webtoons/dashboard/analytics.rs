@@ -29,12 +29,12 @@ pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     Ok(episodes)
 }
 
-#[expect(unused)]
+#[expect(unused, clippy::todo)]
 pub fn subscribers(webtoon: &Webtoon) -> Result<u32, Assumption> {
     todo!()
 }
 
-#[expect(unused)]
+#[expect(unused, clippy::todo)]
 pub fn views(webtoon: &Webtoon) -> Result<u32, Assumption> {
     todo!()
 }

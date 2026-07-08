@@ -2,7 +2,7 @@
 
 use super::{Client, Webtoon};
 use crate::platform::webtoons::error::CanvasError;
-use assumptions::{Assume, assume};
+use assumptions::{Assume, assume_eq};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
@@ -12,7 +12,7 @@ pub(super) async fn scrape(
     sort: Sort,
 ) -> Result<Vec<Webtoon>, CanvasError> {
     let selector = Selector::parse("div.challenge_lst>ul>li>a") //
-        .assumption("`div.challenge_lst>ul>li>a` should be a valid selector")?;
+        .expect("`div.challenge_lst>ul>li>a` should be a valid selector");
 
     let start = match pages.start_bound() {
         // 1..=100, 1..100, 1.. -> start at page 1
@@ -38,26 +38,27 @@ pub(super) async fn scrape(
     for page in start..end {
         let html = client.fetch_canvas_page(page, sort).await?;
 
+        let mut count = 0;
+
         for card in html.select(&selector) {
             let href = card.attr("href").assumption(
-                "`href` attribute is missing on `webtoon.com` `Canvas` page, `a` tag should always have one",
+                "`a` tag on `webtoons.com` Canvas page should always have an `href` attribute",
             )?;
 
             let webtoon =  Webtoon::from_url_with_client(href, client)
-                .with_assumption(|| format!("url's found on `webtoons.com` Canvas page should be valid urls that can be turned into a `Webtoon` `{href}`"))?;
+                .with_assumption(|| format!("url found on `webtoons.com` Canvas page should be parseable as a `Webtoon`: `{href}`"))?;
 
             webtoons.push(webtoon);
-        }
-    }
 
-    assume!(
-        !webtoons.is_empty(),
-        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should never be empty"
-    );
-    assume!(
-        webtoons.len() % 20 == 0,
-        "`webtoons.com` `Canvas` page has 20 webtoon cards per page, so should `webtoons % 20 == 0`"
-    );
+            count += 1;
+        }
+
+        assume_eq!(
+            count,
+            20,
+            "`webtoons.com` `Canvas` page should have exactly 20 webtoon cards"
+        );
+    }
 
     Ok(webtoons)
 }

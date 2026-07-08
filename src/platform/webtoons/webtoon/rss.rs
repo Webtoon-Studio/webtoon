@@ -72,28 +72,29 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
     let mut episodes = Vec::new();
 
     for item in &channel.items {
-        let datetime = published(
-            item.pub_date()
-                .assumption("publish date should always be present in `webtoons.com` rss feed, as this feed only shows published episodes")?,
-        )?;
+        let datetime =
+            published(item.pub_date().assumption(
+                "`webtoons.com` RSS feed item should always have a `pubDate` element",
+            )?)?;
 
         let number = episode(
             item.link
                 .as_ref()
-                .assumption("rss `link` tag should always be filled, as this represents the link to the `webtoons.com` episode")?,
+                .assumption("`webtoons.com` RSS feed item should always have a `link` element")?,
         )?;
 
         let title = item
             .title
             .as_ref()
-            .assumption("rss feed for `webtoons.com` should always have a Webtoon tile")?
+            .assumption("`webtoons.com` RSS feed item should always have a `title` element")?
             .clone();
 
         let published = Published::from(datetime);
 
         assume!(
             published.year() >= 2014,
-            "`webtoons.com` only started in 2014"
+            "`webtoons.com` episode publish year should be 2014 or later, got: {}",
+            published.year()
         );
 
         episodes.push(Episode {
@@ -119,7 +120,7 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
         url: channel.link.clone(),
         thumbnail: channel
             .image()
-            .assumption("`webtoons.com` Webtoon rss feed should should have an `image`, representing the thumbnail of the Webtoon")?
+            .assumption("`webtoons.com` Webtoon RSS feed should have an `image` element")?
             .url
             .clone(),
         creators: webtoon.creators().await?,
@@ -131,30 +132,28 @@ pub(super) async fn feed(webtoon: &Webtoon) -> Result<Rss, WebtoonError> {
 fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
     assume!(
         date.ends_with("GMT"),
-        "all known rss date formats end with `GMT`"
+        "`webtoons.com` RSS feed `pubDate` should end with `GMT`, got: `{date}`"
     );
 
     let date = date
         .split_once(',')
         .map(|(_, date)| date.trim_end_matches("GMT").trim())
-        .with_assumption(|| format!("incoming `date` should always be able to split once on `,`, as all formats should begin with `day of week,`, so should always be `Some`, but got `{date}`"))?;
+        .with_assumption(|| format!("`webtoons.com` RSS feed `pubDate` should contain `,` separating day of week from date, got: `{date}`"))?;
 
     assume!(
         date.chars()
             .next()
             .is_some_and(|char| char.is_ascii_digit()),
-        "`date` should start with a digit after splitting on `,`"
+        "`webtoons.com` RSS feed `pubDate` should start with a digit after the day of week, got: `{date}`"
     );
 
-    assume!(
+    debug_assert!(
         !date.ends_with("GMT"),
-        "`date` should not end with `GMT` after trimming"
+        "`pubDate` should not end with `GMT` after trimming"
     );
 
     let date = NaiveDateTime::parse_from_str(date, "%d %b %Y %T").with_assumption(|| {
-        format!(
-            "`webtoons.com` Webtoon RSS feed `pubDate` should always be a known format `{date}`"
-        )
+        format!("`webtoons.com` RSS feed `pubDate` should be parseable with format `%d %b %Y %T`, got: `{date}`")
     })?;
 
     Ok(date.and_utc())
@@ -162,7 +161,7 @@ fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
 
 fn episode(url: &str) -> Result<u16, Assumption> {
     let url = Url::parse(url).with_assumption(|| {
-        format!("urls returned from `webtoons.com` rss feed should always be valid `{url}`")
+        format!("`webtoons.com` RSS feed episode url should be a valid url, got: `{url}`")
     })?;
 
     let value = url
@@ -170,13 +169,12 @@ fn episode(url: &str) -> Result<u16, Assumption> {
         .find(|(key, _)| key == "episode_no")
         .map(|(_, v)| v)
         .with_assumption(|| {
-            format!(
-                "`webtoons.com` Webtoon rss url should always have an `episode_no` query: `{url}`"
-            )
+            format!("`webtoons.com` RSS feed episode url should have an `episode_no` query parameter, got: `{url}`")
         })?;
 
-    let number =   u16::from_str(&value)
-        .with_assumption(|| format!("`episode_no` should always have a number parsable to a `u16`, as no `webtoons.com` Webtoon should have more than `u16::MAX` episodes `{value}`"))?;
+    let number = u16::from_str(&value).with_assumption(|| {
+        format!("`episode_no` query parameter should be parseable as a `u16`, got: `{value}`")
+    })?;
 
     Ok(number)
 }

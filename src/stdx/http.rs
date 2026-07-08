@@ -14,14 +14,10 @@ impl Retry {
         let mut wait = fastrand::u64(1..=5);
 
         loop {
-            #[allow(
-                clippy::expect_used,
-                reason = "only fails for streams; we only do standard requests"
-            )]
             let request = self
                 .0
                 .try_clone()
-                .expect("`RequestBuilder` should only fail to clone when working with streams");
+                .expect("`RequestBuilder` should only fail to clone when working with streams; we only do standard requests");
 
             let should_retry = match request.send().await {
                 Err(_) if tries > 0 => true,
