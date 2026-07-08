@@ -39,6 +39,7 @@ use crate::{
     stdx::{
         cache::Cache,
         http::{DEFAULT_USER_AGENT, RequestExt},
+        macros::maybe,
     },
 };
 use scraper::Html;
@@ -342,6 +343,11 @@ impl Client {
 
                 let json = response.text().await?;
 
+                assume!(
+                    !json.is_empty(),
+                    "json response from `webtoons.com` search API should never be empty"
+                );
+
                 let search = serde_json::from_str::<api::search::RawSearch>(&json)
                     .with_assumption(|| format!("`webtoons.com` {subtype} search API response should be deserializable as `RawSearch`: `{json}`"))?;
 
@@ -381,6 +387,8 @@ impl Client {
                 }
             }
 
+            maybe!(items.is_empty());
+
             Ok(items)
         }
 
@@ -394,6 +402,8 @@ impl Client {
 
         webtoons.extend(search_by_type(client, query, Type::Original).await?);
         webtoons.extend(search_by_type(client, query, Type::Canvas).await?);
+
+        maybe!(webtoons.is_empty());
 
         Ok(webtoons)
     }
@@ -542,6 +552,11 @@ impl Client {
             .await?
             .text()
             .await?;
+
+        assume!(
+            !json.is_empty(),
+            "json response from user info API should never be empty"
+        );
 
         let Ok(user) = serde_json::from_str::<UserInfoRaw>(&json) else {
             assumption!(
@@ -1097,6 +1112,8 @@ mod tests {
     #[test]
     fn session_should_be_empty() {
         let session = Session::default();
+        assert!(session.is_empty());
+        let session = Session::new("");
         assert!(session.is_empty());
     }
 

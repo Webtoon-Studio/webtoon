@@ -6,6 +6,8 @@ use assumptions::{Assume, assume_eq};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 
+use std::debug_assert as ensure;
+
 pub(super) async fn scrape(
     client: &Client,
     pages: impl RangeBounds<u16>,
@@ -31,6 +33,8 @@ pub(super) async fn scrape(
         // 1.., .. -> cap at page 100 to avoid unbounded scraping
         std::ops::Bound::Unbounded => 100,
     };
+
+    ensure!(start <= end);
 
     // MAGIC: `20`: webtoons per page.
     let mut webtoons = Vec::with_capacity(usize::from(end - start + 1) * 20);
