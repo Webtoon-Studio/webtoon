@@ -1,3 +1,4 @@
+use assumptions::{assume, assume_matches, assumption};
 use chrono::DateTime;
 use serde::Deserialize;
 use thiserror::Error;
@@ -10,10 +11,7 @@ use crate::{
             episode::{AdStatus, Episode, Published},
         },
     },
-    stdx::{
-        cache::Cache,
-        error::{assume, assume_matches, assumption},
-    },
+    stdx::cache::Cache,
 };
 use std::{collections::HashSet, str::FromStr, time::Duration};
 

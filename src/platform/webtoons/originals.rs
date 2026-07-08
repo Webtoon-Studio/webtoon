@@ -1,7 +1,7 @@
 //! Originals page at `https://www.webtoons.com/en/originals`.
 
 use super::{Client, Webtoon, error::OriginalsError};
-use crate::stdx::error::{Assume, assume};
+use assumptions::{Assume, assume};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

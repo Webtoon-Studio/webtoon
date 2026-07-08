@@ -1,10 +1,8 @@
 //! Canvas story list at `https://www.webtoons.com/en/canvas/list`.
 
 use super::{Client, Webtoon};
-use crate::{
-    platform::webtoons::error::CanvasError,
-    stdx::error::{Assume, assume},
-};
+use crate::platform::webtoons::error::CanvasError;
+use assumptions::{Assume, assume};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 

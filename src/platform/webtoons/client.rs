@@ -4,6 +4,7 @@ mod api;
 
 // ASK: Is this the best spot for this to be exported?
 pub use api::user_info::UserInfo;
+use assumptions::{Assume, assume, assumption};
 
 use super::{
     Type, Webtoon,
@@ -37,7 +38,6 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        error::{Assume, assume, assumption},
         http::{DEFAULT_USER_AGENT, RequestExt},
     },
 };

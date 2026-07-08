@@ -1,6 +1,5 @@
+use assumptions::{Assume, Assumption};
 use serde::Deserialize;
-
-use crate::stdx::error::{Assume, Assumption};
 
 /// Represents data from the `webtoons.com/*/member/userInfo` endpoint.
 ///

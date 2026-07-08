@@ -3,7 +3,6 @@
 use super::{Webtoon, post::PinRepresentation};
 use crate::platform::webtoons::webtoon::post::{Comments, id::Id};
 use crate::stdx::cache::{Cache, Store};
-use crate::stdx::error::{Assume, Assumption, assume, assumption};
 use crate::{
     platform::webtoons::{
         dashboard::episodes::DashboardStatus,
@@ -12,6 +11,7 @@ use crate::{
     stdx::time::DateOrDateTime,
 };
 use arrayvec::ArrayVec;
+use assumptions::{Assume, Assumption, assume, assumption};
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};

@@ -1,7 +1,5 @@
-use crate::{
-    platform::webtoons::{Webtoon, error::SessionError, webtoon::episode::Episode},
-    stdx::error::Assumption,
-};
+use crate::platform::webtoons::{Webtoon, error::SessionError, webtoon::episode::Episode};
+use assumptions::Assumption;
 
 pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     let series_analytics = webtoon.client.fetch_series_analytics(webtoon, 1).await?;

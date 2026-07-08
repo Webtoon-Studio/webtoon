@@ -1,3 +1,4 @@
+use assumptions::{Assume, Assumption, assume, assumption};
 use chrono::NaiveDate;
 use scraper::{ElementRef, Html, Selector};
 use std::{str::FromStr, time::Duration};
@@ -13,10 +14,7 @@ use crate::{
             episode::{Published, PublishedStatus},
         },
     },
-    stdx::{
-        cache::Cache,
-        error::{Assume, Assumption, assume, assumption},
-    },
+    stdx::cache::Cache,
 };
 
 use super::{WebtoonError, episode::Episode};

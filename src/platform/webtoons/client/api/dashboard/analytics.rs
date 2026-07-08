@@ -1,12 +1,10 @@
+use assumptions::{Assume, Assumption};
 use chrono::DateTime;
 use serde::Deserialize;
 
 use crate::{
     platform::webtoons::{Webtoon, webtoon::episode::Published},
-    stdx::{
-        cache::Cache,
-        error::{Assume, Assumption},
-    },
+    stdx::cache::Cache,
 };
 
 #[derive(Deserialize)]
