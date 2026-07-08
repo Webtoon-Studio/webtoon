@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 use webtoon::platform::webtoons::{Client, Type, error::Error};
 
 // NOTE: To run: `cargo run --example download --features download`

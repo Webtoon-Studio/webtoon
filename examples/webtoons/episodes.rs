@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 use webtoon::platform::webtoons::{Client, Type, error::Error};
 
 #[tokio::main(flavor = "current_thread")]

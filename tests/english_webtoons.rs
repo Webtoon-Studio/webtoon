@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 use std::assert_matches;
 
 use webtoon::platform::webtoons::{
@@ -5,7 +7,7 @@ use webtoon::platform::webtoons::{
     canvas::Sort,
     error::CreatorError,
     originals::{Schedule, Weekday},
-    webtoon::Genre,
+    webtoon::{Genre, episode::Episode},
 };
 
 #[tokio::test]
@@ -875,7 +877,7 @@ async fn episode_views_are_none_without_session() {
     let client = Client::new();
     let webtoon = client.webtoon(843910, Type::Canvas).await.unwrap().unwrap();
     let mut episodes = webtoon.episodes().await.unwrap();
-    episodes.sort_unstable_by_key(|e| e.number());
+    episodes.sort_unstable_by_key(Episode::number);
     if let Some(episode) = episodes.first() {
         assert!(episode.views().is_none());
     }
@@ -894,7 +896,7 @@ async fn episode_published_is_some_from_episodes_list() {
     let client = Client::new();
     let webtoon = client.webtoon(87, Type::Original).await.unwrap().unwrap();
     let mut episodes = webtoon.episodes().await.unwrap();
-    episodes.sort_unstable_by_key(|e| e.number());
+    episodes.sort_unstable_by_key(Episode::number);
     if let Some(episode) = episodes.first() {
         assert!(episode.published().is_some());
         assert!(episode.published().unwrap().year() >= 2014);

@@ -928,7 +928,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "`right < 10`: fractional part of abbreviated count on `webtoons.com` Webtoon homepage should be a single digit, got: `55` in `1.55`"
+    )]
     fn should_fail_on_invalid_format() {
         // Example of a case that would break the logic (two decimal places)
         // If the assumption is 1 decimal place, "1.55B" would result in
