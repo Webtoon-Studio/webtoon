@@ -48,7 +48,9 @@
     clippy::multiple_crate_versions,
     clippy::missing_errors_doc,
     clippy::redundant_closure_for_method_calls,
-    clippy::redundant_closure
+    clippy::redundant_closure,
+    clippy::unreadable_literal,
+    clippy::future_not_send
 )]
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
