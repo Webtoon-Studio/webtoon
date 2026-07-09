@@ -1,9 +1,12 @@
-use reqwest::{RequestBuilder, Response};
+use reqwest::{RequestBuilder, Response, StatusCode};
 use std::time::Duration;
 
 /// The default `User-Agent` header value, formatted as `{crate_name}/{crate_version}`.
 pub static DEFAULT_USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+
+const TOO_MANY_REQUESTS: StatusCode = StatusCode::TOO_MANY_REQUESTS;
+const INTERNAL_SERVER_ERROR: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
 /// Wraps a [`RequestBuilder`] with automatic retry logic on failure or rate limiting.
 pub struct Retry(RequestBuilder);
@@ -22,7 +25,12 @@ impl Retry {
             let should_retry = match request.send().await {
                 Err(_) if tries > 0 => true,
                 Err(err) => return Err(err),
-                Ok(response) if response.status() == 429 && tries > 0 => true,
+                Ok(response)
+                    if matches!(response.status(), TOO_MANY_REQUESTS | INTERNAL_SERVER_ERROR)
+                        && tries > 0 =>
+                {
+                    true
+                }
                 Ok(response) => return Ok(response),
             };
 
