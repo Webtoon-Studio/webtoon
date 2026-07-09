@@ -933,7 +933,7 @@ fn thumbnail(html: &Html, episode: u16) -> Result<Url, Assumption> {
         })?;
 
         thumbnail
-            // This host doesn't need a `referer` header to see the image.
+            // WHY: This host doesn't need a `referer` header to see the image.
             .set_host(Some("swebtoon-phinf.pstatic.net"))
             .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 
@@ -1204,7 +1204,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
             format!("url found on `webtoons.com` episode page should be parseable as a valid url: `{data_url}`")
         })?;
 
-        // This host doesn't need a `referer` header to see the image.
+        // WHY: This host doesn't need a `referer` header to see the image.
         url.set_host(Some("swebtoon-phinf.pstatic.net"))
             .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 

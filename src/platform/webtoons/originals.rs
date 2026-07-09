@@ -4,8 +4,10 @@ use super::{Client, Webtoon, error::OriginalsError};
 use assumptions::{Assume, assume};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use thiserror::Error;
+
+use std::debug_assert as ensure;
+use std::str::FromStr;
 
 pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsError> {
     let selector = Selector::parse("ul.webtoon_list>li>a") //
@@ -27,6 +29,8 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
         Ok::<Html, OriginalsError>(page)
     }))
     .await?;
+
+    ensure!(documents.len() == 8);
 
     let mut webtoons = Vec::with_capacity(2000);
 
@@ -70,14 +74,10 @@ pub enum Schedule {
 impl TryFrom<Vec<&str>> for Schedule {
     type Error = ParseScheduleError;
 
-    /// # Invariant
-    ///
-    /// Callers must ensure that `releases` is not empty.
     #[inline]
     fn try_from(releases: Vec<&str>) -> Result<Self, Self::Error> {
-        debug_assert!(!releases.is_empty());
-
         match releases.as_slice() {
+            [] => Err(ParseScheduleError(String::new())),
             [release] => Self::from_str(release),
             releases => releases
                 .iter()

@@ -5,10 +5,11 @@ use crate::{
     platform::webtoons::{Webtoon, error::PostsError},
     stdx::cache::{Cache, Store},
 };
-use assumptions::{Assume, Assumption, assume_matches};
+use assumptions::{Assume, Assumption, assume_eq};
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
 use id::Id;
+
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 
 /// A single top-level comment left on an [`Episode`].
@@ -428,12 +429,13 @@ impl From<Post> for Comment {
 pub use iter::Comments;
 
 mod iter {
-    use std::collections::VecDeque;
+    use super::{Comment, Episode, Id, PinRepresentation, Post, PostsError};
 
     use arrayvec::ArrayVec;
     use assumptions::assume;
 
-    use super::{Comment, Episode, Id, PinRepresentation, Post, PostsError};
+    use std::collections::VecDeque;
+    use std::debug_assert_eq as ensure_eq;
 
     /// Internal state machine for the [`Comments`] iterator.
     ///
@@ -530,7 +532,7 @@ mod iter {
                         top_comments.push(top_comment.id());
                     }
 
-                    debug_assert_eq!(
+                    ensure_eq!(
                         top_comments.len(),
                         count,
                         "all top comments from the response should have been pushed"
@@ -1226,7 +1228,7 @@ impl FromStr for Sticker {
             }
         };
 
-        assume_matches!(
+        assume_eq!(
             parts.next(),
             None,
             "sticker id from `webtoons.com` should have no remaining parts after parsing, got: `{id}`"
@@ -1472,11 +1474,11 @@ pub mod id {
     //! Module representing the post id format on `webtoons.com`.
 
     use crate::stdx::base36::Base36;
-    use assumptions::{Assume, Assumption, assume_matches, assumption};
+    use assumptions::{Assume, Assumption, assume_eq, assumption};
     use serde::{Deserialize, Serialize};
     use std::{
         cmp::Ordering,
-        debug_assert_matches,
+        debug_assert_matches as ensure_matches,
         fmt::{Debug, Display},
         str::FromStr,
     };
@@ -1561,7 +1563,7 @@ pub mod id {
                             None => assumption!("page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"),
                         };
 
-                        assume_matches!(
+                        assume_eq!(
                             page_id.next(),
                             None,
                             "page id part of post id from `webtoons.com` should have exactly 3 parts, got extra: `{part}`"
@@ -1587,7 +1589,7 @@ pub mod id {
                 }
             }
 
-            debug_assert_matches!(
+            ensure_matches!(
                 state,
                 Parse::Reply,
                 "Id parsing should always end on a parsing reply state"

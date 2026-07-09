@@ -1,12 +1,12 @@
-use assumptions::{Assume, Assumption, assume, assumption};
+use assumptions::{Assume, Assumption, assume, assume_eq, assume_implies, assume_ne, assumption};
 use chrono::NaiveDate;
-use scraper::{ElementRef, Html, Selector};
+use scraper::{Element, ElementRef, Html, Selector};
 use std::{str::FromStr, time::Duration};
 use url::Url;
 
 use crate::{
     platform::webtoons::{
-        Client, Type, Webtoon,
+        Client, Webtoon,
         creator::Creator,
         originals::Schedule,
         webtoon::{
@@ -18,6 +18,9 @@ use crate::{
 };
 
 use super::{WebtoonError, episode::Episode};
+
+use std::debug_assert as requires;
+use std::debug_assert as ensure;
 
 #[inline]
 pub async fn scrape(webtoon: &Webtoon) -> Result<Homepage, WebtoonError> {
@@ -47,7 +50,7 @@ impl Homepage {
             Scope::Original(_) => Self {
                 title: title(html)?,
                 creators: creators(html, &webtoon.client, webtoon)?,
-                genres: genres(html)?,
+                genres: genres(html, webtoon)?,
                 summary: summary(html)?,
                 views: views(html)?,
                 subscribers: subscribers(html)?,
@@ -59,7 +62,7 @@ impl Homepage {
             Scope::Canvas => Self {
                 title: title(html)?,
                 creators: creators(html, &webtoon.client, webtoon)?,
-                genres: genres(html)?,
+                genres: genres(html, webtoon)?,
                 summary: summary(html)?,
                 views: views(html)?,
                 subscribers: subscribers(html)?,
@@ -141,7 +144,7 @@ fn title(html: &Html) -> Result<String, WebtoonError> {
         .next()
         .assumption("`.subj` element should be present on `webtoons.com` Webtoon homepage")?;
 
-    let mut title = String::new();
+    let mut title = String::with_capacity(50);
 
     // Element can have a `<br>` in the middle of the text:
     //  - https://www.webtoons.com/en/romance/the-reason-for-the-twin-ladys-disguise/list?title_no=6315
@@ -149,23 +152,21 @@ fn title(html: &Html) -> Result<String, WebtoonError> {
     //    <h1 class="subj">
     //     The Reason for the
     //     <br>
-    //     Twin Lady’s Disguise
+    //     Twin Lady's Disguise
     //    </h1>
     //
-    // Need to iterate all isolated text blocks.
-    for text in selected.text() {
-        // Similar to a creator name that can have random whitespace around the
-        // actual title, so too can story titles. Nerd and Jock is one such example.
-        //
-        // We must build of the title in parts to handle such case.
-        for word in text.split_whitespace() {
-            title.push_str(word);
+    // Need to iterate all isolated text blocks, and within each block,
+    // all whitespace-separated words, since both can have arbitrary
+    // whitespace around the actual title (e.g. Nerd and Jock).
+    for word in selected.text().flat_map(|text| text.split_whitespace()) {
+        if !title.is_empty() {
             title.push(' ');
         }
+        title.push_str(word);
     }
 
-    // Removes the extra space added at the end in the prior loop
-    title.pop();
+    ensure!(!title.is_empty());
+    ensure!(!title.ends_with(' '));
 
     Ok(title)
 }
@@ -207,9 +208,14 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     // Canvas creator must have a `webtoons.com` account.
     for selected in html.select(&selector) {
         let url = selected
-                .value()
-                .attr("href")
-                .assumption("`a.author` element on `webtoons.com` Canvas Webtoon homepage should always have an `href` attribute")?;
+            .value()
+            .attr("href")
+            .assumption("`a.author` element on `webtoons.com` Canvas Webtoon homepage should always have an `href` attribute")?;
+
+        assume!(
+            !url.is_empty(),
+            "`href` in `a.author` should never be an empty string"
+        );
 
         let url = Url::parse(url).assumption(
             "`href` attribute on `webtoons.com` Canvas Webtoon homepage should be a valid url",
@@ -218,10 +224,21 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
         // Creator profile should always be the last path segment:
         //     - https://www.webtoons.com/en/creator/792o8
         let profile = url
-                .path_segments()
-                .assumption("`href` url on `webtoons.com` Canvas Webtoon homepage should have path segments")?
-                .next_back()
-                .assumption("`href` url path segments on `webtoons.com` Canvas Webtoon homepage should have a last segment")?;
+            .path_segments()
+            .assumption("`href` url on `webtoons.com` Canvas Webtoon homepage should have path segments")?
+            .next_back()
+            .assumption("`href` url path segments on `webtoons.com` Canvas Webtoon homepage should have a last segment")?;
+
+        assume!(
+            !profile.is_empty(),
+            "`href` in `a.author` element on `webtoons.com` Canvas homepage should never be an empty string"
+        );
+
+        assume_ne!(
+            profile,
+            "creator",
+            "creator profile found in `href` attribute in the `a.author` element on `webtoons.com` Canvas homepage should never be `creator`"
+        );
 
         // This is for cases where `webtoons.com`, for some ungodly reason, is
         // surrounding the name with a bunch of tabs and newlines, even if only
@@ -236,10 +253,15 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
             "`a.author` element on `webtoons.com` Canvas Webtoon homepage should contain text",
         )?;
 
+        assume!(
+            !username.is_empty(),
+            "text found in `a.author` element on `webtoons.com` Canvas Webtoon homepage should never be empty"
+        );
+
         let creator = Creator {
             client: client.clone(),
-            username: username.to_string(),
-            profile: Some(profile.into()),
+            username: username.to_owned(),
+            profile: Some(profile.to_owned()),
             homepage: Cache::empty(),
         };
 
@@ -253,6 +275,11 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
     // Originals creators that have no Webtoon account, or a mix of no accounts and `webtoons.com` accounts.
     if let Some(selected) = html.select(&selector).next() {
         for username in usernames(selected) {
+            assume!(
+                !username.is_empty(),
+                "text found in `a.author` element on `webtoons.com` Original Webtoon homepage should never be empty"
+            );
+
             // If any Creators were encountered again, ignore, as the `Creator`
             // added to the `Vec` in the Canvas section holds more info, like
             // having `Some` for `profile`.
@@ -270,22 +297,21 @@ fn creators(html: &Html, client: &Client, webtoon: &Webtoon) -> Result<Vec<Creat
         }
     }
 
-    match webtoon.r#type() {
-        Type::Original => assume!(
-            !creators.is_empty(),
-            "`webtoons.com` Webtoons must have some creator associated with them and displayed on their homepages"
-        ),
-        Type::Canvas => assume!(
-            creators.len() == 1,
-            "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
-        ),
-    }
+    assume_implies!(
+        webtoon.is_original() => !creators.is_empty(),
+        "`webtoons.com` Webtoons must have some creator associated with them and displayed on their homepages"
+    );
+
+    assume_implies!(
+        webtoon.is_canvas() => creators.len() == 1,
+        "`webtoons.com` canvas Webtoon homepages should have exactly one creator account associated with the Webtoon, got: {creators:?}"
+    );
 
     Ok(creators)
 }
 
 #[inline]
-fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
+fn genres(html: &Html, webtoon: &Webtoon) -> Result<Vec<Genre>, WebtoonError> {
     // `h2.genre` for originals and `p.genre` for canvas.
     //
     // Doing just `.genre` gets the all instances of the class
@@ -299,19 +325,28 @@ fn genres(html: &Html) -> Result<Vec<Genre>, WebtoonError> {
             "`.info>.genre` element on `webtoons.com` Webtoon homepage should contain text",
         )?;
 
+        assume!(
+            !text.is_empty(),
+            "text found in `.info>.genre` element on `webtoons.com` Webtoon homepage should never be empty"
+        );
+
         let genre = Genre::from_str(text)
             .assumption("`webtoons.com` Webtoon homepage should only contain recognized genres")?;
 
         genres.push(genre);
     }
 
-    match genres.as_slice() {
-        [_] | [_, _] => Ok(genres),
-        [] => assumption!("`webtoons.com` Webtoon homepage should have at least one genre"),
-        [_, _, _, ..] => {
-            assumption!("`webtoons.com` Webtoon homepage should have at most two genres")
-        }
-    }
+    assume_implies!(
+        webtoon.is_original() => genres.len() == 1,
+        "`webtoons.com` Originals Webtoon homepage should have exactly one genre"
+    );
+
+    assume_implies!(
+        webtoon.is_canvas() => matches!(genres.len(), 1 | 2),
+        "`webtoons.com` Canvas Webtoon homepage should only have one or two genres"
+    );
+
+    Ok(genres)
 }
 
 #[inline]
@@ -319,18 +354,30 @@ fn views(html: &Html) -> Result<u64, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
         .expect("`em.cnt` should be a valid selector");
 
-    let views = html
+    let element = html
         .select(&selector)
         // First occurrence of `em.cnt` is for the views.
         .next()
         .assumption(
             "first `em.cnt` element on `webtoons.com` Webtoon homepage should be present for views",
-        )?
+        )?;
+
+    let label = element
+        .prev_sibling_element() //
+        .assumption("first `em.cnt` element on `webtoons.com` Webtoon homepage should be nested with a `span` element",)?
         .inner_html();
+
+    assume_eq!(
+        label,
+        "view",
+        "first `em.cnt` element label should be for views"
+    );
+
+    let views = element.inner_html();
 
     assume!(
         !views.is_empty(),
-        "first `em.cnt` element on `webtoons.com` Webtoon homepage should never be empty"
+        "text in first `em.cnt` element on `webtoons.com` Webtoon homepage should never be empty"
     );
 
     let views = match views {
@@ -348,16 +395,28 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
     let selector = Selector::parse(r"em.cnt") //
         .expect("`em.cnt` should be a valid selector");
 
-    let subscribers = html
+    let element = html
         .select(&selector)
         // First instance of `em.cnt` is for views; second is for subscribers.
         .nth(1)
-        .assumption("second `em.cnt` element on `webtoons.com` Webtoon homepage should be present for subscribers")?
+        .assumption("second `em.cnt` element on `webtoons.com` Webtoon homepage should be present for subscribers")?;
+
+    let label = element
+        .prev_sibling_element() //
+        .assumption("second `em.cnt` element on `webtoons.com` Webtoon homepage should be nested with a `span` element")?
         .inner_html();
+
+    assume_eq!(
+        label,
+        "subscribe",
+        "second `em.cnt` element label should be for subscribers"
+    );
+
+    let subscribers = element.inner_html();
 
     assume!(
         !subscribers.is_empty(),
-        "second `em.cnt` element on `webtoons.com` Webtoon homepage should never be empty"
+        "text in second `em.cnt` element on `webtoons.com` Webtoon homepage should never be empty"
     );
 
     let subscribers = match subscribers {
@@ -373,6 +432,36 @@ fn subscribers(html: &Html) -> Result<u32, WebtoonError> {
 
 #[inline]
 fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
+    // Parses HTML like:
+    //
+    // ```html
+    // <p class="day_info">
+    //  <span class="txt_ico_up">UP</span>
+    //  EVERYDAY
+    // </p>
+    // ```
+    //
+    // ```html
+    // <p class="day_info">
+    // <span class="txt_ico_up">UP</span
+    // EVERY MON, WED, FR
+    // </p>
+    // ```
+    //
+    // ```html
+    // <p class="day_info">
+    //  <span class="txt_ico_up">UP</span>
+    //  EVERY SATURDAY
+    // </p>
+    // ```
+    //
+    // ```html
+    // <p class="day_info">
+    //  <span class="txt_ico_completed"></span>
+    //  COMPLETED
+    // </p>
+    // ```
+
     let selector = Selector::parse(r"p.day_info") //
         .expect("`p.day_info` should be a valid selector");
 
@@ -385,21 +474,23 @@ fn schedule(html: &Html) -> Result<Schedule, WebtoonError> {
             "`p.day_info` element should be present on `webtoons.com` Originals Webtoon homepage",
         )?
         .children()
-        // Skip the <span> (icons like "UP")
-        .filter_map(|node| node.value().as_text())
-        .map(|text| text.trim())
-        .find(|text| !text.is_empty())
-        .map(|text| match text {
-            "EVERYDAY" => text,
-            _ => text.trim_start_matches("EVERY").trim_start(),
-        })
-        .assumption("`p.day_info` element on `webtoons.com` Originals Webtoon homepage should contain non-empty text")?
+        // Skip the <span> sibling (icons like "UP")
+        .find_map(|node| node.value().as_text())
+        .map(|text| -> Result<&str, Assumption> {
+            match text.trim() {
+                "EVERYDAY" | "COMPLETED" => Ok(text),
+                text if !text.is_empty() => Ok(text.trim_start_matches("EVERY").trim_start()),
+                _ => assumption!("text found in `p.day_info` on `webtoons.com` Originals Webtoon homepage should never be empty"),
+        }})
+        .assumption("`p.day_info` element on `webtoons.com` Originals Webtoon homepage should contain a text value")??
         .split_whitespace()
         // `MON,` -> `MON`
         .map(|text| text.trim_end_matches(','))
     {
         releases.push(status);
     }
+
+    ensure!(releases.iter().all(|d| !d.ends_with(',')));
 
     assume!(
         !releases.is_empty(),
@@ -431,16 +522,22 @@ fn summary(html: &Html) -> Result<String, WebtoonError> {
         .next()
         .assumption("`p.summary` element on `webtoons.com` Webtoon homepage should contain text")?;
 
-    let mut summary = String::new();
+    assume!(
+        !text.is_empty(),
+        "text found in `p.summary` element on `webtoons.com` Webtoon homepage should never be empty"
+    );
 
-    // Gets rid of any weird formatting, such as newlines and tabs being in the middle of the summary.
+    let mut summary = String::with_capacity(text.len());
+
     for word in text.split_whitespace() {
+        if !summary.is_empty() {
+            summary.push(' ');
+        }
         summary.push_str(word);
-        summary.push(' ');
     }
 
-    // Removes the final spacing at the end while keeping it a string.
-    summary.pop();
+    ensure!(!summary.is_empty());
+    ensure!(!summary.ends_with(' '));
 
     Ok(summary)
 }
@@ -459,12 +556,17 @@ fn thumbnail(html: &Html) -> Result<Url, WebtoonError> {
             "`.thmb>img` element on `webtoons.com` Webtoon homepage should have a `src` attribute",
         )?;
 
+    assume!(
+        !url.is_empty(),
+        "`src` text in `.thmb>img` element on `webtoons.com` Webtoon homepage should never be empty"
+    );
+
     let mut thumbnail = Url::parse(url).with_assumption(|| {
         format!("thumbnail url on `webtoons.com` Webtoon homepage should be a valid url: `{url}`")
     })?;
 
     thumbnail
-        // This host doesn't need a `referer` header to see the image.
+        // WHY: This host doesn't need a `referer` header to see the image.
         .set_host(Some("swebtoon-phinf.pstatic.net"))
         .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 
@@ -485,6 +587,11 @@ fn banner(html: &Html) -> Result<Url, WebtoonError> {
         .attr("src")
         .assumption("`.thmb>img` element on `webtoons.com` Originals Webtoon homepage should have a `src` attribute")?;
 
+    assume!(
+        !url.is_empty(),
+        "`src` text in `.thmb>img` element on `webtoons.com` Webtoon homepage should never be empty"
+    );
+
     let mut banner = Url::parse(url).with_assumption(|| {
         format!(
             "banner url on `webtoons.com` Originals Webtoon homepage should be a valid url: `{url}`"
@@ -492,7 +599,7 @@ fn banner(html: &Html) -> Result<Url, WebtoonError> {
     })?;
 
     banner
-        // This host doesn't need a `referer` header to see the image.
+        // WHY: This host doesn't need a `referer` header to see the image.
         .set_host(Some("swebtoon-phinf.pstatic.net"))
         .expect("`swebtoon-phinf.pstatic.net` should be a valid url host");
 
@@ -509,6 +616,15 @@ fn episode(element: &ElementRef<'_>, webtoon: &Webtoon) -> Result<Episode, Assum
         .assumption(
             "`li` element on `webtoons.com` Webtoon episode list should always have a `data-episode-no` attribute",
         )?;
+
+    assume!(
+        !data_episode_no.is_empty(),
+        "`data-episode-no` attribute in episode `li` element on `webtoons.com` Webtoons homepage should never be empty"
+    );
+    assume!(
+        data_episode_no.chars().all(|d| d.is_ascii_digit()),
+        "`data-episode-no` attribute in episode `li` element on `webtoons.com` Webtoons homepage should only be digits"
+    );
 
     let number = data_episode_no
         .parse::<u16>()
@@ -566,7 +682,7 @@ fn episode_title(html: &ElementRef<'_>) -> Result<String, Assumption> {
 
     assume!(
         !title.is_empty(),
-        "`span.subj>span` element on `webtoons.com` Webtoon episode list should never be empty"
+        "text in `span.subj>span` element on `webtoons.com` Webtoon episode list should never be empty"
     );
 
     Ok(html_escape::decode_html_entities(title).to_string())
@@ -600,6 +716,11 @@ fn calculate_total_pages(html: &Html) -> Result<u16, WebtoonError> {
         .next()
         .assumption("`span.tx` element on `webtoons.com` Webtoon episode list should contain text")?
         .trim();
+
+    assume!(
+        !latest.is_empty(),
+        "latest episode number on `webtoons.com` Webtoons homepage should be never be empty"
+    );
 
     assume!(
         latest.starts_with('#'),
@@ -641,8 +762,8 @@ pub(super) async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, WebtoonE
             episodes.push(episode(&element, webtoon)?);
         }
 
-        // Sleep for one second to prevent getting a 429 response code for going
-        // between the pages too quickly.
+        // Sleep for one second to prevent getting a 429
+        // response code for going between the pages too quickly.
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
@@ -727,6 +848,11 @@ fn date(episode: &ElementRef<'_>) -> Result<NaiveDate, Assumption> {
             "`span.date` element on `webtoons.com` Webtoon episode list should contain text",
         )?
         .trim();
+
+    assume!(
+        !text.is_empty(),
+        "text from `span.date` element on `webtoons.com` Webtoons homepage should never be empty"
+    );
 
     let date = NaiveDate::parse_from_str(text, FMT).with_assumption(|| {
         format!("`webtoons.com` Webtoon episode date should be parseable with format `{FMT}`, got: `{text}`")
@@ -824,6 +950,8 @@ fn count(
 
         Ok((left, right))
     }
+
+    requires!(!input.is_empty());
 
     let number = match suffix {
         Some(suffix) => input.trim_end_matches(suffix),

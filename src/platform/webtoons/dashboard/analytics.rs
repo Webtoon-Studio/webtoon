@@ -1,6 +1,8 @@
 use crate::platform::webtoons::{Webtoon, error::SessionError, webtoon::episode::Episode};
 use assumptions::Assumption;
 
+use std::debug_assert as ensure;
+
 pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
     let series_analytics = webtoon.client.fetch_series_analytics(webtoon, 1).await?;
 
@@ -21,7 +23,7 @@ pub async fn episodes(webtoon: &Webtoon) -> Result<Vec<Episode>, SessionError> {
         }
     }
 
-    debug_assert!(
+    ensure!(
         episodes.len() == count,
         "total episodes should match the episode count from the dashboard"
     );

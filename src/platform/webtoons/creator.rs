@@ -3,7 +3,10 @@
 use super::{Client, Webtoon, error::CreatorError};
 use crate::{
     platform::webtoons::error::{ClientError, CreatorWebtoonsError},
-    stdx::cache::{Cache, Store},
+    stdx::{
+        cache::{Cache, Store},
+        macros::maybe,
+    },
 };
 use assumptions::{Assume, Assumption, assume, assumption};
 use core::fmt::{self, Debug};
@@ -235,8 +238,9 @@ impl Creator {
 
         let response = creator.client.fetch_creator_webtoons(&id).await?;
 
-        let webtoons =
-            future::try_join_all(response.result.titles.iter().map(|webtoon| async {
+        let titles = response.result.titles.iter();
+
+        let webtoons = future::try_join_all(titles.map(|webtoon| async {
                 let webtoon = match Webtoon::new_with_client(webtoon.id, webtoon.r#type, client).await {
                     Ok(Some(webtoon)) => webtoon,
                     Ok(None) => assumption!("`webtoons.com` creator webtoons API should only return ids for existing, public webtoons"),
@@ -244,6 +248,11 @@ impl Creator {
                 };
                 Ok::<Webtoon, ClientError>(webtoon)
             })).await?;
+
+        maybe!(
+            webtoons.is_empty(),
+            "if Creator has no public Webtoons, then the returned list will be empty"
+        );
 
         Ok(Some(webtoons))
     }
@@ -297,9 +306,6 @@ pub(super) async fn homepage(
         return Err(CreatorError::InvalidCreatorProfile);
     }
 
-    // QUESTION:
-    // Is this worth making an `CreatorError::DisabledHomepage` error for this?
-    // It's not really actionable, so in theory `None` should be fine?
     if is_disabled_for_community_violation(&html) {
         return Ok(None);
     }
@@ -353,9 +359,19 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
             )?
             .replace(',', "");
 
+        assume!(
+            !count.is_empty(),
+            "text from creator followers metric on `webtoons.com` Creator homepage should never be empty"
+        );
+
+        assume!(
+            count.chars().all(|d| d.is_ascii_digit()),
+            "text from creator followers metric on `webtoons.com` Creator homepage should only be digits"
+        );
+
         return count
-                    .parse::<u32>()
-                    .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should be plain digits or digits with commas, got: `{count}`"));
+            .parse::<u32>()
+            .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should be plain digits or digits with commas, got: `{count}`"));
     }
 
     assumption!(

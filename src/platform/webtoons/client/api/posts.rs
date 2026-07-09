@@ -10,7 +10,7 @@ use crate::{
     },
     stdx::cache::Cache,
 };
-use assumptions::{Assume, assume};
+use assumptions::{Assume, assume, assume_implies};
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{str::FromStr, sync::Arc};
@@ -353,6 +353,17 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                 }
             }
         }
+
+        assume_implies!(
+            giphy_or_sticker.is_some() => webtoons.is_empty(),
+            "if there is a gif or a sticker, there should be no webtoons"
+        );
+
+        assume_implies!(
+            !webtoons.is_empty() => giphy_or_sticker.is_none(),
+            "if there are webtoons, there should be no sticker or gif"
+
+        );
 
         let flare = if webtoons.is_empty() {
             giphy_or_sticker

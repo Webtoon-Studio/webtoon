@@ -2,8 +2,10 @@
 
 use assumptions::{Assume, Assumption, assume};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::str::FromStr;
 use url::Url;
+
+use std::debug_assert as ensure;
+use std::str::FromStr;
 
 use crate::{
     platform::webtoons::{creator::Creator, error::WebtoonError, webtoon::episode::Published},
@@ -147,7 +149,7 @@ fn published(date: &str) -> Result<DateTime<Utc>, Assumption> {
         "`webtoons.com` RSS feed `pubDate` should start with a digit after the day of week, got: `{date}`"
     );
 
-    debug_assert!(
+    ensure!(
         !date.ends_with("GMT"),
         "`pubDate` should not end with `GMT` after trimming"
     );

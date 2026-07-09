@@ -5,7 +5,7 @@ mod homepage;
 pub mod episode;
 pub mod post;
 
-use assumptions::{assume_matches, assumption};
+use assumptions::{assume, assume_matches, assumption};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -895,7 +895,7 @@ impl Webtoon {
         let webtoon = Self {
             client: client.clone(),
             scope,
-            slug: slug.into(),
+            slug: Arc::from(slug),
             id,
             homepage: Cache::empty(),
         };
@@ -936,12 +936,20 @@ fn parse_url(url: &Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
     })?;
 
     let slug = segments
-            .next()
-            .ok_or_else(|| InvalidWebtoonUrl::Malformed {
-                url: url.to_string(),
-                reason: String::from("provided url didn't have a third segment representing the slug, e.g. `tower-of-god`"),
-            })?
-            .to_string();
+        .next()
+        .ok_or_else(|| InvalidWebtoonUrl::Malformed {
+            url: url.to_string(),
+            reason: String::from("provided url didn't have a third segment representing the slug, e.g. `tower-of-god`"),
+        })?
+        .to_owned();
+
+    assume!(
+        !slug.is_empty(),
+        InvalidWebtoonUrl::Malformed {
+            url: url.to_string(),
+            reason: "slug in `webtoons.com` URL was empty".to_owned()
+        }
+    );
 
     let id = url.query().ok_or_else(|| InvalidWebtoonUrl::Malformed {
         url: url.to_string(),

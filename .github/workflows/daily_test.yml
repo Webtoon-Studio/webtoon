@@ -27,4 +27,4 @@ jobs:
       env:
         WEBTOON_SESSION: ${{ secrets.WEBTOON_SESSION }}
         RUST_BACKTRACE: 1
-      run: cargo test --verbose --all-features --release --no-fail-fast
+      run: cargo test --verbose --all-features --profile test --no-fail-fast

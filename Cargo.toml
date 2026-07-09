@@ -38,7 +38,7 @@ fastrand = "2"
 thiserror = "2"
 error_set = "0.9.0"
 arrayvec = "0.7"
-assumptions = { git = "https://github.com/RoloEdits/assumptions.git", rev = "a4998c9d8e68d2e7475ae11bc7e7b6285e7ff133" }
+assumptions = { git = "https://github.com/RoloEdits/assumptions.git", rev = "5bc484fa601664b1d4328120c1805f9012bef11b" }
 
 # feature = `download`
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"], optional = true}
