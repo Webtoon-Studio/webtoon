@@ -18,6 +18,8 @@ use scraper::{ElementRef, Html, Selector};
 use std::hash::Hash;
 use url::Url;
 
+use std::debug_assert as ensure;
+
 /// An episode on `webtoons.com`.
 ///
 /// Obtained via [`Webtoon::episodes()`] or [`Webtoon::episode()`]; not constructed directly.
@@ -675,6 +677,7 @@ impl Episode {
         reason = "a Semaphore not being able to close is an internal logic error, and caught in CI"
     )]
     pub async fn download(&self) -> Result<DownloadedPanels, EpisodeError> {
+        use std::sync::Arc;
         use tokio::sync::Semaphore;
 
         let episode = self;
@@ -682,32 +685,45 @@ impl Episode {
 
         let mut panels = episode.panels().await?;
 
-        // TODO: Can get rid of this? Think this is the only `sync` dep from tokio being used.
         // PERF: Download N panels at a time. Without this it will be a sequential.
-        let semaphore = Semaphore::new(100);
+        let semaphore = Arc::new(Semaphore::new(100));
+
+        let mut tasks = Vec::with_capacity(panels.len());
+
+        for mut panel in std::mem::take(&mut panels) {
+            let semaphore = Arc::clone(&semaphore);
+            let client = client.clone();
+            tasks.push(tokio::spawn(async move {
+                let _permit = semaphore
+                    .acquire()
+                    .await
+                    .expect("semaphore should not be closed during `Episode::download`");
+
+                panel.download(&client).await?;
+
+                Ok::<Panel, EpisodeError>(panel)
+            }));
+        }
 
         let mut height = 0;
         let mut width = 0;
 
-        for panel in &mut panels {
-            let semaphore = semaphore
-                .acquire()
-                .await
-                .expect("semaphore should not be closed during `Episode::download`");
-
-            panel.download(client).await?;
-
-            drop(semaphore);
+        for task in tasks {
+            let panel = task.await.expect("joining task should not panic")?;
 
             height += panel.height;
             // NOTE: Not all panels are guaranteed to be the same width. When it
             // comes to making building up a single image later on, this is needed
             // to get the max width of all panels and then just fit to that.
             width = width.max(panel.width);
+
+            panels.push(panel);
         }
 
+        ensure!(panels.is_sorted_by_key(|panel| panel.number));
+
         Ok(DownloadedPanels {
-            images: panels,
+            panels,
             height,
             width,
         })
@@ -1269,7 +1285,7 @@ fn panels(html: &Html, episode: u16) -> Result<Vec<Panel>, Assumption> {
 #[cfg(feature = "download")]
 #[derive(Debug, Clone)]
 pub struct DownloadedPanels {
-    images: Vec<Panel>,
+    panels: Vec<Panel>,
     height: u32,
     width: u32,
 }
@@ -1301,7 +1317,7 @@ impl DownloadedPanels {
     #[must_use]
     pub fn count(&self) -> usize {
         let panels = self;
-        panels.images.len()
+        panels.panels.len()
     }
 }
 
@@ -1352,7 +1368,7 @@ impl DownloadedPanels {
         let panels = self;
 
         let first = panels
-            .images
+            .panels
             .first()
             .expect("`DownloadedPanels::images` should never be empty");
 
@@ -1368,7 +1384,7 @@ impl DownloadedPanels {
 
         let mut offset = 0;
 
-        for panel in &panels.images {
+        for panel in &panels.panels {
             let bytes = panel.bytes.as_slice();
 
             let image = image::load_from_memory(bytes).assumption(
@@ -1428,7 +1444,7 @@ impl DownloadedPanels {
 
         let panels = self;
 
-        for panel in &panels.images {
+        for panel in &panels.panels {
             let name = format!("{}-{}", panel.episode, panel.number);
             let path = path.join(name).with_extension(&panel.ext);
 
