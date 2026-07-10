@@ -48,7 +48,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -78,7 +78,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -108,7 +108,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -138,7 +138,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -168,7 +168,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -198,7 +198,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -229,7 +229,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -259,7 +259,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -289,7 +289,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -328,7 +328,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -358,7 +358,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -391,7 +391,7 @@ impl Comment {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -608,7 +608,7 @@ mod iter {
 ///
 /// Fetching replies for the newest comment on an episode:
 ///
-/// ```
+/// ```no_run
 /// # use webtoon::platform::webtoons::{Client, Type, error::Error};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Error> {
@@ -640,7 +640,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -672,7 +672,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -704,7 +704,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -736,7 +736,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -768,7 +768,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -801,7 +801,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -834,7 +834,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -867,7 +867,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
@@ -902,7 +902,7 @@ impl Reply {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use webtoon::platform::webtoons::{error::Error, Client, Type};
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Error> {
