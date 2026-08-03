@@ -951,15 +951,22 @@ fn parse_url(url: &Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
         }
     );
 
-    let id = url.query().ok_or_else(|| InvalidWebtoonUrl::Malformed {
+    let (_ , id ) = url.query_pairs().find(|(key, _)|  key == "title_no" ).ok_or_else(|| InvalidWebtoonUrl::Malformed {
         url: url.to_string(),
         reason: String::from(
             "a valid `webtoons.com` Webtoon url should have a `title_no` query, but none was found",
         ),
     })?;
 
-    let id = match id.split_once('=') {
-        Some(("title_no", "")) => {
+    let id = match id.as_ref() {
+        id if id.chars().all(|ch| ch.is_ascii_digit()) => {
+            id.parse::<u32>()
+                .map_err(|err| InvalidWebtoonUrl::Malformed {
+                    url: url.to_string(),
+                    reason: format!("the `title_no` value was too large to fit in a `u32`: {err}"),
+                })?
+        }
+        "" => {
             return Err(InvalidWebtoonUrl::Malformed {
                 url: url.to_string(),
                 reason: String::from(
@@ -967,30 +974,12 @@ fn parse_url(url: &Url) -> Result<(Scope, String, u32), InvalidWebtoonUrl> {
                 ),
             });
         }
-        Some(("title_no", id)) if id.chars().all(|ch| ch.is_ascii_digit()) => id
-            .parse::<u32>()
-            .map_err(|err| InvalidWebtoonUrl::Malformed {
-                url: url.to_string(),
-                reason: format!("the `title_no` value was too large to fit in a `u32`: {err}"),
-            })?,
-        Some(("title_no", _)) => {
+        _ => {
             return Err(InvalidWebtoonUrl::Malformed {
                 url: url.to_string(),
                 reason: String::from(
-                    "provided url had a `title_no` query but the value was not a valid digit",
+                    "provided url had a `title_no` query but value was not a number",
                 ),
-            });
-        }
-        Some(_) => {
-            return Err(InvalidWebtoonUrl::Malformed {
-                url: url.to_string(),
-                reason: String::from("provided url did not have a `title_no` query"),
-            });
-        }
-        None => {
-            return Err(InvalidWebtoonUrl::Malformed {
-                url: url.to_string(),
-                reason: String::from("`title_no` should always have a `=` separator"),
             });
         }
     };
