@@ -18,6 +18,7 @@ use scraper::{ElementRef, Html, Selector};
 use std::hash::Hash;
 use url::Url;
 
+#[cfg(feature = "download")]
 use std::debug_assert as ensure;
 
 /// An episode on `webtoons.com`.
