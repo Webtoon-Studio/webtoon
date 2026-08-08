@@ -595,17 +595,6 @@ async fn english_canvas_panel_image_with_multiple_dots_in_ext_is_ok() {
 }
 
 #[tokio::test]
-async fn english_canvas_creator_invalid_creator_profile() {
-    let client = Client::new();
-    let creator = client.creator("y87lz").await;
-
-    match creator {
-        Err(CreatorError::InvalidCreatorProfile) => {}
-        Ok(_) | Err(_) => unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}"),
-    }
-}
-
-#[tokio::test]
 async fn english_original_creator_of_korean_story_should_scrape_fine() {
     let client = Client::new();
     let webtoon = client.webtoon(95, Type::Original).await.unwrap().unwrap();
@@ -689,9 +678,9 @@ async fn english_canvas_invalid_creator_profile() {
 
     for profile in ["_91ms9c", "y87lz", "k7yid", "m8sw0"] {
         match client.creator(profile).await {
-            Err(CreatorError::InvalidCreatorProfile) => {}
+            Err(CreatorError::DeactivatedCreatorProfile) => {}
             creator => {
-                unreachable!("should return `InvalidCreatorProfile` error: {creator:#?}")
+                unreachable!("should return `DeactivatedCreatorProfile` error: {creator:#?}")
             }
         }
     }

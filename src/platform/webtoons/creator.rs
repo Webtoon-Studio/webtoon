@@ -8,7 +8,7 @@ use crate::{
         macros::maybe,
     },
 };
-use assumptions::{Assume, Assumption, assume, assumption};
+use assumptions::{Assume, Assumption, assume, assume_eq, assumption};
 use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};
@@ -302,8 +302,8 @@ pub(super) async fn homepage(
         return Ok(None);
     };
 
-    if is_invalid(&html) {
-        return Err(CreatorError::InvalidCreatorProfile);
+    if is_deactivated(&html)? {
+        return Err(CreatorError::DeactivatedCreatorProfile);
     }
 
     if is_disabled_for_community_violation(&html) {
@@ -447,24 +447,31 @@ fn has_patreon(html: &Html) -> bool {
 //
 // https://www.webtoons.com/p/community/en/u/y87lz
 #[inline]
-#[must_use]
-fn is_invalid(html: &Html) -> bool {
+fn is_deactivated(html: &Html) -> Result<bool, Assumption> {
+    // Element(<p class="ErrorPage_text__FQYij">) => { Text("Creator has de-activated their profile.") }
+
     let selector = Selector::parse("p") //
         .expect("`p` should be a valid selector");
 
-    // Element(<p class="ErrorPage_text__FQYij">) => { Text("Invalid creator profile.") }
-    html.select(&selector)
-        .find(|element| {
-            element
-                .attr("class")
-                .is_some_and(|class| class.starts_with("ErrorPage_text"))
-        })
-        .is_some_and(|element| {
-            element
-                .text()
-                .next()
-                .is_some_and(|text| text == "Invalid creator profile.")
-        })
+    let Some(element) = html.select(&selector).find(|element| {
+        matches!(element.attr("class"), Some(class) if class.starts_with("ErrorPage_text"))
+    }) else {
+      return Ok(false);
+    };
+
+    let Some(text) = element.text().next() else {
+        assumption!(
+            "if there is an `ErrorPage_text` element on creator profile page, there should always be text: {element:#?}"
+        );
+    };
+
+    assume_eq!(
+        text,
+        "Creator has de-activated their profile.",
+        "`ErrorPage_text` had an unexpected message"
+    );
+
+    Ok(true)
 }
 
 // When a creator page is disabled due to community policy violations, `webtoons.com`

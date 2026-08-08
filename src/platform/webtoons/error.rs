@@ -44,8 +44,8 @@ mod _inner {
         CreatorWebtoonsError := CreatorError || ClientError
 
         CreatorError := {
-            #[display("invalid creator profile")]
-            InvalidCreatorProfile,
+            #[display("deactivated creator profile")]
+            DeactivatedCreatorProfile,
         } || Internal || Network
 
         WebtoonError := Internal || Network
