@@ -1,4 +1,11 @@
 ## What's Changed in 0.10.0
+* chore: fix cargo lints by @RoloEdits in [#315](https://github.com/Webtoon-Studio/webtoon/pull/315)
+* build(deps): remove unused `urlencoding` by @RoloEdits in [#314](https://github.com/Webtoon-Studio/webtoon/pull/314)
+* chore: add version for `assumptions` by @RoloEdits in [#310](https://github.com/Webtoon-Studio/webtoon/pull/310)
+* fix(creator): update creator page parsing by @RoloEdits in [#313](https://github.com/Webtoon-Studio/webtoon/pull/313)
+* build(deps): update parking_lot requirement from 0.12 to 0.13 by @dependabot[bot] in [#312](https://github.com/Webtoon-Studio/webtoon/pull/312)
+* build(deps): update scraper requirement from 0.27 to 0.29 by @dependabot[bot] in [#311](https://github.com/Webtoon-Studio/webtoon/pull/311)
+* chore: bump version from 0.9.0 to 0.10.0 by @RoloEdits in [#192](https://github.com/Webtoon-Studio/webtoon/pull/192)
 * build(deps): update html-escape requirement from 0.2 to 0.3 by @dependabot[bot] in [#309](https://github.com/Webtoon-Studio/webtoon/pull/309)
 * fix: update expected error message for deactivated creator profile by @RoloEdits in [#308](https://github.com/Webtoon-Studio/webtoon/pull/308)
 * refactor: narrow logic for webtoons url parsing by @RoloEdits in [#307](https://github.com/Webtoon-Studio/webtoon/pull/307)
