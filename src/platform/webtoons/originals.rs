@@ -1,12 +1,12 @@
 //! Originals page at `https://www.webtoons.com/en/originals`.
 
 use super::{Client, Webtoon, error::OriginalsError};
-use assumptions::{Assume, assume};
+use assumptions::{Assume as _, assume};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use std::debug_assert as ensure;
+use std::debug_assert_eq as ensure_eq;
 use std::str::FromStr;
 
 pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsError> {
@@ -30,7 +30,7 @@ pub(super) async fn scrape(client: &Client) -> Result<Vec<Webtoon>, OriginalsErr
     }))
     .await?;
 
-    ensure!(documents.len() == 8);
+    ensure_eq!(documents.len(), 8);
 
     let mut webtoons = Vec::with_capacity(2000);
 

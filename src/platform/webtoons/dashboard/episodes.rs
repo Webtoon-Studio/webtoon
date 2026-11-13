@@ -149,7 +149,6 @@ pub enum DashboardStatus {
 }
 
 impl DashboardStatus {
-    #[allow(dead_code)]
     pub fn is_published(self) -> bool {
         matches!(self, Self::Published | Self::AdOn | Self::AdOff)
     }
@@ -191,7 +190,7 @@ impl FromStr for DashboardStatus {
             "IN_REVIEW" => Ok(Self::InReview),
             "DISAPPROVED" => Ok(Self::Disapproved),
             "DISAPPROVED_AUTO" => Ok(Self::DisapprovedAuto),
-            unknown => Err(DashboardStatusParseError(unknown.to_string())),
+            unknown => Err(DashboardStatusParseError(unknown.to_owned())),
         }
     }
 }

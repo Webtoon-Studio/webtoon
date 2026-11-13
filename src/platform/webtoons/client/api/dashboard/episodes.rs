@@ -39,7 +39,7 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Type> {
     if let Some(line) = line.find(|line| line.starts_with(START) && line.ends_with(END)) {
         assumption!(
             "`webtoons.com` episode dashboard should have exactly one line starting with `{START}` and ending with `{END}`, got a second: `{line}`"
-        )
+        );
     }
 
     if let Some(json) = json {
@@ -56,7 +56,7 @@ pub fn parse(html: &str) -> Result<Vec<DashboardEpisode>, Type> {
     );
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct DashboardEpisode {
     #[serde(alias = "episode")]
@@ -107,7 +107,7 @@ impl Hash for DashboardEpisode {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Metadata {
     #[serde(alias = "episodeNo")]

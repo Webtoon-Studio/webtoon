@@ -1,7 +1,9 @@
-use assumptions::{Assume, Assumption, assume, assume_eq, assume_implies, assume_ne, assumption};
+use assumptions::{
+    Assume as _, Assumption, assume, assume_eq, assume_implies, assume_ne, assumption,
+};
 use chrono::NaiveDate;
-use scraper::{Element, ElementRef, Html, Selector};
-use std::{str::FromStr, time::Duration};
+use scraper::{Element as _, ElementRef, Html, Selector};
+use std::{str::FromStr as _, time::Duration};
 use url::Url;
 
 use crate::{
@@ -19,8 +21,9 @@ use crate::{
 
 use super::{WebtoonError, episode::Episode};
 
-use std::debug_assert as requires;
 use std::debug_assert as ensure;
+use std::debug_assert_ne as ensure_ne;
+use std::debug_assert_ne as require_ne;
 
 #[inline]
 pub async fn scrape(webtoon: &Webtoon) -> Result<Homepage, WebtoonError> {
@@ -165,7 +168,7 @@ fn title(html: &Html) -> Result<String, WebtoonError> {
         title.push_str(word);
     }
 
-    ensure!(!title.is_empty());
+    ensure_ne!(title, "");
     ensure!(!title.ends_with(' '));
 
     Ok(title)
@@ -536,7 +539,7 @@ fn summary(html: &Html) -> Result<String, WebtoonError> {
         summary.push_str(word);
     }
 
-    ensure!(!summary.is_empty());
+    ensure_ne!(summary, "");
     ensure!(!summary.ends_with(' '));
 
     Ok(summary)
@@ -908,7 +911,7 @@ fn usernames(element: ElementRef<'_>) -> impl Iterator<Item = String> {
         // This should allow commas in usernames, while still filtering away the standalone `,` separator.
         .flat_map(|text| {
             text.split('\t')
-                .map(|str| str.trim().to_string())
+                .map(|str| str.trim().to_owned())
                 .collect::<Vec<_>>()
         })
         // Remove empty strings and the standalone comma separators
@@ -951,7 +954,7 @@ fn count(
         Ok((left, right))
     }
 
-    requires!(!input.is_empty());
+    require_ne!(input, "");
 
     let number = match suffix {
         Some(suffix) => input.trim_end_matches(suffix),

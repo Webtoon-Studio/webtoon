@@ -4,14 +4,14 @@ mod api;
 
 // ASK: Is this the best spot for this to be exported?
 pub use api::user_info::UserInfo;
-use assumptions::{Assume, assume, assumption};
+use assumptions::{Assume as _, assume, assumption};
 
 use super::{
     Type, Webtoon,
     canvas::{self, Sort},
     creator::{self, Creator},
     error::{CanvasError, CreatorError, OriginalsError, SearchError},
-    originals::{self},
+    originals,
     webtoon::{episode::Episode, post::Post},
 };
 #[cfg(feature = "rss")]
@@ -38,7 +38,7 @@ use crate::{
     },
     stdx::{
         cache::Cache,
-        http::{DEFAULT_USER_AGENT, RequestExt},
+        http::{DEFAULT_USER_AGENT, RequestExt as _},
         macros::maybe,
     },
 };
@@ -455,9 +455,9 @@ impl Client {
     /// # }
     /// ```
     #[inline]
-    pub async fn canvas(
+    pub async fn canvas<R: RangeBounds<u16> + Send>(
         &self,
-        pages: impl RangeBounds<u16> + Send,
+        pages: R,
         sort: Sort,
     ) -> Result<Vec<Webtoon>, CanvasError> {
         let client = self;
@@ -804,7 +804,7 @@ impl Client {
 
     #[cfg(feature = "rss")]
     pub(super) async fn rss(&self, webtoon: &Webtoon) -> Result<rss::Channel, WebtoonError> {
-        use std::str::FromStr;
+        use std::str::FromStr as _;
 
         let client = self;
 

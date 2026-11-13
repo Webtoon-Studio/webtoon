@@ -1,4 +1,4 @@
-use assumptions::{Assume, Assumption};
+use assumptions::{Assume as _, Assumption};
 use chrono::DateTime;
 use serde::Deserialize;
 

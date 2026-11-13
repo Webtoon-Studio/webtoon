@@ -8,7 +8,7 @@
 /// Expands to `debug_assert!(cond || !cond)`, so logically always holds.
 ///
 /// Mirrors `TigerBeetle`'s `maybe()` from
-/// ["It Takes Two to Contract"](https://tigerbeetle.com/blog/2023-12-27-it-takes-two-to-contract/).
+/// [It Takes Two to Contract](https://tigerbeetle.com/blog/2023-12-27-it-takes-two-to-contract/).
 macro_rules! maybe {
     ($cond:expr $(, $($arg:tt)+)?) => {
         debug_assert!($cond || !$cond $(, $($arg)+)?)
@@ -25,7 +25,7 @@ pub(crate) use maybe;
 /// the harder-to-parse `!a || b`. Takes an optional message like
 /// `debug_assert!`.
 ///
-/// See `TigerBeetle`'s ["Asserting Implications"](https://tigerbeetle.com/blog/2025-05-26-asserting-implications/).
+/// See `TigerBeetle`'s [Asserting Implications](https://tigerbeetle.com/blog/2025-05-26-asserting-implications/).
 #[macro_export]
 macro_rules! implies {
     ($a:expr => $b:expr $(, $($arg:tt)+)?) => {
