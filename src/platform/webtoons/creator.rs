@@ -8,7 +8,7 @@ use crate::{
         macros::maybe,
     },
 };
-use assumptions::{Assume, Assumption, assume, assume_eq, assumption};
+use assumptions::{Assume, Assumption, assume, assumption};
 use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};
@@ -302,7 +302,7 @@ pub(super) async fn homepage(
         return Ok(None);
     };
 
-    if is_deactivated(&html)? {
+    if is_deactivated(&html) {
         return Err(CreatorError::DeactivatedCreatorProfile);
     }
 
@@ -346,7 +346,7 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
             element
                 .value()
                 .attr("class")
-                .is_some_and(|class| class.starts_with("CreatorBriefMetric_count"))
+                .is_some_and(|class| class.ends_with("_count"))
         })
         // To get the followers we need the second instance.
         .nth(1)
@@ -371,11 +371,11 @@ fn followers(html: &Html) -> Result<u32, Assumption> {
 
         return count
             .parse::<u32>()
-            .with_assumption( || format!("follower count in `CreatorBriefMetric_count` element should be plain digits or digits with commas, got: `{count}`"));
+            .with_assumption( || format!("follower count in `span.*_count` element should be plain digits or digits with commas, got: `{count}`"));
     }
 
     assumption!(
-        "second `CreatorBriefMetric_count` span should be present on `webtoons.com` creator homepage"
+        "Follower count `span.*_count` along with  should be present on `webtoons.com` creator homepage"
     );
 }
 
@@ -447,31 +447,21 @@ fn has_patreon(html: &Html) -> bool {
 //
 // https://www.webtoons.com/p/community/en/u/y87lz
 #[inline]
-fn is_deactivated(html: &Html) -> Result<bool, Assumption> {
-    // Element(<p class="ErrorPage_text__FQYij">) => { Text("Creator has de-activated their profile.") }
+fn is_deactivated(html: &Html) -> bool {
+    // <p class="Fy7nxq_text">Creator has de-activated their profile.</p>
 
     let selector = Selector::parse("p") //
         .expect("`p` should be a valid selector");
 
-    let Some(element) = html.select(&selector).find(|element| {
-        matches!(element.attr("class"), Some(class) if class.starts_with("ErrorPage_text"))
-    }) else {
-      return Ok(false);
-    };
+    for p in html.select(&selector) {
+        for text in p.text() {
+            if text == "Creator has de-activated their profile." {
+                return true;
+            }
+        }
+    }
 
-    let Some(text) = element.text().next() else {
-        assumption!(
-            "if there is an `ErrorPage_text` element on creator profile page, there should always be text: {element:#?}"
-        );
-    };
-
-    assume_eq!(
-        text,
-        "Creator has de-activated their profile.",
-        "`ErrorPage_text` had an unexpected message"
-    );
-
-    Ok(true)
+    false
 }
 
 // When a creator page is disabled due to community policy violations, `webtoons.com`
