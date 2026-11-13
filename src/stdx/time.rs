@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
+use chrono::{DateTime, Datelike as _, NaiveDate, Timelike as _, Utc};
 
 /// A date or full datetime value, used to represent varying precision of publish times.
 ///

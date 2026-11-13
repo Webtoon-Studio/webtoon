@@ -18,7 +18,7 @@ mod _inner {
         /// Catch-all error for prototyping. Prefer specific types in production code.
         #[expect(clippy::error_impl_error, reason = "catch-all for prototyping only")]
         Error := {
-            InvalidWebtoonUrl(super::InvalidWebtoonUrl),
+            InvalidWebtoonUrl(InvalidWebtoonUrl),
             #[cfg(feature = "download")]
             IoError(std::io::Error),
         }

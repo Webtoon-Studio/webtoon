@@ -10,10 +10,10 @@ use crate::{
     },
     stdx::cache::Cache,
 };
-use assumptions::{Assume, assume, assume_implies};
+use assumptions::{Assume as _, assume, assume_implies};
 use chrono::DateTime;
 use serde::Deserialize;
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr as _, sync::Arc};
 
 #[derive(Deserialize)]
 pub struct RawPostResponse {
@@ -94,7 +94,6 @@ pub struct CreatedBy {
     pub is_page_owner: bool,
     pub masked_user_id: String,
     pub name: String,
-    pub profile_image: ProfileImage,
     pub profile_url: String,
     // "PAGE"
     pub publisher_type: String,
@@ -125,10 +124,6 @@ pub struct BodyFormat {
     pub r#type: String,
     pub version: String,
 }
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProfileImage {}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -220,7 +215,7 @@ pub struct Extra {
     pub episode_list_path: String,
 }
 
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SuperLikeData {
@@ -259,7 +254,7 @@ pub struct CountResult {
 impl TryFrom<(&Episode, RawPost)> for Post {
     type Error = PostsError;
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn try_from((episode, post): (&Episode, RawPost)) -> Result<Self, Self::Error> {
         let client = &episode.webtoon.client;
 
@@ -283,8 +278,8 @@ impl TryFrom<(&Episode, RawPost)> for Post {
                 .unwrap_or_default()
         };
 
-        let mut liked: bool = false;
-        let mut disliked: bool = false;
+        let mut liked = false;
+        let mut disliked = false;
 
         let upvotes = votes("likes", &mut liked);
         let downvotes = votes("dislikes", &mut disliked);

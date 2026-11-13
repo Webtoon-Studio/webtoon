@@ -33,7 +33,7 @@ impl Add<u32> for Base36 {
 impl FromStr for Base36 {
     type Err = ParseIntError;
 
-    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let num = u32::from_str_radix(s, 36)?;
         Ok(Self(num))
     }
@@ -157,8 +157,8 @@ mod tests {
 
     #[test]
     fn base36_parse_errors_on_invalid_input() {
-        assert!("!@#".parse::<Base36>().is_err());
-        assert!("".parse::<Base36>().is_err());
+        "!@#".parse::<Base36>().unwrap_err();
+        "".parse::<Base36>().unwrap_err();
     }
 
     #[test]

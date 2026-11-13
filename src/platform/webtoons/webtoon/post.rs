@@ -5,7 +5,7 @@ use crate::{
     platform::webtoons::{Webtoon, error::PostsError},
     stdx::cache::{Cache, Store},
 };
-use assumptions::{Assume, Assumption, assume_eq};
+use assumptions::{Assume as _, Assumption, assume_eq};
 use chrono::{DateTime, Utc};
 use core::fmt::{self, Debug};
 use id::Id;
@@ -1058,7 +1058,7 @@ impl Post {
             return Ok(Vec::new());
         }
 
-        #[allow(
+        #[expect(
             clippy::mutable_key_type,
             reason = "`Post` has a `Client` that has interior mutability, but the `Hash` implementation only uses an id: Id, which has no mutability"
         )]
@@ -1282,7 +1282,7 @@ impl Giphy {
 }
 
 /// The author of a [`Comment`] or [`Reply`].
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Poster {
     pub(crate) episode: u16,
@@ -1474,12 +1474,13 @@ pub mod id {
     //! Module representing the post id format on `webtoons.com`.
 
     use crate::stdx::base36::Base36;
-    use assumptions::{Assume, Assumption, assume_eq, assumption};
+    use assumptions::{Assume as _, Assumption, assume_eq, assumption};
     use serde::{Deserialize, Serialize};
     use std::{
         cmp::Ordering,
         debug_assert_matches as ensure_matches,
         fmt::{Debug, Display},
+        result::Result,
         str::FromStr,
     };
 
@@ -1553,14 +1554,20 @@ pub mod id {
                             ),
                         };
 
-                        webtoon = match page_id.next() {
-                            Some(webtoon) => Some(webtoon.parse::<u32>().with_assumption(||format!("webtoon part of post id from `webtoons.com` should be parseable as a `u32`, got: `{webtoon}`"))?),
-                            None => assumption!("page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"),
+                        webtoon = if let Some(webtoon) = page_id.next() {
+                            Some(webtoon.parse::<u32>().with_assumption(||format!("webtoon part of post id from `webtoons.com` should be parseable as a `u32`, got: `{webtoon}`"))?)
+                        } else {
+                            assumption!(
+                                "page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"
+                            )
                         };
 
-                        episode = match page_id.next() {
-                            Some(episode) => Some(episode.parse::<u16>().with_assumption(||format!("episode part of post id from `webtoons.com` should be parseable as a `u16`, got: `{episode}`"))?),
-                            None => assumption!("page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"),
+                        episode = if let Some(episode) = page_id.next() {
+                            Some(episode.parse::<u16>().with_assumption(||format!("episode part of post id from `webtoons.com` should be parseable as a `u16`, got: `{episode}`"))?)
+                        } else {
+                            assumption!(
+                                "page id part of post id from `webtoons.com` should have 3 parts, got: `{part}`"
+                            )
                         };
 
                         assume_eq!(
@@ -1649,7 +1656,7 @@ pub mod id {
     }
 
     impl Ord for Id {
-        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn cmp(&self, other: &Self) -> Ordering {
             match self.post.cmp(&other.post) {
                 Ordering::Equal => {
                     match (self.reply, other.reply) {
@@ -1668,12 +1675,12 @@ pub mod id {
         }
     }
 
-    #[allow(
+    #[expect(
         clippy::non_canonical_partial_ord_impl,
         reason = "`Id` ordering is only meaningful for the same webtoon on the same episode"
     )]
     impl PartialOrd for Id {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             // If not a post on the same webtoons' episode then return `None`.
             // Cannot add `self.tag != other.tag` as its still unknown how this
             // number increments, but given that the other checks are enough to
@@ -1691,7 +1698,7 @@ pub mod id {
     }
 
     impl<'a> PartialOrd<&'a str> for Id {
-        fn partial_cmp(&self, other: &&'a str) -> Option<std::cmp::Ordering> {
+        fn partial_cmp(&self, other: &&'a str) -> Option<Ordering> {
             let Ok(other) = Self::from_str(other) else {
                 return None;
             };
@@ -1709,7 +1716,7 @@ pub mod id {
     impl TryFrom<String> for Id {
         type Error = Assumption;
 
-        fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        fn try_from(value: String) -> Result<Self, Self::Error> {
             Self::from_str(&value)
         }
     }

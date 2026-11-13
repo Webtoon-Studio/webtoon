@@ -8,7 +8,7 @@ use crate::{
         macros::maybe,
     },
 };
-use assumptions::{Assume, Assumption, assume, assumption};
+use assumptions::{Assume as _, Assumption, assume, assumption};
 use core::fmt::{self, Debug};
 use futures::future;
 use scraper::{Html, Selector};

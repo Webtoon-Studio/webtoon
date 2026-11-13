@@ -2,7 +2,7 @@
 
 use super::{Client, Webtoon};
 use crate::platform::webtoons::error::CanvasError;
-use assumptions::{Assume, assume_eq};
+use assumptions::{Assume as _, assume_eq};
 use scraper::Selector;
 use std::{fmt::Display, ops::RangeBounds};
 

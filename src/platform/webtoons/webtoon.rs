@@ -31,10 +31,11 @@ use crate::{
     },
     stdx::{
         cache::{Cache, Store},
-        http::RequestExt,
+        http::RequestExt as _,
     },
 };
 use core::fmt::{self, Debug};
+use core::result::Result;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -393,7 +394,7 @@ impl Webtoon {
     /// # }
     /// ```
     #[inline]
-    #[allow(
+    #[expect(
         clippy::todo,
         reason = "its unknown how we should handle the new dashboard information"
     )]
@@ -1016,7 +1017,7 @@ impl Scope {
 impl FromStr for Scope {
     type Err = ParseGenreError;
 
-    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let scope = match s {
             "canvas" => Self::Canvas,
             slug => Self::Original(Genre::from_str(slug)?),
@@ -1027,7 +1028,7 @@ impl FromStr for Scope {
 }
 
 /// Represents a genre on `webtoons.com`.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub enum Genre {

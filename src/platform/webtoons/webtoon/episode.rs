@@ -11,7 +11,7 @@ use crate::{
     stdx::time::DateOrDateTime,
 };
 use arrayvec::ArrayVec;
-use assumptions::{Assume, Assumption, assume, assume_matches, assumption};
+use assumptions::{Assume as _, Assumption, assume, assume_matches, assumption};
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
@@ -1325,9 +1325,9 @@ impl DownloadedPanels {
 #[cfg(feature = "download")]
 use crate::platform::webtoons::error::SavePanelError;
 #[cfg(feature = "download")]
-use image::{GenericImageView, ImageFormat, RgbaImage};
+use image::{GenericImageView as _, ImageFormat, RgbaImage};
 #[cfg(feature = "download")]
-use tokio::io::AsyncWriteExt;
+use tokio::io::AsyncWriteExt as _;
 
 #[cfg(feature = "download")]
 impl DownloadedPanels {

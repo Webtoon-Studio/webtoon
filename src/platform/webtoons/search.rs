@@ -1,6 +1,6 @@
 //! Module representing `webtoons.com` search.
 
-use assumptions::Assume;
+use assumptions::Assume as _;
 
 use crate::platform::webtoons::{Client, Type, Webtoon, error::ClientError};
 

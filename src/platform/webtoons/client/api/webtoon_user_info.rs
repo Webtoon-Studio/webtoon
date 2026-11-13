@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[allow(unused)]
+#[expect(unused)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WebtoonUserInfo {
@@ -13,7 +13,7 @@ impl WebtoonUserInfo {
         self.author
     }
 
-    #[allow(unused)]
+    #[expect(unused)]
     pub fn did_rate(&self) -> bool {
         self.favorite
     }
